@@ -20,9 +20,36 @@ namespace Shaolin36.Core.Fighters
     /// </summary>
     public sealed class Fighter
     {
-        public Fighter(Loadout? loadout = null) => Loadout = loadout ?? new Loadout();
+        /// <param name="loadout">What sits on the 8 slots; empty if null.</param>
+        /// <param name="maxHp">Starting and max HP. A <see cref="Combat.Duel"/> passes the rules sheet's hp_max.</param>
+        /// <param name="positionCm">Where the fighter stands on the line, in whole centimetres.</param>
+        public Fighter(Loadout? loadout = null, int maxHp = 1, int positionCm = 0)
+        {
+            if (maxHp < 1) throw new ArgumentOutOfRangeException(nameof(maxHp), maxHp, "a fighter has at least 1 HP");
+            Loadout = loadout ?? new Loadout();
+            MaxHp = maxHp;
+            Hp = maxHp;
+            PositionCm = positionCm;
+        }
 
         public Loadout Loadout { get; }
+
+        public int MaxHp { get; }
+
+        /// <summary>Current HP, from <see cref="MaxHp"/> down to 0.</summary>
+        public int Hp { get; private set; }
+
+        /// <summary>True once HP reaches 0.</summary>
+        public bool IsDown => Hp == 0;
+
+        /// <summary>
+        /// Where the fighter stands on the fight line, in whole centimetres. Set by whoever
+        /// moves the fighter (the arena for now; movement rules come later).
+        /// </summary>
+        public int PositionCm { get; set; }
+
+        /// <summary>True once the current move's hit has connected. A move hits at most once.</summary>
+        public bool HitLanded { get; private set; }
 
         public FighterState State { get; private set; } = FighterState.Idle;
 
@@ -69,11 +96,32 @@ namespace Shaolin36.Core.Fighters
             StunFramesLeft = frames;
         }
 
+        /// <summary>
+        /// Take a hit on this tick: lose <paramref name="damage"/> HP (never below 0), then,
+        /// if <paramref name="hitstunFrames"/> is above 0, be held in hitstun for that many
+        /// frames counted from this tick. A new hit during hitstun restarts the count.
+        /// </summary>
+        public void TakeHit(int damage, int hitstunFrames)
+        {
+            if (damage < 0) throw new ArgumentOutOfRangeException(nameof(damage), damage, "damage cannot be negative");
+            if (hitstunFrames < 0) throw new ArgumentOutOfRangeException(nameof(hitstunFrames), hitstunFrames, "hitstun cannot be negative");
+            Hp = damage >= Hp ? 0 : Hp - damage;
+            if (hitstunFrames > 0) Stun(FighterState.Hitstun, hitstunFrames);
+        }
+
+        /// <summary>Record that the current move's hit connected, so its later active frames don't hit again.</summary>
+        public void MarkHitLanded()
+        {
+            if (!State.IsInMove()) throw new InvalidOperationException("only a fighter in a move can land a hit");
+            HitLanded = true;
+        }
+
         private void Start(Slot slot, Technique technique)
         {
             Technique = technique;
             Slot = slot;
             MoveFrame = 0;
+            HitLanded = false;
             State = PhaseAt(technique, 0);
         }
 
@@ -108,6 +156,7 @@ namespace Shaolin36.Core.Fighters
             Technique = null;
             Slot = null;
             MoveFrame = -1;
+            HitLanded = false;
         }
 
         /// <summary>Which phase frame <paramref name="frame"/> of a technique is in.</summary>
