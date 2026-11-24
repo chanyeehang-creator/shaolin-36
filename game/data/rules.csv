@@ -29,7 +29,7 @@ input_buffer,6,A press made while busy is kept this many frames and used as soon
 knockback_frames,8,Knockback and clash pushes slide the fighter back over this many frames (8 = 0.13 s)
 walk_speed,200,Walking speed in cm per second (only while idle)
 min_distance,80,Fighters can't walk closer than this many cm (the capsules touch at 80)
-start_distance,110,How far apart a duel starts in cm (罗汉拳 hit 1 reaches 120)
+start_distance,300,How far apart a duel starts in cm. Out of every attack's reach (the longest is 铁砂掌: 130 + 20 step-in) so nobody can be hit the moment a duel starts (Chan's playtest: was 110)
 arena_width,1400,The fight floor is a square this many cm each way (14 m); fighters stop at the edges
 dummy_pause,40,Playtest dummy: idle frames between its 罗汉拳 strings
 dummy_chain_frame,0,Playtest dummy: chain-window frame it chains on (0 = first frame and a true combo; 7 leaves gaps you can parry)
@@ -38,4 +38,5 @@ quick_step_frames,8,Quick step: frames the step slides over (8 = 0.13 s)
 quick_step_recovery,6,Quick step: frames after the slide before you can act again (6 = 0.1 s). No invincible frames at any point
 quick_step_stamina,6,Quick step: stamina it costs (none while exhausted)
 quick_step_tap_window,14,Quick step: the second tap must come within this many frames of the first (14 = 0.23 s)
+opponent_ready,30,Frames the opponent brain waits at the start of a duel before it does anything (30 = 0.5 s)
 quick_step_side_distance,90,Quick step: how far a left or right step goes in cm (Chan's playtest: a bit farther than forward/back, was 70)

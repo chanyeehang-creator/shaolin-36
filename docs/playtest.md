@@ -143,7 +143,7 @@ Hits also **push the defender back** (knockback). This is a rule, not just a loo
 | Same-weight clash | both fighters 25 cm, a real reset (110 cm apart becomes 160) |
 | Hit on hyper armor, a parry, a lost clash | nobody moves |
 
-Because of the small pushes, the full 罗汉拳 string only stays in reach if you start it **116 cm away or closer**. The duel starts at 110 cm, so you're fine from the start position. If you start it at the very tip of hit 1's 120 cm reach, hit 2 will miss: step in first.
+Because of the small pushes, the full 罗汉拳 string only stays in reach if you start it **116 cm away or closer**. If you start it at the very tip of hit 1's 120 cm reach, hit 2 will miss: step in first.
 
 **The opponent brain (Stage 3).** The opponent is now played by a brain that uses the same buttons and stick you do: the same three techniques (罗汉拳 on □, 铁砂掌 on △, 化绵掌 on L1), the same stamina, Qi and frame data, and the quick step. It never reads your buttons. It only "sees" what you do a little late, like a person reacting. What it does, in order of priority:
 
@@ -165,6 +165,7 @@ Three brains to pick from on the loadout screen (you start against the monk):
 
 Things worth knowing when you fight it:
 
+- **Every duel starts 300 cm apart** and the brain waits half a second (30 frames) before it moves, so a new duel or a restart never opens with you getting hit. Walking in at 200 cm per second, it needs about 1.4 s in all to reach you. (The old training dummy never walks, so walk up to it.)
 - **罗汉拳 hit 1 lands 13 frames (0.22 s) after you press**, faster than any of the brains can react (12 frames to see it plus 3 to open a parry is already 15). So your opening jab only gets parried when the brain **guesses**. Its slow moves are different: your 铁砂掌 winds up for 36 frames (0.6 s), and every brain sees that coming in time.
 - **A wrong guess is your chance.** When it throws 化绵掌 and nothing comes, it's stuck for 27 frames (0.45 s) and paid 10 stamina. Wait for the parry colours to pass, then hit it.
 - **After it blocks one hit, it can block the next only if the gap is long enough.** A block costs 8 frames of recovery and a new parry takes 3 frames to open. 罗汉拳 hit 3 lands only 9 frames after hit 2, so if you mash the string, hit 3 always gets through a block. The same is true for you when it attacks you.
@@ -214,7 +215,8 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
 - `game\data\techniques.csv`: each technique's frames, damage, reach, chain window, perfect parry frames.
 - `game\data\rules.csv`: HP, input buffer, and the test settings added for this step:
   - `walk_speed`: how fast you walk, in cm per second (200).
-  - `start_distance`: how far apart the duel starts (110 cm, inside 罗汉拳's 120 cm reach).
+  - `start_distance`: how far apart the duel starts (300 cm, out of every attack's reach, so nobody is hit the moment a duel starts or restarts).
+  - `opponent_ready`: frames the opponent brain waits at the start of a duel before it moves (30, half a second).
   - `min_distance`, `arena_width`: how close the capsules can get, and how big the square floor is (1400 = 14 m each way).
   - `quick_step_distance` (70 cm forward/back), `quick_step_side_distance` (90 cm left/right), `quick_step_frames` (8), `quick_step_recovery` (6), `quick_step_stamina` (6), `quick_step_tap_window` (14): the quick step.
   - `dummy_pause`: frames the training dummy waits between strings (40, about 0.7 s).

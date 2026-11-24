@@ -122,7 +122,7 @@ public class AdvanceTests
         var book = new TechniqueBook(sheet);
         var dummyLoadout = new Loadout(book);
         dummyLoadout.Assign(Slot.Square, book.Find("luohan_quan_1")!);
-        var d = Duel.Start(rules, new Loadout(book), dummyLoadout);
+        var d = new Duel(rules, new Loadout(book), dummyLoadout, -55, 55); // 110 cm apart, in 罗汉拳 reach
         var dummy = TrainingDummy.FromRules(rules, Slot.Square);
         int start = d.Two.XCm;
         for (int t = 0; t <= rules.DummyPause + 13; t++) d.Step(None, dummy.Think(d.Two));

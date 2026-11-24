@@ -12,7 +12,12 @@ namespace Shaolin36.Core.Tests;
 /// </summary>
 public class BrainTests
 {
-    private static readonly Rules Rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
+    /// <summary>The real rules sheet, with the start-of-duel wait (opponent_ready) as in the game.</summary>
+    private static readonly Rules SheetRules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
+
+    /// <summary>The real rules sheet with no start-of-duel wait, so a test's brain acts from tick 0.</summary>
+    private static readonly Rules Rules = RulesCsv.Parse(string.Join("\n",
+        File.ReadAllLines(GameDataTests.SheetPath("rules.csv")).Select(l => l.StartsWith("opponent_ready,") ? "opponent_ready,0,test" : l))).Rules!;
     private static readonly TechniqueBook Book =
         new(TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques);
 
@@ -314,6 +319,31 @@ public class BrainTests
         Run(d, brain, 120);
         Assert.Equal(start, d.Two.Position);
         Assert.Equal(BrainIntent.Still, brain.Intent);
+    }
+
+    [Fact]
+    public void It_waits_opponent_ready_ticks_before_doing_anything()
+    {
+        var d = Duel.Start(SheetRules, Starter(), Starter());
+        var start = d.Two.Position;
+        var brain = new Brain(Style(aggression: 100), 1);
+        Assert.True(SheetRules.OpponentReady > 0);
+        Run(d, brain, SheetRules.OpponentReady);
+        Assert.Equal(start, d.Two.Position);
+        Assert.Equal(BrainIntent.Still, brain.Intent);
+        Run(d, brain, 1);
+        Assert.Equal(BrainIntent.Closing, brain.Intent);
+    }
+
+    [Fact]
+    public void A_new_duel_never_opens_with_a_hit_on_you()
+    {
+        // Even the sharpest, most aggressive brain needs time to walk in from start_distance.
+        var d = Duel.Start(SheetRules, Starter(), Starter());
+        var brain = new Brain(Style(aggression: 100, step: 100, thinkEvery: 1), 1);
+        int firstHit = -1;
+        Run(d, brain, 300, each: i => { if (firstHit < 0 && d.Hits.Count > 0) firstHit = i; });
+        Assert.True(firstHit >= SheetRules.OpponentReady + 20, $"first hit on tick {firstHit}");
     }
 
     // ---------- Determinism and the sheet's brains ----------

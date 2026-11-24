@@ -23,7 +23,7 @@ namespace Shaolin36.Core.Data
             "walk_speed", "min_distance", "start_distance", "arena_width",
             "dummy_pause", "dummy_chain_frame",
             "quick_step_distance", "quick_step_frames", "quick_step_recovery", "quick_step_stamina", "quick_step_tap_window",
-            "quick_step_side_distance",
+            "quick_step_side_distance", "opponent_ready",
         };
 
         private readonly Dictionary<string, int> _values;
@@ -110,6 +110,9 @@ namespace Shaolin36.Core.Data
 
         /// <summary>Stamina a quick step costs.</summary>
         public int QuickStepStamina => V("quick_step_stamina");
+
+        /// <summary>Frames the opponent brain waits at the start of a duel before it does anything.</summary>
+        public int OpponentReady => V("opponent_ready");
 
         /// <summary>The most frames from the first tap of a direction to the second that still makes a quick step.</summary>
         public int QuickStepTapWindow => V("quick_step_tap_window");
@@ -207,6 +210,7 @@ namespace Shaolin36.Core.Data
                 Check(values["exhausted_damage_pct"] >= 100, "exhausted_damage_pct", "must be 100 or more (100 = normal damage)");
                 Check(values["quick_step_distance"] <= 300, "quick_step_distance", "must be 300 cm or less: it's a step, not a dash");
                 Check(values["quick_step_side_distance"] <= 300, "quick_step_side_distance", "must be 300 cm or less: it's a step, not a dash");
+                Check(values["opponent_ready"] <= 600, "opponent_ready", "must be 600 frames (10 s) or fewer");
                 Check(values["quick_step_frames"] >= 1, "quick_step_frames", "must be at least 1 frame");
                 Check(values["quick_step_tap_window"] >= 1 && values["quick_step_tap_window"] <= 30, "quick_step_tap_window",
                     "must be between 1 and 30 frames (half a second)");

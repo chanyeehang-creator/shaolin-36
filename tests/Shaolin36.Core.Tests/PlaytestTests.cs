@@ -50,11 +50,14 @@ public class PlaytestTests
     }
 
     [Fact]
-    public void The_real_sheet_starts_inside_hit_1_reach_and_outside_touching()
+    public void The_real_sheet_starts_out_of_every_attacks_reach()
     {
+        // Chan's playtest: a new duel must not open with you getting hit.
         var rules = SheetRules();
-        Assert.True(rules.StartDistance >= rules.MinDistance);
-        Assert.True(rules.StartDistance <= 120, "the dummy's 罗汉拳 hit 1 should reach you at the start");
+        var techniques = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques;
+        int longest = techniques.Max(t => t.ReachCm + t.AdvanceCm);
+        Assert.True(rules.StartDistance > longest, $"start_distance {rules.StartDistance} should be more than the longest reach {longest}");
+        Assert.True(rules.StartDistance <= rules.ArenaWidth);
     }
 
     // ---------- Walking ----------
