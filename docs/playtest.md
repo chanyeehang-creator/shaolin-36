@@ -87,7 +87,7 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 - **A perfect parry gives your 10 back** and the attacker loses 15 more ("+10 stamina" / "-15 stamina" float up).
 - **Clashes cost a little:** 5 each for a same-weight clash, 8 for the side that loses.
 - **Getting it back:** nothing while you're doing a move. Half a second (30 frames) after your last move, it refills at 40 per second standing still, or 25 per second while walking or reeling from a hit.
-- **At 0 you're exhausted** (the bar turns orange, "Exhausted!" floats up): you can't use any move that costs stamina, so **no 化绵掌, your guard is broken**. You walk at half speed and take 25% extra damage (a 6-damage hit does 8). It lasts until the bar is back to 50: about 1.75 s if you stand still. Then "Breath back".
+- **At 0 you're exhausted** (the bar turns orange, "Exhausted!" floats up): you can't use any move that costs stamina, so **no 化绵掌, your guard is broken**. You walk at half speed and take 20% extra damage (a 6-damage hit does 7, the 12-damage finisher does 14). It lasts until the bar is back to 50: about 1.75 s if you stand still. Then "Breath back".
 - The dummy gets exhausted too: its 3rd string in a row empties it (on the finisher), and it rests about 2.5 s before attacking again. That's your moment: it can't attack or parry and takes extra damage.
 
 **Clashes (拼招):** if your hit lands in the last frames of the dummy's wind-up, the moves clash. Same weight: both bounce off (grey). Heavier move: it breaks through. Lighter move: it gets knocked aside. Hit the very first frames of that window and it's a **PERFECT CLASH**: the dummy is staggered whatever the weights. The 罗汉拳 finisher (hit 4) is heavy, so it wins normal clashes against hits 1 to 3.

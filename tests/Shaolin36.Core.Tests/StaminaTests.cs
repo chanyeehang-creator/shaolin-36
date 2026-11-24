@@ -399,6 +399,18 @@ public class StaminaTests
     // ---------- The real sheets ----------
 
     [Fact]
+    public void On_the_sheet_hits_on_an_exhausted_fighter_deal_20_percent_more()
+    {
+        // Chan's 4th playtest: a small 1.2x bonus against an exhausted opponent.
+        var rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
+        Assert.Equal(120, rules.ExhaustedDamagePct);
+        var f = new Fighter(null, 100, 0, 0, StaminaRules.FromRules(rules));
+        f.LoseStamina(f.MaxStamina);
+        Assert.Equal(7, f.DamageTaken(6));   // 7.2, a 罗汉拳 hit 1 or 2
+        Assert.Equal(14, f.DamageTaken(12)); // 14.4, the finisher
+    }
+
+    [Fact]
     public void On_the_sheet_ten_whiffed_parry_taps_in_a_row_break_the_guard()
     {
         var rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
