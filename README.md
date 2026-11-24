@@ -12,7 +12,7 @@ Built in **Godot 4.7 (.NET / C#)**. The combat rules live in a plain C# library 
 | `tests/Shaolin36.Core.Tests/` | Unit and scenario tests for the rules (xUnit). |
 | `tools/DataCheck/` | Check script: rejects bad rows in the data sheets before the game loads them. |
 | `game/` | The Godot project (`project.godot`). Shows and drives the core; holds scenes, scripts and assets. |
-| `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet; `rules.csv` holds base stats and the clash and parry numbers. |
+| `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet; `rules.csv` holds base stats and the clash and parry numbers; `feel.csv` holds the hit feel (hit-stop, sparks, sound, camera) for each kind of strike. |
 | `scripts/` | One-click Play, test and headless boot scripts. |
 | `.github/workflows/` | CI: data check, core tests and a headless Godot boot on every push. |
 
@@ -57,9 +57,13 @@ Two fighters stand on a line, positions in whole centimetres. A hit connects whe
 
 Each tick, an idle fighter can walk left or right at `walk_speed` cm per second, in whole centimetres with the fraction carried, so the same inputs always give the same positions. Fighters stop `min_distance` apart and at the ends of the `arena_width` line. The playtest dummy (`TrainingDummy`) waits `dummy_pause` frames, then throws its string, chaining on chain-window frame `dummy_chain_frame`. All of these are in `rules.csv`.
 
+## Hit feel
+
+Every strike is sorted into one row of `feel.csv` (hit, heavy hit, block, perfect parry, the clashes, KO...). The core's `FeelClock` drives the duel and freezes it for that row's `hitstop` frames after the strike: nothing in the rules moves during a freeze, so all frame data keeps its meaning, and slot presses made during it are used right after. The Godot side plays the row's sparks, sound and camera shake and push. F3 turns the kit off and on in the playtest.
+
 ## Editing data
 
-Edit `game/data/techniques.csv` or `game/data/rules.csv` (in Excel, save as **CSV UTF-8**). Category and weight accept English or Chinese (`waigong` or `外功`, `heavy` or `重`). Lines starting with `#` are comments. Run the test script afterwards: the check tells you the line and column of anything wrong.
+Edit `game/data/techniques.csv`, `game/data/rules.csv` or `game/data/feel.csv` (in Excel, save as **CSV UTF-8**). Category and weight accept English or Chinese (`waigong` or `外功`, `heavy` or `重`). Lines starting with `#` are comments. Run the test script afterwards: the check tells you the line and column of anything wrong.
 
 Frames are 1/60 s sim ticks. The current numbers are Stage 1 starting values, open for tuning. The data check also prints how many frames each combo string gives you to chain and still link.
 

@@ -56,6 +56,8 @@ Every fight button is a **slot**. Slots don't mean anything on their own: whatev
 | Loadout screen (pauses) | 10 (Start) | Tab or Esc |
 | Restart the duel | Start after a KO, or the loadout screen's last row | Enter |
 | Half speed on/off | | F1 |
+| Floating text on/off | | F2 |
+| Feel kit on/off (hit-stop, sparks, sound, camera) | | F3 |
 
 On the **loadout screen**: move up and down to pick a technique (W/S, ↑/↓ or the D-pad), then press the button you want it on. Want 化绵掌 on ✕ instead of L1? Highlight 化绵掌 and press ✕. If something was already on that button, the two swap. Below the techniques, one row turns the dummy's attacks on and off (Select or T does the same from the fight), and the last row restarts the duel.
 
@@ -107,6 +109,26 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 
 **Clashes (拼招):** if your hit lands in the last frames of the dummy's wind-up, the moves clash. Same weight: both bounce off (grey). Heavier move: it breaks through. Lighter move: it gets knocked aside. Hit the very first frames of that window and it's a **PERFECT CLASH**: the dummy is staggered whatever the weights. The 罗汉拳 finisher (hit 4) is heavy, so it wins normal clashes against hits 1 to 3.
 
+**Feel kit (Stage 2):** every strike now lands with a short freeze (**hit-stop**), a burst of sparks with a flash of light, a sound, and a camera shake. The big moments also push the camera in a little. Press **F3** to switch it all off and on, so you can feel the difference.
+
+- **Hit-stop** freezes the whole fight for a few frames right after a strike: both fighters, every timer, stamina regen. Nothing in the frame data changes. A 罗汉拳 hit still stuns for exactly 37 frames, but those 37 frames start after the freeze. The top line says **(hit-stop)** while it's frozen.
+- **Buttons pressed during the freeze are kept** and used straight after it, so chaining the string on the "chain now!" beat works the same.
+- Starting values (1 frame = 1/60 s):
+
+| What happened | Freeze | Sound | Sparks |
+| --- | --- | --- | --- |
+| 罗汉拳 hits 1 to 3 land | 5 frames (0.08 s) | smack | small, pale orange |
+| Heavy hit (罗汉拳 finisher, plain 铁砂掌) | 8 frames (0.13 s) | thud | orange |
+| Qi 铁砂掌 lands | 12 frames (0.2 s) | crack | big, gold, camera push |
+| A hit on hyper armor | 4 frames | thud | gold |
+| 化绵掌 blocks | 3 frames (0.05 s) | dull block | small, blue |
+| PERFECT PARRY | 10 frames (0.17 s) | bright ring | green, camera push |
+| Clash (any kind) | 6 to 9 frames | clang | yellow-white, camera push |
+| PERFECT CLASH | 14 frames (0.23 s) | clang | the biggest burst, biggest push |
+| The finishing hit (KO) | 20 frames (0.33 s) | gong | red |
+
+The sounds are placeholders made in code (no sound files yet), so judge their timing and weight, not their quality.
+
 ## 6. Tuning while you play
 
 All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**), then close the game and double-click `play.bat` again:
@@ -125,6 +147,12 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - 铁砂掌's power-up is three columns in `techniques.csv`: `empower_qi` (30), `empower_damage_pct` (200 = double) and `empower_armor` (true). Any technique can get them.
   - `qi_max`, `qi_start`, `qi_per_hit`, `parry_perfect_qi`, `clash_perfect_qi`: the Qi bar's size, what you start on, and what a hit, a perfect parry and a perfect clash give.
   - `dummy_chain_frame`: when the dummy presses for its next hit. 0 is a true combo you can't escape. Try 7 (the last frame of the window): it leaves gaps you can parry into.
+
+- `game\data\feel.csv`: the feel kit, one row per kind of strike (hit, heavy_hit, empowered_hit, armor_hit, block, perfect_parry, clash_recoil, clash_break, clash_lost, perfect_clash, ko):
+  - `hitstop`: frames the fight freezes (0 to 30).
+  - `shake`: camera shake in cm (0 to 50). `push`: how far the camera moves in, in cm (0 to 100).
+  - `spark`: size of the spark burst in cm (0 = none, up to 200).
+  - `sound`: none, thud, smack, crack, block, ring, clang or gong.
 
 Run `scripts\test.bat` after editing to check the sheets.
 

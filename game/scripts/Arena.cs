@@ -4,6 +4,7 @@ using Godot;
 using Shaolin36.Core;
 using Shaolin36.Core.Combat;
 using Shaolin36.Core.Data;
+using Shaolin36.Core.Feel;
 using Shaolin36.Core.Fighters;
 using Side = Shaolin36.Core.Combat.Side;
 
@@ -12,7 +13,9 @@ namespace Shaolin36.Game;
 /// <summary>
 /// The first playable test (Stage 1 brief 5): you against a dummy that repeats its string.
 /// This node only shows and drives the core: it turns button presses into slot presses,
-/// steps the <see cref="Duel"/> once per 60 Hz physics tick, and paints the capsules by state.
+/// steps the <see cref="Duel"/> once per 60 Hz physics tick (through the <see cref="FeelClock"/>, which
+/// adds hit-stop), and paints the capsules by state. The feel kit's sparks, sounds and camera moves
+/// are in ArenaFeel.cs.
 /// </summary>
 public partial class Arena : Node3D
 {
@@ -59,6 +62,9 @@ public partial class Arena : Node3D
     private readonly TrainingDummy _dummy = null!;
 
     private Duel _duel = null!;
+    private readonly FeelSheet _feel = null!;
+    private FeelClock _clock = null!;
+    private bool _feelOn = true;
     private byte _pending; // slot presses since the last tick
     private bool _menuOpen;
     private int _menuRow;
@@ -75,9 +81,11 @@ public partial class Arena : Node3D
     private string _lastPadInput = "";
 
     /// <param name="techniques">Every technique from the sheet.</param>
-    public Arena(Rules rules, IReadOnlyList<Technique> techniques)
+    /// <param name="feel">The feel sheet: hit-stop, sparks, sound and camera for each kind of strike.</param>
+    public Arena(Rules rules, IReadOnlyList<Technique> techniques, FeelSheet feel)
     {
         _rules = rules;
+        _feel = feel;
         _book = new TechniqueBook(techniques);
         // What can sit on a slot: everything that isn't a later hit of a string.
         var followUps = new HashSet<string>(techniques.Where(t => t.HasNext).Select(t => t.Next));
@@ -104,6 +112,7 @@ public partial class Arena : Node3D
     private void NewDuel()
     {
         _duel = Duel.Start(_rules, _playerLoadout, _dummyLoadout);
+        _clock = new FeelClock(_duel, _feel) { HitStopOn = _feelOn };
         _combo = 0;
         _comboBy = null;
         ClearFloats();
@@ -113,13 +122,23 @@ public partial class Arena : Node3D
 
     /// <summary>
     /// Runs the duel for <paramref name="ticks"/> ticks with no screen, the player fighting
-    /// back with its own dummy brain. Returns how many hits landed. Used by the boot check.
+    /// back with its own dummy brain, hit-stop on. Returns how many hits landed, and how many
+    /// ticks were hit-stop. Used by the boot check.
     /// </summary>
-    public int Simulate(int ticks)
+    public int Simulate(int ticks, out int frozenTicks)
     {
         var player = TrainingDummy.FromRules(_rules, Slot.Square);
+        frozenTicks = 0;
         for (int i = 0; i < ticks && !_duel.IsOver; i++)
-            _duel.Step(player.Think(_duel.One), _dummy.Think(_duel.Two), i % 90 < 10 ? 1 : 0, 0);
+        {
+            if (_clock.IsFrozen)
+            {
+                frozenTicks++;
+                _clock.Step(SlotInput.None, SlotInput.None);
+                continue;
+            }
+            _clock.Step(player.Think(_duel.One), _dummy.Think(_duel.Two), i % 90 < 10 ? 1 : 0, 0);
+        }
         return _duel.Hits.Count;
     }
 
@@ -138,7 +157,9 @@ public partial class Arena : Node3D
             },
         });
         AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-50, -30, 0), ShadowEnabled = true });
-        AddChild(new Camera3D { Position = new Vector3(0, 1.7f, 6.5f), RotationDegrees = new Vector3(-8, 0, 0), Fov = 50 });
+        _camera = new Camera3D { Position = CameraHome, RotationDegrees = new Vector3(-8, 0, 0), Fov = 50 };
+        AddChild(_camera);
+        BuildSounds();
         AddChild(new MeshInstance3D
         {
             Mesh = new PlaneMesh { Size = new Vector2(_rules.ArenaWidth / 100f + 2, 6) },
@@ -266,6 +287,15 @@ public partial class Arena : Node3D
             _slowMotion = !_slowMotion;
             return;
         }
+        if (command == Command.FeelKit)
+        {
+            _feelOn = !_feelOn;
+            _clock.HitStopOn = _feelOn;
+            _event.Text = _feelOn
+                ? "Feel kit [b]on[/b]: hit-stop, sparks, sound and camera shake. F3 turns it off to compare."
+                : "Feel kit [b]off[/b]: no hit-stop, sparks, sound or camera moves. F3 turns it back on.";
+            return;
+        }
         if (command == Command.FloatingText)
         {
             _floatingText = !_floatingText;
@@ -371,7 +401,10 @@ public partial class Arena : Node3D
         if (_floatingText && _duel.One.IsExhausted && PressedUnaffordable(input))
             Float(Side.One, "No stamina!", ExhaustedColor);
 
-        var hits = _duel.Step(input, _dummy.Think(_duel.Two), Controls.WalkDirection(), 0);
+        // The dummy doesn't think during hit-stop, so its own timers stay in step with the fight.
+        var dummyInput = _clock.IsFrozen ? SlotInput.None : _dummy.Think(_duel.Two);
+        var hits = _clock.Step(input, dummyInput, Controls.WalkDirection(), 0);
+        if (_feelOn) foreach (var cue in _clock.Cues) PlayCue(cue);
         foreach (var hit in hits)
         {
             if (hit.Landed)
@@ -590,6 +623,7 @@ public partial class Arena : Node3D
 
     public override void _Process(double delta)
     {
+        UpdateFeel((float)delta);
         for (int i = _floats.Count - 1; i >= 0; i--)
         {
             var t = _floats[i];
@@ -624,11 +658,11 @@ public partial class Arena : Node3D
         _status.Text =
             $"[b]You[/b]    HP {Bar(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
             $"[b]Dummy[/b] HP {Bar(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
-            $"Distance {_duel.DistanceCm} cm   ·   dummy {(_dummy.Attacks ? "attacking" : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
+            $"Distance {_duel.DistanceCm} cm   ·   dummy {(_dummy.Attacks ? "attacking" : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_clock.IsFrozen ? " [color=#ffd11a](hit-stop)[/color]" : "")}   ·   feel kit {(_feelOn ? "on" : "[color=#ffd11a]off[/color]")} (F3){(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk: A/D, ←/→, D-pad or left stick  ·  Loadout: Tab / Esc / pad Start  ·  Dummy still/attack: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2\n" +
+            "Walk: A/D, ←/→, D-pad or left stick  ·  Loadout: Tab / Esc / pad Start  ·  Dummy still/attack: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
