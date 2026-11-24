@@ -49,6 +49,10 @@ CI runs all three on every push.
 
 A fighter has 8 slots: □ △ ○ ✕ L1 L2 R1 R2. Each holds any technique or nothing, and the rules only ever see "slot N pressed", never "parry pressed". So 化绵掌 can sit on L1, ○ or ✕, and a later 化劲 technique such as 金钟罩 drops into the same slot the same way. A gamepad (including DirectInput pads like the Logitech Dual Action) and keyboard + mouse will each map their buttons onto these 8 slots; that binding is set up in the first playable test.
 
+## Hits and reach
+
+Two fighters stand on a line, positions in whole centimetres. A hit connects when the other fighter is within the technique's `reach` (distance ≤ reach) on any of its active frames; each move hits at most once. The hit deals its `damage` and freezes the defender for `hitstun` frames counted from the hit frame. Hits on the same tick trade. A technique with reach 0, like 化绵掌, never hits. Clash and parry join the fight in a later step.
+
 ## Editing data
 
 Edit `game/data/techniques.csv` or `game/data/rules.csv` (in Excel, save as **CSV UTF-8**). Category and weight accept English or Chinese (`waigong` or `外功`, `heavy` or `重`). Lines starting with `#` are comments. Run the test script afterwards: the check tells you the line and column of anything wrong.
