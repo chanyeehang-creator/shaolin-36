@@ -24,8 +24,9 @@ namespace Shaolin36.Core.Combat
         public HitEvent(int tick, Side attacker, Technique technique, int damage, int hitstunFrames, int defenderHpAfter,
             Technique? defenderTechnique = null, int defenderMoveFrame = -1,
             ParryOutcome parry = ParryOutcome.NotParried, ParryEffect? parryEffect = null,
-            ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null)
+            ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null, bool defenderExhausted = false)
         {
+            DefenderExhausted = defenderExhausted;
             DefenderTechnique = defenderTechnique;
             DefenderMoveFrame = defenderTechnique == null ? -1 : defenderMoveFrame;
             Tick = tick;
@@ -61,14 +62,17 @@ namespace Shaolin36.Core.Combat
         /// <summary>How a 化绵掌 parry dealt with the strike; <see cref="ParryOutcome.NotParried"/> if it didn't.</summary>
         public ParryOutcome Parry { get; }
 
-        /// <summary>The parry's numbers (stamina and Qi are applied once stamina exists); null if not parried.</summary>
+        /// <summary>The parry's numbers (its stamina is applied; Qi comes later); null if not parried.</summary>
         public ParryEffect? ParryEffect { get; }
 
         /// <summary>The clash the strike caused against the defender's wind-up; <see cref="ClashOutcome.NoClash"/> if none.</summary>
         public ClashOutcome Clash { get; }
 
-        /// <summary>The clash's numbers (stamina and Qi are applied once stamina exists); null if no clash.</summary>
+        /// <summary>The clash's numbers (its stamina is applied; Qi comes later); null if no clash.</summary>
         public ClashEffect? ClashEffect { get; }
+
+        /// <summary>True when the defender was exhausted as the strike landed, so a landed hit dealt extra damage.</summary>
+        public bool DefenderExhausted { get; }
 
         /// <summary>True when the strike dealt its damage and hitstun.</summary>
         public bool Landed => Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
@@ -114,13 +118,18 @@ namespace Shaolin36.Core.Combat
     /// (<see cref="FighterState.Recoil"/>), the defender's move stops and they stagger.</item>
     /// <item>Otherwise the hit lands: damage and hitstun.</item>
     /// </list>
-    /// Stamina and Qi from parries and clashes are carried on the <see cref="HitEvent"/> and
-    /// applied once stamina and Qi exist (the next step of Stage 1).
+    /// Stamina (see <see cref="Fighter"/> for costs, regen and exhaustion): every move pays its cost
+    /// when it starts, so each 化绵掌 tap costs its stamina whether it blocks, misses or is perfect.
+    /// A perfect parry refunds the defender that cost and drains the attacker parry_perfect_drain.
+    /// Clashes take each side's clash stamina. A landed hit on an exhausted fighter deals
+    /// exhausted_damage_pct of its damage. Qi from parries and clashes is carried on the
+    /// <see cref="HitEvent"/> and applied once Qi exists.
     ///
     /// Walking: each tick, after acting, a fighter who is idle walks one step in the
     /// direction given (-1 left, +1 right, 0 stand) at the rules sheet's walk_speed. Speeds
     /// are whole centimetres per second, so each fighter carries the leftover fraction of
-    /// a centimetre in sixtieths, and the same inputs always give the same positions. A fighter
+    /// a centimetre in sixtieths, and the same inputs always give the same positions. An exhausted
+    /// fighter walks at exhausted_walk_pct of the speed. A fighter
     /// stops at the ends of the arena (arena_width, centred on 0) and can't come closer than
     /// min_distance to the other or pass through them; when both walk into each other, the
     /// overlap is split between them.
@@ -137,8 +146,8 @@ namespace Shaolin36.Core.Combat
             Rules = rules;
             _fighters = new[]
             {
-                new Fighter(one, rules.HpMax, onePositionCm, rules.InputBuffer),
-                new Fighter(two, rules.HpMax, twoPositionCm, rules.InputBuffer),
+                new Fighter(one, rules.HpMax, onePositionCm, rules.InputBuffer, StaminaRules.FromRules(rules)),
+                new Fighter(two, rules.HpMax, twoPositionCm, rules.InputBuffer, StaminaRules.FromRules(rules)),
             };
         }
 
@@ -178,8 +187,8 @@ namespace Shaolin36.Core.Combat
         {
             if (IsOver) return Array.Empty<HitEvent>();
 
-            One.Tick(one);
-            Two.Tick(two);
+            One.Tick(one, walkOne != 0);
+            Two.Tick(two, walkTwo != 0);
             Walk(Math.Sign(walkOne), Math.Sign(walkTwo));
 
             // Find both hits before applying either, so a same-tick trade doesn't depend on order.
@@ -219,6 +228,8 @@ namespace Shaolin36.Core.Combat
                     var e = Combat.Parry.Effect(parry, defenderMove, Rules);
                     defender.Stun(FighterState.Recoil, e.DefenderRecoveryFrames);
                     if (e.AttackerStaggerFrames > 0) striker.Stun(FighterState.Stagger, e.AttackerStaggerFrames);
+                    defender.GainStamina(e.DefenderStaminaRefund);
+                    striker.LoseStamina(e.AttackerStaminaLoss);
                     return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame, parry, e);
                 }
 
@@ -226,16 +237,21 @@ namespace Shaolin36.Core.Combat
                 if (clash != ClashOutcome.NoClash)
                 {
                     var e = Combat.Clash.Effect(clash, Rules);
+                    striker.LoseStamina(e.Striker.StaminaLoss);
                     if (e.StrikerHitLands)
                     {
                         // The heavier move breaks through: full damage, and the defender stays
                         // frozen for the longer of the hitstun and the clash stagger.
-                        defender.TakeHit(move.Damage, 0);
+                        bool tired = defender.IsExhausted;
+                        int damage = defender.DamageTaken(move.Damage);
+                        defender.TakeHit(damage, 0);
+                        defender.LoseStamina(e.Target.StaminaLoss);
                         int frames = Math.Max(move.HitstunFrames, e.Target.StunFrames);
                         if (frames > 0 && !defender.IsDown) defender.Stun(FighterState.Stagger, frames);
-                        return new HitEvent(Tick, attacker, move, move.Damage, frames, defender.Hp, defenderMove, defenderFrame,
-                            clash: clash, clashEffect: e);
+                        return new HitEvent(Tick, attacker, move, damage, frames, defender.Hp, defenderMove, defenderFrame,
+                            clash: clash, clashEffect: e, defenderExhausted: tired);
                     }
+                    defender.LoseStamina(e.Target.StaminaLoss);
                     ApplyClashSide(striker, e.Striker, clash == ClashOutcome.TargetWins ? FighterState.Stagger : FighterState.Recoil);
                     ApplyClashSide(defender, e.Target, clash == ClashOutcome.PerfectClash ? FighterState.Stagger : FighterState.Recoil);
                     return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame,
@@ -243,8 +259,11 @@ namespace Shaolin36.Core.Combat
                 }
             }
 
-            defender.TakeHit(move.Damage, move.HitstunFrames);
-            return new HitEvent(Tick, attacker, move, move.Damage, move.HitstunFrames, defender.Hp, defenderMove, defenderFrame);
+            bool exhausted = defender.IsExhausted;
+            int dealt = defender.DamageTaken(move.Damage);
+            defender.TakeHit(dealt, move.HitstunFrames);
+            return new HitEvent(Tick, attacker, move, dealt, move.HitstunFrames, defender.Hp, defenderMove, defenderFrame,
+                defenderExhausted: exhausted);
         }
 
         private static void ApplyClashSide(Fighter f, ClashSide side, FighterState state)
@@ -292,7 +311,8 @@ namespace Shaolin36.Core.Combat
                 _walkRemainder[index] = 0;
                 return 0;
             }
-            int sixtieths = _walkRemainder[index] + Rules.WalkSpeed;
+            int speed = f.IsExhausted ? Rules.WalkSpeed * Rules.ExhaustedWalkPct / 100 : Rules.WalkSpeed;
+            int sixtieths = _walkRemainder[index] + speed;
             _walkRemainder[index] = sixtieths % Sim.TicksPerSecond;
             return dir * (sixtieths / Sim.TicksPerSecond);
         }

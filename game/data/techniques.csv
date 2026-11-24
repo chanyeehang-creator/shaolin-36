@@ -3,6 +3,7 @@
 # weight: light/medium/heavy. clash_window = last N frames of startup; perfect_clash = first N frames of that window.
 # hitstun = frames the defender is frozen after the hit. reach = centimetres.
 # 罗汉拳 rhythm (Chan's 2nd playtest): 0.32 s wind-up, hit 1, 0.5 s, hit 2, 0.2 s, hit 3, 0.5 s, hit 4. Chained on the first frame the hits land on frames 19, 49, 61, 91.
+# stamina = paid when the move starts (each hit of a string pays its own). A perfect parry refunds the parry's cost.
 # next = id of the next hit in the string; chain_window = first N recovery frames where pressing again starts it.
 # perfect_parry (化劲 only) = first N active frames that count as a perfect parry; the active frames are the parry window.
 # 化绵掌 (Chan's 3rd playtest): 3 wind-up, 4 perfect + 10 block = 14-frame window, 10 cooldown if nothing hits.

@@ -362,8 +362,11 @@ public partial class Arena : Node3D
 
         bool oneWasStunned = _duel.One.State == FighterState.Hitstun;
         bool twoWasStunned = _duel.Two.State == FighterState.Hitstun;
+        bool oneWasExhausted = _duel.One.IsExhausted, twoWasExhausted = _duel.Two.IsExhausted;
         var input = new SlotInput(_pending);
         _pending = 0;
+        if (_floatingText && _duel.One.IsExhausted && PressedUnaffordable(input))
+            Float(Side.One, "No stamina!", ExhaustedColor);
 
         var hits = _duel.Step(input, _dummy.Think(_duel.Two), Controls.WalkDirection(), 0);
         foreach (var hit in hits)
@@ -382,10 +385,45 @@ public partial class Arena : Node3D
             if (_floatingText) FloatsFor(hit);
         }
 
+        ExhaustionChanged(Side.One, oneWasExhausted);
+        ExhaustionChanged(Side.Two, twoWasExhausted);
+
         if (_duel.IsOver)
         {
             var winner = _duel.Two.IsDown ? "You win" : "The dummy wins";
             _event.Text += $"\n[font_size=28][b]{winner}![/b][/font_size]  Press Enter, or Start on the pad, to fight again.";
+        }
+    }
+
+    /// <summary>True if a slot pressed this tick holds a move the player can't pay for.</summary>
+    private bool PressedUnaffordable(SlotInput input)
+    {
+        foreach (var s in Slots.All)
+        {
+            var t = _playerLoadout[s];
+            if (input.IsPressed(s) && t != null && !_duel.One.CanAfford(t)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>Say so when a fighter runs out of stamina or gets their breath back.</summary>
+    private void ExhaustionChanged(Side side, bool wasExhausted)
+    {
+        var f = _duel[side];
+        if (f.IsExhausted == wasExhausted || _duel.IsOver) return;
+        bool you = side == Side.One;
+        if (f.IsExhausted)
+        {
+            _event.Text += you
+                ? "\n[color=#ff8c1a][b]You're exhausted![/b][/color] No moves (and no 化绵掌) until your stamina is back to " +
+                  $"{_rules.ExhaustedUntil}. You walk slower and take {_rules.ExhaustedDamagePct - 100}% extra damage. Stand still to recover faster."
+                : $"\n[color=#ff8c1a][b]The dummy is exhausted![/b][/color] It can't attack or parry, and takes {_rules.ExhaustedDamagePct - 100}% extra damage. Punish it!";
+            if (_floatingText) Float(side, "Exhausted!", ExhaustedColor);
+        }
+        else
+        {
+            _event.Text += you ? "\nYou have your breath back." : "\nThe dummy has its breath back.";
+            if (_floatingText) Float(side, "Breath back", StaminaColor);
         }
     }
 
@@ -399,11 +437,13 @@ public partial class Arena : Node3D
             case ParryOutcome.PerfectParry:
                 return mine
                     ? $"[color=#33ff59][b]PERFECT PARRY![/b][/color] The dummy caught your {name}. You're staggered."
-                    : $"[color=#33ff59][b]PERFECT PARRY![/b][/color] You stopped {name}; the dummy is staggered. Hit it now!";
+                    : $"[color=#33ff59][b]PERFECT PARRY![/b][/color] You stopped {name}; the dummy is staggered. Hit it now! " +
+                      $"Your {hit.ParryEffect!.DefenderStaminaRefund} stamina came back and the dummy lost {hit.ParryEffect.AttackerStaminaLoss}.";
             case ParryOutcome.Parried:
                 return mine
                     ? $"[color=#33bfff][b]Blocked.[/b][/color] The dummy blocked your {name}; your string can carry on."
-                    : $"[color=#33bfff][b]Blocked[/b][/color] {name}: no damage, but its string carries on, so tap again for the next hit. " +
+                    : $"[color=#33bfff][b]Blocked[/b][/color] {name}: no damage, but its string carries on, so tap again for the next hit " +
+                      $"(each tap costs {hit.DefenderTechnique!.StaminaCost} stamina). " +
                       $"({PerfectMiss(hit.DefenderTechnique!, hit.DefenderMoveFrame)} frame(s) late for a perfect parry.)";
         }
 
@@ -421,7 +461,8 @@ public partial class Arena : Node3D
                     : $"[color=#ffd11a][b]Clash won![/b][/color] Your heavier move knocked {name} aside.";
         }
 
-        var combo = _combo > 1 ? $"   [b]{_combo} hit combo[/b]" : "";
+        var combo = (_combo > 1 ? $"   [b]{_combo} hit combo[/b]" : "") +
+                    (hit.DefenderExhausted ? $"   [color=#ff8c1a]exhausted: +{_rules.ExhaustedDamagePct - 100}% damage[/color]" : "");
         var clash = hit.Clash == ClashOutcome.StrikerWins ? "[b]Clash won, breaking through![/b] " : "";
         if (mine)
             return $"[color=#ffb347]{clash}You hit with {name}: {hit.Damage} damage.[/color]{combo}";
@@ -448,6 +489,8 @@ public partial class Arena : Node3D
 
     private static readonly Color DamageOnYouColor = new(1.00f, 0.35f, 0.35f);
     private static readonly Color DamageOnDummyColor = new(1.00f, 0.80f, 0.30f);
+    private static readonly Color StaminaColor = new(0.40f, 0.85f, 1.00f);
+    private static readonly Color ExhaustedColor = new(1.00f, 0.55f, 0.10f);
 
     /// <summary>Text over the fighters for one strike: who took what.</summary>
     private void FloatsFor(HitEvent hit)
@@ -459,7 +502,9 @@ public partial class Arena : Node3D
         {
             case ParryOutcome.PerfectParry:
                 Float(defender, "Parried!", ParryPerfectColor);
+                Float(defender, $"+{hit.ParryEffect!.DefenderStaminaRefund} stamina", StaminaColor);
                 Float(attacker, "Stagger!", StaggerColor);
+                Float(attacker, $"-{hit.ParryEffect.AttackerStaminaLoss} stamina", StaminaColor);
                 return;
             case ParryOutcome.Parried:
                 Float(defender, "Blocked!", ParryColor);
@@ -487,7 +532,7 @@ public partial class Arena : Node3D
 
         if (hit.Landed)
         {
-            Float(defender, $"-{hit.Damage}", defender == Side.One ? DamageOnYouColor : DamageOnDummyColor);
+            Float(defender, $"-{hit.Damage}{(hit.DefenderExhausted ? " (exhausted)" : "")}", defender == Side.One ? DamageOnYouColor : DamageOnDummyColor);
             if (hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Huajin)
                 Float(defender, hit.DefenderMoveFrame < hit.DefenderTechnique.StartupFrames ? "Too late!" : "Too early!",
                     new Color(1, 1, 1));
@@ -550,8 +595,8 @@ public partial class Arena : Node3D
         Place(_opponent, _opponentReach, _duel.Two, DummyColor, -1);
 
         _status.Text =
-            $"[b]You[/b] {Bar(_duel.One)}  {Doing(_duel.One)}\n" +
-            $"[b]Dummy[/b] {Bar(_duel.Two)}  {Doing(_duel.Two)}\n" +
+            $"[b]You[/b]    HP {Bar(_duel.One)}  stamina {StaminaBar(_duel.One)}  {Doing(_duel.One)}\n" +
+            $"[b]Dummy[/b] HP {Bar(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
             $"Distance {_duel.DistanceCm} cm   ·   dummy {(_dummy.Attacks ? "attacking" : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
@@ -600,6 +645,16 @@ public partial class Arena : Node3D
         const int width = 24;
         int filled = (int)System.Math.Round(width * (double)f.Hp / f.MaxHp);
         return $"[color=#5fd35f]{new string('█', filled)}[/color][color=#444444]{new string('█', width - filled)}[/color] {f.Hp}/{f.MaxHp}";
+    }
+
+    /// <summary>Stamina in blue; orange with EXHAUSTED and the refill mark while out of breath.</summary>
+    private string StaminaBar(Fighter f)
+    {
+        const int width = 16;
+        int filled = (int)System.Math.Round(width * (double)f.Stamina / f.MaxStamina);
+        var color = f.IsExhausted ? "#ff8c1a" : "#66d9ff";
+        var text = $"[color={color}]{new string('█', filled)}[/color][color=#444444]{new string('█', width - filled)}[/color] {f.Stamina}/{f.MaxStamina}";
+        return f.IsExhausted ? text + $" [color=#ff8c1a][b]EXHAUSTED[/b] until {_rules.ExhaustedUntil}[/color]" : text;
     }
 
     private static string Doing(Fighter f)

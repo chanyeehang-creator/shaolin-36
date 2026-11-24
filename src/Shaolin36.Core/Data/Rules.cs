@@ -15,7 +15,7 @@ namespace Shaolin36.Core.Data
         public static readonly string[] Keys =
         {
             "hp_max", "stamina_max", "stamina_regen", "stamina_regen_still", "stamina_regen_delay",
-            "exhausted_until", "exhausted_damage_pct", "qi_max", "qi_start", "qi_per_hit",
+            "exhausted_until", "exhausted_damage_pct", "exhausted_walk_pct", "qi_max", "qi_start", "qi_per_hit",
             "clash_recoil_frames", "clash_recoil_stamina", "clash_lose_stagger", "clash_lose_stamina",
             "clash_perfect_stagger", "clash_perfect_recovery", "clash_perfect_qi",
             "parry_recovery", "parry_perfect_recovery", "parry_perfect_stagger", "parry_perfect_drain", "parry_perfect_qi",
@@ -42,6 +42,8 @@ namespace Shaolin36.Core.Data
         public int ExhaustedUntil => V("exhausted_until");
         /// <summary>Damage taken while exhausted, as a percentage of normal (125 = +25%).</summary>
         public int ExhaustedDamagePct => V("exhausted_damage_pct");
+        /// <summary>Walking speed while exhausted, as a percentage of walk_speed (50 = half speed).</summary>
+        public int ExhaustedWalkPct => V("exhausted_walk_pct");
         public int QiMax => V("qi_max");
         public int QiStart => V("qi_start");
         public int QiPerHit => V("qi_per_hit");
@@ -175,6 +177,7 @@ namespace Shaolin36.Core.Data
                     $"({values["start_distance"]}) cannot be less than 'min_distance' ({values["min_distance"]})");
                 Check(values["start_distance"] <= values["arena_width"], "start_distance",
                     $"({values["start_distance"]}) cannot be more than 'arena_width' ({values["arena_width"]})");
+                Check(values["exhausted_walk_pct"] <= 100, "exhausted_walk_pct", "must be 100 or less (100 = normal speed)");
                 Check(values["exhausted_damage_pct"] >= 100, "exhausted_damage_pct", "must be 100 or more (100 = normal damage)");
             }
 

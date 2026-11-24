@@ -8,7 +8,7 @@ Built in **Godot 4.7 (.NET / C#)**. The combat rules live in a plain C# library 
 
 | Path | What it is |
 | --- | --- |
-| `src/Shaolin36.Core/` | The rules: techniques, frame data, clash, and later stamina, Qi, the AI brain. **No Godot code allowed here.** |
+| `src/Shaolin36.Core/` | The rules: techniques, frame data, clash, parry, stamina, and later Qi and the AI brain. **No Godot code allowed here.** |
 | `tests/Shaolin36.Core.Tests/` | Unit and scenario tests for the rules (xUnit). |
 | `tools/DataCheck/` | Check script: rejects bad rows in the data sheets before the game loads them. |
 | `game/` | The Godot project (`project.godot`). Shows and drives the core; holds scenes, scripts and assets. |

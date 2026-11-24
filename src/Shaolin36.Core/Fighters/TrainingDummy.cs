@@ -8,7 +8,8 @@ namespace Shaolin36.Core.Fighters
     /// and over. Before its first string, and after each one, it waits <see cref="PauseFrames"/> idle frames, then starts
     /// again. In a string it chains on chain-window frame <see cref="ChainFrame"/> (0 is the
     /// first frame, a true combo; a later frame leaves a gap you can parry into). Being hit
-    /// resets the pause. A blocked hit doesn't stop it: it keeps chaining. Deterministic: the same fight always gets the same presses.
+    /// resets the pause. A blocked hit doesn't stop it: it keeps chaining. While exhausted it waits, and
+    /// starts its next string on the first tick it has its breath back. Deterministic: the same fight always gets the same presses.
     ///
     /// Call <see cref="Think"/> once per tick, before the duel steps, and pass what it returns
     /// as the dummy's input.
@@ -53,6 +54,9 @@ namespace Shaolin36.Core.Fighters
 
             if (next == FighterState.Idle)
             {
+                // Out of breath: wait, and attack as soon as it can afford the string again.
+                var opener = me.Loadout[Slot];
+                if (opener != null && !me.CanAfford(opener)) return SlotInput.None;
                 if (_idleFrames < PauseFrames)
                 {
                     _idleFrames++;
