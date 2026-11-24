@@ -1,0 +1,25 @@
+# Rules sheet. Frames are 1/60 s sim ticks; stamina, Qi and HP are points; regen is points per second.
+# Stage 1 starting values: tune freely, then run scripts/test.sh.
+key,value,note
+hp_max,100,Starting and max HP
+stamina_max,100,Max stamina
+stamina_regen,25,Stamina per second while not attacking/dodging/parrying
+stamina_regen_still,40,Stamina per second while standing still
+stamina_regen_delay,30,Frames after your last action before regen starts
+exhausted_until,50,At 0 stamina you are exhausted until it refills to this
+exhausted_damage_pct,125,Damage taken while exhausted (100 = normal)
+qi_max,100,Max Qi
+qi_start,0,Qi at the start of a run
+qi_per_hit,2,Qi for landing a hit
+clash_recoil_frames,14,Same weight: both recoil this long
+clash_recoil_stamina,5,Same weight: both lose this much stamina
+clash_lose_stagger,24,Lighter move: its owner is staggered this long
+clash_lose_stamina,8,Lighter move: its owner loses this much stamina
+clash_perfect_stagger,40,Perfect clash: the target is staggered this long
+clash_perfect_recovery,6,Perfect clash: the striker recovers in this many frames
+clash_perfect_qi,15,Perfect clash: the striker gains this much Qi
+parry_recovery,8,Parry: the defender recovers in this many frames
+parry_perfect_recovery,4,Perfect parry: the defender recovers in this many frames
+parry_perfect_stagger,30,Perfect parry: the attacker is staggered this long
+parry_perfect_drain,15,Perfect parry: the attacker loses this much stamina (the defender's parry cost is refunded)
+parry_perfect_qi,10,Perfect parry: the defender gains this much Qi

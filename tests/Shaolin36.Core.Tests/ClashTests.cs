@@ -79,4 +79,64 @@ public class ClashTests
         var staff = Make.Move(weight: Weight.Medium, weapon: true);
         Assert.Equal(ClashOutcome.BothRecoil, Clash.Resolve(staff, staff, InWindow));
     }
+
+    // Effects: each result takes its numbers from the matching rules key.
+    private static readonly Rules R = Make.TestRules();
+
+    [Fact]
+    public void Same_weight_effect_recoils_both_and_costs_both_stamina()
+    {
+        var e = Clash.Effect(ClashOutcome.BothRecoil, R);
+        Assert.False(e.StrikerHitLands);
+        foreach (var side in new[] { e.Striker, e.Target })
+        {
+            Assert.True(side.MoveCancelled);
+            Assert.Equal(R.ClashRecoilFrames, side.StunFrames);
+            Assert.Equal(R.ClashRecoilStamina, side.StaminaLoss);
+            Assert.Equal(0, side.QiGain);
+        }
+    }
+
+    [Fact]
+    public void Heavier_striker_effect_lands_the_hit_and_staggers_the_target()
+    {
+        var e = Clash.Effect(ClashOutcome.StrikerWins, R);
+        Assert.True(e.StrikerHitLands);
+        Assert.False(e.Striker.MoveCancelled);
+        Assert.True(e.Target.MoveCancelled);
+        Assert.Equal(R.ClashLoseStagger, e.Target.StunFrames);
+        Assert.Equal(R.ClashLoseStamina, e.Target.StaminaLoss);
+    }
+
+    [Fact]
+    public void Lighter_striker_effect_cancels_the_striker_and_the_target_carries_on()
+    {
+        var e = Clash.Effect(ClashOutcome.TargetWins, R);
+        Assert.False(e.StrikerHitLands);
+        Assert.True(e.Striker.MoveCancelled);
+        Assert.Equal(R.ClashLoseStagger, e.Striker.StunFrames);
+        Assert.Equal(R.ClashLoseStamina, e.Striker.StaminaLoss);
+        Assert.False(e.Target.MoveCancelled);
+    }
+
+    [Fact]
+    public void Perfect_clash_effect_breaks_the_target_and_gives_the_striker_qi()
+    {
+        var e = Clash.Effect(ClashOutcome.PerfectClash, R);
+        Assert.False(e.StrikerHitLands);
+        Assert.True(e.Striker.MoveCancelled);
+        Assert.Equal(R.ClashPerfectRecovery, e.Striker.StunFrames);
+        Assert.Equal(R.ClashPerfectQi, e.Striker.QiGain);
+        Assert.True(e.Target.MoveCancelled);
+        Assert.Equal(R.ClashPerfectStagger, e.Target.StunFrames);
+    }
+
+    [Fact]
+    public void No_clash_effect_changes_nothing()
+    {
+        var e = Clash.Effect(ClashOutcome.NoClash, R);
+        Assert.True(e.StrikerHitLands);
+        Assert.False(e.Striker.MoveCancelled);
+        Assert.False(e.Target.MoveCancelled);
+    }
 }

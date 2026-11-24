@@ -12,24 +12,28 @@ namespace Shaolin36.Game;
 public partial class Main : Node3D
 {
     private const string TechniquesPath = "res://data/techniques.csv";
+    private const string RulesPath = "res://data/rules.csv";
 
     public override void _Ready()
     {
         bool smoke = System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--smoke") >= 0;
 
-        var text = FileAccess.GetFileAsString(TechniquesPath);
-        var result = TechniqueCsv.Parse(text ?? string.Empty);
+        var result = TechniqueCsv.Parse(FileAccess.GetFileAsString(TechniquesPath) ?? string.Empty);
         foreach (var error in result.Errors) GD.PushError($"{TechniquesPath}: {error}");
+        var rules = RulesCsv.Parse(FileAccess.GetFileAsString(RulesPath) ?? string.Empty);
+        foreach (var error in rules.Errors) GD.PushError($"{RulesPath}: {error}");
 
-        var summary = result.Ok
-            ? $"Shaolin 36 · {result.Techniques.Count} techniques loaded · sim {Sim.TicksPerSecond} Hz"
-            : $"Data check failed: {result.Errors.Count} problem(s), see the Output panel";
+        bool ok = result.Ok && rules.Ok;
+        int problems = result.Errors.Count + rules.Errors.Count;
+        var summary = ok
+            ? $"Shaolin 36 · {result.Techniques.Count} techniques and {Rules.Keys.Length} rules loaded · sim {Sim.TicksPerSecond} Hz"
+            : $"Data check failed: {problems} problem(s), see the Output panel";
         GD.Print(summary);
 
         if (smoke)
         {
-            GD.Print(result.Ok ? "SMOKE OK" : "SMOKE FAIL");
-            GetTree().Quit(result.Ok ? 0 : 1);
+            GD.Print(ok ? "SMOKE OK" : "SMOKE FAIL");
+            GetTree().Quit(ok ? 0 : 1);
             return;
         }
 

@@ -18,8 +18,9 @@ namespace Shaolin36.Core.Combat
     }
 
     /// <summary>
-    /// The clash table (拼招) from the concept doc. Starting values to tune; Stage 1
-    /// reviews the numbers. Pure function, no state, so every row is unit tested.
+    /// The clash table (拼招) from the concept doc. <see cref="Resolve"/> decides who wins;
+    /// <see cref="Effect"/> turns that into frames, stamina and Qi from the rules sheet.
+    /// Pure functions, no state, so every row is unit tested.
     /// </summary>
     public static class Clash
     {
@@ -40,5 +41,66 @@ namespace Shaolin36.Core.Combat
         /// <summary>Weapon techniques count one step heavier against bare hands.</summary>
         public static int EffectiveWeight(Technique self, Technique other) =>
             (int)self.Weight + (self.IsWeapon && !other.IsWeapon ? 1 : 0);
+
+        /// <summary>What each fighter gets from a clash result, with the numbers from the rules sheet.</summary>
+        public static ClashEffect Effect(ClashOutcome outcome, Rules rules)
+        {
+            switch (outcome)
+            {
+                case ClashOutcome.BothRecoil:
+                    var recoil = new ClashSide(true, rules.ClashRecoilFrames, rules.ClashRecoilStamina, 0);
+                    return new ClashEffect(false, recoil, recoil);
+                case ClashOutcome.StrikerWins:
+                    return new ClashEffect(true, ClashSide.Unaffected,
+                        new ClashSide(true, rules.ClashLoseStagger, rules.ClashLoseStamina, 0));
+                case ClashOutcome.TargetWins:
+                    return new ClashEffect(false,
+                        new ClashSide(true, rules.ClashLoseStagger, rules.ClashLoseStamina, 0), ClashSide.Unaffected);
+                case ClashOutcome.PerfectClash:
+                    return new ClashEffect(false,
+                        new ClashSide(true, rules.ClashPerfectRecovery, 0, rules.ClashPerfectQi),
+                        new ClashSide(true, rules.ClashPerfectStagger, 0, 0));
+                default:
+                    return new ClashEffect(true, ClashSide.Unaffected, ClashSide.Unaffected);
+            }
+        }
+    }
+
+    /// <summary>What a clash does to one fighter.</summary>
+    public sealed class ClashSide
+    {
+        public static readonly ClashSide Unaffected = new ClashSide(false, 0, 0, 0);
+
+        public ClashSide(bool moveCancelled, int stunFrames, int staminaLoss, int qiGain)
+        {
+            MoveCancelled = moveCancelled;
+            StunFrames = stunFrames;
+            StaminaLoss = staminaLoss;
+            QiGain = qiGain;
+        }
+
+        /// <summary>The fighter's current move stops; they spend <see cref="StunFrames"/> unable to act.</summary>
+        public bool MoveCancelled { get; }
+
+        /// <summary>Recoil, stagger or recovery frames after the move is cancelled.</summary>
+        public int StunFrames { get; }
+        public int StaminaLoss { get; }
+        public int QiGain { get; }
+    }
+
+    /// <summary>The full result of a clash: whether the striker's hit still deals its damage, and each side's effect.</summary>
+    public sealed class ClashEffect
+    {
+        public ClashEffect(bool strikerHitLands, ClashSide striker, ClashSide target)
+        {
+            StrikerHitLands = strikerHitLands;
+            Striker = striker;
+            Target = target;
+        }
+
+        /// <summary>True when the striker's hit deals its normal damage and hitstun.</summary>
+        public bool StrikerHitLands { get; }
+        public ClashSide Striker { get; }
+        public ClashSide Target { get; }
     }
 }

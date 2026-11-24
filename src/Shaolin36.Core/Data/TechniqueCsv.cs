@@ -15,6 +15,7 @@ namespace Shaolin36.Core.Data
             "id", "name", "category", "weight", "weapon",
             "startup", "active", "recovery", "clash_window", "perfect_clash",
             "stamina", "qi", "damage", "clashable",
+            "hitstun", "reach", "next", "chain_window", "perfect_parry",
         };
 
         private static readonly Dictionary<string, Category> CategoryNames =
@@ -57,12 +58,12 @@ namespace Shaolin36.Core.Data
         {
             var techniques = new List<Technique>();
             var errors = new List<string>();
-            var lines = SplitLines(text);
+            var lines = CsvText.SplitLines(text);
 
             int headerIndex = -1;
             for (int i = 0; i < lines.Count; i++)
             {
-                if (!IsBlankOrComment(lines[i])) { headerIndex = i; break; }
+                if (!CsvText.IsBlankOrComment(lines[i])) { headerIndex = i; break; }
             }
 
             if (headerIndex < 0)
@@ -71,7 +72,7 @@ namespace Shaolin36.Core.Data
                 return new Result(techniques, errors);
             }
 
-            var header = SplitRow(lines[headerIndex]);
+            var header = CsvText.SplitRow(lines[headerIndex]);
             var col = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             for (int c = 0; c < header.Count; c++) col[header[c].Trim()] = c;
 
@@ -83,13 +84,14 @@ namespace Shaolin36.Core.Data
             if (errors.Count > 0) return new Result(techniques, errors);
 
             var seenIds = new HashSet<string>(StringComparer.Ordinal);
+            var chains = new List<(int line, string id, string next)>();
 
             for (int i = headerIndex + 1; i < lines.Count; i++)
             {
-                if (IsBlankOrComment(lines[i])) continue;
+                if (CsvText.IsBlankOrComment(lines[i])) continue;
 
                 int lineNo = i + 1;
-                var cells = SplitRow(lines[i]);
+                var cells = CsvText.SplitRow(lines[i]);
                 var rowErrors = new List<string>();
 
                 string Cell(string name)
@@ -139,12 +141,23 @@ namespace Shaolin36.Core.Data
                 int qi = Int("qi");
                 int damage = Int("damage");
                 bool clashable = Bool("clashable");
+                int hitstun = Int("hitstun");
+                int reach = Int("reach");
+                var next = Cell("next");
+                int chain = Int("chain_window");
+                int perfectParry = Int("perfect_parry");
 
                 if (startup < 1) rowErrors.Add("'startup' must be at least 1 frame");
                 if (active < 1) rowErrors.Add("'active' must be at least 1 frame");
                 if (window > startup) rowErrors.Add($"'clash_window' ({window}) cannot be longer than 'startup' ({startup})");
                 if (perfect > window) rowErrors.Add($"'perfect_clash' ({perfect}) cannot be longer than 'clash_window' ({window})");
                 if (!clashable && window > 0) rowErrors.Add("an unclashable technique must have 'clash_window' 0");
+                if (chain > recovery) rowErrors.Add($"'chain_window' ({chain}) cannot be longer than 'recovery' ({recovery})");
+                if (next.Length > 0 && chain == 0) rowErrors.Add($"'next' is '{next}' but 'chain_window' is 0, so the string can never continue");
+                if (next.Length == 0 && chain > 0) rowErrors.Add("'chain_window' is set but 'next' is empty");
+                if (next.Length > 0 && next == id) rowErrors.Add("'next' cannot be the technique itself");
+                if (perfectParry > 0 && category != Category.Huajin) rowErrors.Add("only 化劲 (huajin) techniques can have 'perfect_parry'");
+                if (perfectParry > active) rowErrors.Add($"'perfect_parry' ({perfectParry}) cannot be longer than 'active' ({active}), which is the parry window");
 
                 if (rowErrors.Count > 0)
                 {
@@ -152,46 +165,18 @@ namespace Shaolin36.Core.Data
                     continue;
                 }
 
+                if (next.Length > 0) chains.Add((lineNo, id, next));
                 techniques.Add(new Technique(id, displayName, category, weight, weapon,
-                    startup, active, recovery, window, perfect, stamina, qi, damage, clashable));
+                    startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
+                    hitstun, reach, next, chain, perfectParry));
+            }
+
+            foreach (var (line, id, next) in chains)
+            {
+                if (!seenIds.Contains(next)) errors.Add($"line {line} ({id}): 'next' is '{next}', but no technique has that id");
             }
 
             return new Result(techniques, errors);
-        }
-
-        private static bool IsBlankOrComment(string line)
-        {
-            var t = line.Trim();
-            return t.Length == 0 || t.StartsWith("#", StringComparison.Ordinal);
-        }
-
-        private static List<string> SplitLines(string text)
-        {
-            if (text.Length > 0 && text[0] == '﻿') text = text.Substring(1); // Excel's UTF-8 BOM
-            return new List<string>(text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'));
-        }
-
-        /// <summary>Splits one CSV row. Supports "quoted, fields" and "" escapes.</summary>
-        internal static List<string> SplitRow(string line)
-        {
-            var cells = new List<string>();
-            var cur = new System.Text.StringBuilder();
-            bool quoted = false;
-            for (int i = 0; i < line.Length; i++)
-            {
-                char ch = line[i];
-                if (quoted)
-                {
-                    if (ch == '"' && i + 1 < line.Length && line[i + 1] == '"') { cur.Append('"'); i++; }
-                    else if (ch == '"') quoted = false;
-                    else cur.Append(ch);
-                }
-                else if (ch == '"') quoted = true;
-                else if (ch == ',') { cells.Add(cur.ToString()); cur.Clear(); }
-                else cur.Append(ch);
-            }
-            cells.Add(cur.ToString());
-            return cells;
         }
     }
 }

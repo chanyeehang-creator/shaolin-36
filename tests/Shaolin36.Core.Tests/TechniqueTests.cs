@@ -46,4 +46,46 @@ public class TechniqueTests
     {
         Assert.Equal(1.0, Sim.FramesToSeconds(60));
     }
+
+    [Fact]
+    public void Link_frames_count_chain_frames_that_land_before_hitstun_ends()
+    {
+        // 18 hitstun - 3 active - 9 next startup = 6: chaining on recovery frames 0-5 links.
+        var first = Make.Move(active: 3, recovery: 16, hitstun: 18, next: "b", chain: 8);
+        var next = Make.Move("b", startup: 9);
+        Assert.Equal(6, first.LinkFramesInto(next));
+    }
+
+    [Fact]
+    public void Link_frames_are_capped_by_the_chain_window()
+    {
+        var first = Make.Move(active: 3, recovery: 16, hitstun: 40, next: "b", chain: 8);
+        Assert.Equal(8, first.LinkFramesInto(Make.Move("b", startup: 9)));
+    }
+
+    [Fact]
+    public void A_string_with_too_little_hitstun_never_links()
+    {
+        var first = Make.Move(active: 3, recovery: 16, hitstun: 10, next: "b", chain: 8);
+        Assert.Equal(0, first.LinkFramesInto(Make.Move("b", startup: 9)));
+    }
+
+    [Fact]
+    public void Parry_window_is_the_active_frames_and_perfect_is_the_first_of_them()
+    {
+        var p = Make.ParryMove(); // startup 3, active frames 3-12, perfect 3-6
+        Assert.False(p.IsParrying(2));
+        Assert.True(p.IsInPerfectParry(3));
+        Assert.True(p.IsInPerfectParry(6));
+        Assert.False(p.IsInPerfectParry(7));
+        Assert.True(p.IsParrying(7));
+        Assert.True(p.IsParrying(12));
+        Assert.False(p.IsParrying(13)); // recovery
+    }
+
+    [Fact]
+    public void An_attack_is_never_a_parry()
+    {
+        Assert.False(Make.Move().IsParrying(10));
+    }
 }

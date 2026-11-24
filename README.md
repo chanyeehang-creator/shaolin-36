@@ -12,7 +12,7 @@ Built in **Godot 4.7 (.NET / C#)**. The combat rules live in a plain C# library 
 | `tests/Shaolin36.Core.Tests/` | Unit and scenario tests for the rules (xUnit). |
 | `tools/DataCheck/` | Check script: rejects bad rows in the data sheets before the game loads them. |
 | `game/` | The Godot project (`project.godot`). Shows and drives the core; holds scenes, scripts and assets. |
-| `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet. |
+| `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet; `rules.csv` holds base stats and the clash and parry numbers. |
 | `scripts/` | One-click Play, test and headless boot scripts. |
 | `.github/workflows/` | CI: data check, core tests and a headless Godot boot on every push. |
 
@@ -38,7 +38,7 @@ To work in the editor instead, open `game/project.godot` in Godot .NET and press
 Double-click `scripts\test.bat`, or run:
 
 ```sh
-dotnet run --project tools/DataCheck -- game/data/techniques.csv   # data check
+dotnet run --project tools/DataCheck -- game/data                   # data check
 dotnet test Shaolin36.sln                                           # rule tests
 scripts/smoke.sh                                                    # headless boot (needs GODOT set)
 ```
@@ -47,9 +47,9 @@ CI runs all three on every push.
 
 ## Editing data
 
-Edit `game/data/techniques.csv` (in Excel, save as **CSV UTF-8**). Category and weight accept English or Chinese (`waigong` or `外功`, `heavy` or `重`). Lines starting with `#` are comments. Run the test script afterwards: the check tells you the line and column of anything wrong.
+Edit `game/data/techniques.csv` or `game/data/rules.csv` (in Excel, save as **CSV UTF-8**). Category and weight accept English or Chinese (`waigong` or `外功`, `heavy` or `重`). Lines starting with `#` are comments. Run the test script afterwards: the check tells you the line and column of anything wrong.
 
-Frames are 1/60 s sim ticks. The current numbers are placeholders until the Stage 1 clash table review.
+Frames are 1/60 s sim ticks. The current numbers are Stage 1 starting values, open for tuning. The data check also prints how many frames each combo string gives you to chain and still link.
 
 ## How we work: one change, then test
 

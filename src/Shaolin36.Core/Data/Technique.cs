@@ -9,6 +9,8 @@ namespace Shaolin36.Core.Data
     ///          [ clash window ]   ← the last ClashWindowFrames frames of startup
     ///          [perfect]          ← the first PerfectClashFrames of that window
     /// </code>
+    /// For a 化劲 parry the active frames are the parry window, and its first
+    /// PerfectParryFrames are the perfect parry.
     /// </summary>
     public sealed class Technique
     {
@@ -26,7 +28,12 @@ namespace Shaolin36.Core.Data
             int staminaCost,
             int qiCost,
             int damage,
-            bool clashable)
+            bool clashable,
+            int hitstunFrames = 0,
+            int reachCm = 0,
+            string next = "",
+            int chainWindowFrames = 0,
+            int perfectParryFrames = 0)
         {
             Id = id;
             Name = name;
@@ -42,6 +49,11 @@ namespace Shaolin36.Core.Data
             QiCost = qiCost;
             Damage = damage;
             Clashable = clashable;
+            HitstunFrames = hitstunFrames;
+            ReachCm = reachCm;
+            Next = next;
+            ChainWindowFrames = chainWindowFrames;
+            PerfectParryFrames = perfectParryFrames;
         }
 
         public string Id { get; }
@@ -61,6 +73,23 @@ namespace Shaolin36.Core.Data
         /// <summary>False for 擒拿 grabs, unblockable moves and 点穴 Qi strikes.</summary>
         public bool Clashable { get; }
 
+        /// <summary>How long the defender is frozen after this hit lands, counted from the hit frame.</summary>
+        public int HitstunFrames { get; }
+
+        /// <summary>How far the hit reaches, in whole centimetres.</summary>
+        public int ReachCm { get; }
+
+        /// <summary>Id of the next hit in the string, or empty if this hit ends it.</summary>
+        public string Next { get; }
+
+        /// <summary>The first N recovery frames in which pressing again starts <see cref="Next"/>.</summary>
+        public int ChainWindowFrames { get; }
+
+        /// <summary>化劲 only: the first N active frames that count as a perfect parry.</summary>
+        public int PerfectParryFrames { get; }
+
+        public bool HasNext => Next.Length > 0;
+
         public int TotalFrames => StartupFrames + ActiveFrames + RecoveryFrames;
 
         /// <summary>First frame of the clash window (inclusive).</summary>
@@ -73,6 +102,24 @@ namespace Shaolin36.Core.Data
             IsInClashWindow(frame) && frame < ClashWindowStart + PerfectClashFrames;
 
         public bool IsActive(int frame) => frame >= StartupFrames && frame < StartupFrames + ActiveFrames;
+
+        /// <summary>A parry deflects strikes during its active frames.</summary>
+        public bool IsParrying(int frame) => Category == Category.Huajin && PerfectParryFrames > 0 && IsActive(frame);
+
+        public bool IsInPerfectParry(int frame) => IsParrying(frame) && frame < StartupFrames + PerfectParryFrames;
+
+        /// <summary>
+        /// How many of the chain window's frames give a true combo into <paramref name="next"/>:
+        /// chaining on recovery frame c lands the next hit (ActiveFrames + c + next.StartupFrames)
+        /// frames after this one, which must be before this hit's hitstun ends.
+        /// 0 means the string never links, so the defender always gets a gap.
+        /// </summary>
+        public int LinkFramesInto(Technique next)
+        {
+            int frames = HitstunFrames - ActiveFrames - next.StartupFrames;
+            if (frames < 0) frames = 0;
+            return frames < ChainWindowFrames ? frames : ChainWindowFrames;
+        }
 
         public override string ToString() => $"{Id} ({Name})";
     }
