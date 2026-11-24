@@ -1,0 +1,369 @@
+using System;
+using Shaolin36.Core.Combat;
+using Shaolin36.Core.Data;
+using Shaolin36.Core.Fighters;
+
+namespace Shaolin36.Core.Brains
+{
+    /// <summary>One tick of what a brain presses: its slot buttons and its stick.</summary>
+    public readonly struct BrainInput
+    {
+        public BrainInput(SlotInput slots, MoveInput move)
+        {
+            Slots = slots;
+            Move = move;
+        }
+
+        public static BrainInput None => default;
+
+        public SlotInput Slots { get; }
+        public MoveInput Move { get; }
+
+        public override string ToString() => $"press {Slots}, {Move}";
+    }
+
+    /// <summary>What a brain is up to, for the playtest screen.</summary>
+    public enum BrainIntent
+    {
+        /// <summary>Switched off, or nothing to do.</summary>
+        Still,
+        /// <summary>Walking (or quick-stepping) in to get in reach.</summary>
+        Closing,
+        /// <summary>In reach, waiting for its moment.</summary>
+        Waiting,
+        /// <summary>In reach, circling round the other fighter.</summary>
+        Circling,
+        /// <summary>Attacking (or carrying on a string).</summary>
+        Attacking,
+        /// <summary>Attacking because it saw the other fighter open.</summary>
+        Punishing,
+        /// <summary>Saw a strike coming and is timing its parry for it.</summary>
+        Parrying,
+        /// <summary>Threw its parry on a guess that you were about to strike.</summary>
+        Guessing,
+        /// <summary>Saw a strike coming and quick-stepped to the side.</summary>
+        Dodging,
+        /// <summary>Low on stamina: backing off to breathe.</summary>
+        Resting,
+    }
+
+    /// <summary>
+    /// The opponent brain: it plays a fighter through the same slot buttons and stick a player has, so it
+    /// follows every rule the player does (stamina, Qi, frame data, no reading inputs). How it plays is set by a
+    /// <see cref="BrainStyle"/> row of the brain sheet.
+    ///
+    /// It only sees the other fighter's moves <see cref="BrainStyle.Reaction"/> frames late, like a person
+    /// reacting. Each tick it:
+    /// <list type="number">
+    /// <item>carries on its own string when a chain window opens (<see cref="BrainStyle.Chain"/>);</item>
+    /// <item>answers a strike it sees coming: a 化劲 parry timed for the strike's hit frame (<see cref="BrainStyle.Parry"/>,
+    /// aiming at the perfect part with <see cref="BrainStyle.Perfect"/>), or else a quick step to the side (<see cref="BrainStyle.Step"/>);</item>
+    /// <item>backs off to breathe when its stamina is under <see cref="BrainStyle.RestBelow"/>;</item>
+    /// <item>punishes when it sees the other fighter recovering, staggered or recoiling in reach (<see cref="BrainStyle.Punish"/>);</item>
+    /// <item>otherwise walks in until its attacks reach, then every <see cref="BrainStyle.ThinkEvery"/> frames
+    /// attacks (<see cref="BrainStyle.Aggression"/>), parries on a guess (<see cref="BrainStyle.Guess"/>),
+    /// circles (<see cref="BrainStyle.Circle"/>) or waits.</item>
+    /// </list>
+    /// Every chance is rolled on a seeded <see cref="Dice"/>, so the same seed and the same fight give the same
+    /// choices. Call <see cref="Think"/> once per sim tick, before the duel steps (not during hit-stop).
+    /// </summary>
+    public sealed class Brain
+    {
+        /// <summary>Centimetres short of an attack's full reach (reach plus step-in) where the brain stops walking in.</summary>
+        public const int EngageMarginCm = 10;
+
+        /// <summary>A strike counts as coming at the brain if it is this close to reaching (reach plus step-in plus this).</summary>
+        public const int ThreatMarginCm = 20;
+
+        /// <summary>While resting, it backs away until it is this far off.</summary>
+        public const int RestDistanceCm = 250;
+
+        private struct Seen
+        {
+            public FighterState State;
+            public Technique? Technique;
+            public int StartTick; // the tick the move (or the stun) started on
+        }
+
+        private readonly Seen[] _history = new Seen[BrainStyle.MaxReaction + 1];
+        private int _recorded;
+        private readonly Dice _dice;
+
+        private int _decidedAttack = int.MinValue; // start tick of the last strike it chose an answer for
+        private int _plannedParryTick = -1;        // tick to press the parry on, or -1
+        private int _plannedAgainst = int.MinValue;
+        private int _decidedOpening = int.MinValue;
+        private int _decidedLink = -1;
+        private int _choiceTicksLeft;
+        private int _circle; // -1 left, 1 right, 0 none
+        private int _lastFoeStateTick;
+        private FighterState _lastFoeState = FighterState.Idle;
+
+        public Brain(BrainStyle style, int seed)
+        {
+            Style = style ?? throw new ArgumentNullException(nameof(style));
+            Seed = seed;
+            _dice = new Dice(seed);
+        }
+
+        public BrainStyle Style { get; }
+        public int Seed { get; }
+
+        /// <summary>False makes it stand still and press nothing, for practising on it.</summary>
+        public bool Active { get; set; } = true;
+
+        /// <summary>What it is doing right now.</summary>
+        public BrainIntent Intent { get; private set; } = BrainIntent.Still;
+
+        /// <summary>This tick's buttons and stick for the fighter on <paramref name="side"/> of <paramref name="duel"/>.</summary>
+        public BrainInput Think(Duel duel, Side side)
+        {
+            if (duel == null) throw new ArgumentNullException(nameof(duel));
+            var me = duel[side];
+            var foe = duel[side == Side.One ? Side.Two : Side.One];
+            Record(foe, duel.Tick);
+
+            if (!Active || duel.IsOver)
+            {
+                _plannedParryTick = -1;
+                Intent = BrainIntent.Still;
+                return BrainInput.None;
+            }
+
+            var next = me.NextState();
+            int distance = duel.DistanceCm;
+
+            // 1. In its own string: carry on when the chain window opens.
+            if (next.IsInMove())
+            {
+                var t = me.Technique!;
+                if (next == FighterState.Recovery && t.HasNext && me.Slot != null && me.Loadout.Book != null)
+                {
+                    int recoveryFrame = me.MoveFrame + 1 - t.StartupFrames - t.ActiveFrames;
+                    int link = duel.Tick;
+                    if (recoveryFrame == 0 && _decidedLink != link)
+                    {
+                        _decidedLink = link;
+                        var following = me.Loadout.Book.NextOf(t);
+                        if (following != null && me.CanAfford(following) && _dice.Chance(Style.Chain))
+                            return Press(me.Slot.Value, BrainIntent.Attacking);
+                    }
+                }
+                return BrainInput.None;
+            }
+
+            // 2. A parry already timed for a strike: wait for its frame, then press.
+            if (_plannedParryTick >= 0)
+            {
+                bool sameStrike = foe.Technique != null && foe.State.IsInMove() && MoveStart(foe, duel.Tick) == _plannedAgainst;
+                if (!sameStrike) _plannedParryTick = -1;
+                else if (duel.Tick >= _plannedParryTick)
+                {
+                    _plannedParryTick = -1;
+                    var parrySlot = ParrySlot(me);
+                    if (parrySlot != null && next == FighterState.Idle) return Press(parrySlot.Value, BrainIntent.Parrying);
+                }
+                else
+                {
+                    Intent = BrainIntent.Parrying;
+                    return BrainInput.None;
+                }
+            }
+
+            if (next != FighterState.Idle) return BrainInput.None;
+
+            var seen = SeenNow();
+
+            // 3. A strike it can see coming: parry it or step out of the way.
+            if (seen.Technique != null && seen.State == FighterState.Startup && seen.Technique.ReachCm > 0
+                && seen.StartTick != _decidedAttack)
+            {
+                var t = seen.Technique;
+                int hitTick = seen.StartTick + t.StartupFrames;
+                bool comingAtMe = distance <= t.ReachCm + t.AdvanceCm + ThreatMarginCm;
+                if (comingAtMe && hitTick > duel.Tick)
+                {
+                    _decidedAttack = seen.StartTick;
+                    var parrySlot = ParrySlot(me);
+                    if (parrySlot != null && me.CanAfford(me.Loadout[parrySlot.Value]!) && _dice.Chance(Style.Parry))
+                    {
+                        var parry = me.Loadout[parrySlot.Value]!;
+                        int aim = AimFrame(parry);
+                        int pressTick = hitTick - parry.StartupFrames - aim;
+                        if (pressTick <= duel.Tick) return Press(parrySlot.Value, BrainIntent.Parrying);
+                        _plannedParryTick = pressTick;
+                        _plannedAgainst = seen.StartTick;
+                        Intent = BrainIntent.Parrying;
+                        return BrainInput.None;
+                    }
+                    if (me.CanQuickStep && _dice.Chance(Style.Step))
+                    {
+                        Intent = BrainIntent.Dodging;
+                        return new BrainInput(SlotInput.None, MoveInput.Step(_dice.Chance(50) ? StepDirection.Left : StepDirection.Right));
+                    }
+                }
+            }
+
+            // 4. Out of breath: back off and let stamina come back. It still parries (above) if it can pay.
+            if (me.IsExhausted || me.UsesStamina && me.Stamina < Style.RestBelow)
+            {
+                Intent = BrainIntent.Resting;
+                _circle = 0;
+                return distance < RestDistanceCm ? Walk(MoveInput.WalkBack) : BrainInput.None;
+            }
+
+            // 5. The other fighter is open (recovering, staggered or recoiling): punish.
+            bool open = seen.State == FighterState.Recovery || seen.State.IsStunned() && seen.State != FighterState.Hitstun;
+            if (open && seen.StartTick != _decidedOpening)
+            {
+                var punisher = PickAttack(me, distance);
+                if (punisher != null)
+                {
+                    _decidedOpening = seen.StartTick;
+                    if (_dice.Chance(Style.Punish)) return Press(punisher.Value, BrainIntent.Punishing);
+                }
+            }
+
+            // 6. Neutral: walk in, then attack, circle or wait.
+            int engage = EngageDistance(me);
+            if (engage > 0 && distance > engage)
+            {
+                _circle = 0;
+                if (--_choiceTicksLeft <= 0)
+                {
+                    _choiceTicksLeft = Style.ThinkEvery;
+                    var steps = me.QuickStepRules;
+                    if (steps != null && me.CanQuickStep && distance - steps.DistanceCm >= engage - EngageMarginCm
+                        && _dice.Chance(Style.Step))
+                    {
+                        Intent = BrainIntent.Closing;
+                        return new BrainInput(SlotInput.None, MoveInput.Step(StepDirection.Forward));
+                    }
+                }
+                Intent = BrainIntent.Closing;
+                return Walk(MoveInput.WalkForward);
+            }
+            if (Intent == BrainIntent.Closing || Intent == BrainIntent.Still) _choiceTicksLeft = 0;
+
+            if (--_choiceTicksLeft <= 0)
+            {
+                _choiceTicksLeft = Style.ThinkEvery;
+                _circle = 0;
+                var attack = PickAttack(me, distance);
+                if (attack != null && _dice.Chance(Style.Aggression)) return Press(attack.Value, BrainIntent.Attacking);
+                var guessSlot = ParrySlot(me);
+                int foeReach = EngageDistance(foe);
+                if (guessSlot != null && foeReach > 0 && distance <= foeReach + EngageMarginCm && foe.State == FighterState.Idle
+                    && me.CanAfford(me.Loadout[guessSlot.Value]!) && _dice.Chance(Style.Guess))
+                    return Press(guessSlot.Value, BrainIntent.Guessing);
+                if (_dice.Chance(Style.Circle)) _circle = _dice.Chance(50) ? -1 : 1;
+            }
+
+            if (_circle != 0)
+            {
+                Intent = BrainIntent.Circling;
+                return Walk(_circle < 0 ? MoveInput.WalkLeft : MoveInput.WalkRight);
+            }
+            Intent = BrainIntent.Waiting;
+            return BrainInput.None;
+        }
+
+        private BrainInput Press(Slot slot, BrainIntent intent)
+        {
+            Intent = intent;
+            _circle = 0;
+            return new BrainInput(SlotInput.Press(slot), MoveInput.None);
+        }
+
+        private static BrainInput Walk(MoveInput move) => new BrainInput(SlotInput.None, move);
+
+        /// <summary>The tick the fighter's current move started on, as seen before the tick numbered <paramref name="tick"/> runs.</summary>
+        private static int MoveStart(Fighter f, int tick) => tick - 1 - f.MoveFrame;
+
+        private void Record(Fighter foe, int tick)
+        {
+            if (foe.State != _lastFoeState)
+            {
+                _lastFoeState = foe.State;
+                _lastFoeStateTick = tick - 1;
+            }
+            var seen = new Seen
+            {
+                State = foe.State,
+                Technique = foe.State.IsInMove() ? foe.Technique : null,
+                StartTick = foe.State.IsInMove() ? MoveStart(foe, tick) : _lastFoeStateTick,
+            };
+            // A chained hit has a new start tick even if the state stays the same.
+            _history[_recorded % _history.Length] = seen;
+            _recorded++;
+        }
+
+        /// <summary>The other fighter as the brain sees them now: <see cref="BrainStyle.Reaction"/> ticks ago.</summary>
+        private Seen SeenNow()
+        {
+            int back = Math.Min(Style.Reaction, _recorded - 1);
+            return _history[(_recorded - 1 - back) % _history.Length];
+        }
+
+        /// <summary>Which frame of the parry's window to meet the strike on: in the perfect part, or in the plain block part.</summary>
+        private int AimFrame(Technique parry)
+        {
+            int perfect = Math.Max(0, Math.Min(parry.PerfectParryFrames, parry.ActiveFrames));
+            int plain = parry.ActiveFrames - perfect;
+            if (perfect > 0 && (plain == 0 || _dice.Chance(Style.Perfect))) return _dice.Below(perfect);
+            return perfect + _dice.Below(Math.Min(plain, 6));
+        }
+
+        /// <summary>The first slot holding a 化劲 parry, or null.</summary>
+        private static Slot? ParrySlot(Fighter me)
+        {
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (t != null && t.Category == Category.Huajin && t.PerfectParryFrames > 0) return s;
+            }
+            return null;
+        }
+
+        private static bool IsAttack(Technique? t) => t != null && t.ReachCm > 0;
+
+        /// <summary>
+        /// How close it walks in before it will attack: the shortest full reach (reach plus step-in) among its
+        /// attacks, less <see cref="EngageMarginCm"/>, so every attack it has will reach. 0 if it has no attacks.
+        /// </summary>
+        public static int EngageDistance(Fighter me)
+        {
+            int best = int.MaxValue;
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (IsAttack(t)) best = Math.Min(best, t!.ReachCm + t.AdvanceCm);
+            }
+            return best == int.MaxValue ? 0 : Math.Max(1, best - EngageMarginCm);
+        }
+
+        /// <summary>
+        /// An attack that reaches from <paramref name="distance"/> and it can pay for: a Qi-empowered one first,
+        /// otherwise a heavy one with <see cref="BrainStyle.Heavy"/> chance, otherwise a lighter one.
+        /// </summary>
+        private Slot? PickAttack(Fighter me, int distance)
+        {
+            Slot? empowered = null;
+            int heavyCount = 0, lightCount = 0;
+            var heavy = new Slot[Slots.Count];
+            var light = new Slot[Slots.Count];
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (!IsAttack(t) || !me.CanAfford(t!) || t!.ReachCm + t.AdvanceCm < distance) continue;
+                if (empowered == null && t.CanEmpower && me.Qi - t.QiCost >= t.EmpowerQi) empowered = s;
+                if (t.Weight == Weight.Heavy) heavy[heavyCount++] = s;
+                else light[lightCount++] = s;
+            }
+            if (empowered != null) return empowered;
+            if (heavyCount == 0 && lightCount == 0) return null;
+            bool goHeavy = lightCount == 0 || heavyCount > 0 && _dice.Chance(Style.Heavy);
+            return goHeavy ? heavy[_dice.Below(heavyCount)] : light[_dice.Below(lightCount)];
+        }
+    }
+}

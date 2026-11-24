@@ -1,5 +1,6 @@
 // Checks the game's data sheets before the game loads them.
 // Usage: dotnet run --project tools/DataCheck -- [data folder, default game/data]
+using Shaolin36.Core.Brains;
 using Shaolin36.Core.Data;
 using Shaolin36.Core.Feel;
 
@@ -9,9 +10,10 @@ var dir = args.Length > 0 ? args[0] : Path.Combine("game", "data");
 var techniquesPath = Path.Combine(dir, "techniques.csv");
 var rulesPath = Path.Combine(dir, "rules.csv");
 var feelPath = Path.Combine(dir, "feel.csv");
+var brainsPath = Path.Combine(dir, "brains.csv");
 int problems = 0;
 
-foreach (var path in new[] { techniquesPath, rulesPath, feelPath })
+foreach (var path in new[] { techniquesPath, rulesPath, feelPath, brainsPath })
 {
     if (File.Exists(path)) continue;
     Console.Error.WriteLine($"FAIL: {path} not found");
@@ -30,6 +32,10 @@ var feel = FeelCsv.Parse(File.ReadAllText(feelPath));
 foreach (var error in feel.Errors) Console.Error.WriteLine($"{feelPath}: {error}");
 problems += feel.Errors.Count;
 
+var brains = BrainCsv.Parse(File.ReadAllText(brainsPath));
+foreach (var error in brains.Errors) Console.Error.WriteLine($"{brainsPath}: {error}");
+problems += brains.Errors.Count;
+
 if (problems > 0)
 {
     Console.Error.WriteLine($"FAIL: {problems} problem(s) in {dir}");
@@ -39,6 +45,7 @@ if (problems > 0)
 Console.WriteLine($"OK: {techniques.Techniques.Count} techniques in {techniquesPath}");
 Console.WriteLine($"OK: {Rules.Keys.Length} rules in {rulesPath}");
 Console.WriteLine($"OK: {FeelSheet.EventNames.Count} feel events in {feelPath}");
+Console.WriteLine($"OK: {brains.Sheet!.Styles.Count} brains in {brainsPath} ({string.Join(", ", brains.Sheet.Styles.Select(b => b.Id))})");
 
 // Tuning aid: how forgiving each string is.
 var byId = techniques.Techniques.ToDictionary(t => t.Id);
