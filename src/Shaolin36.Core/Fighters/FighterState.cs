@@ -15,7 +15,7 @@ namespace Shaolin36.Core.Fighters
         Hitstun,
         /// <summary>Broken out of a move by a lost clash or a perfect parry; open to punishment.</summary>
         Stagger,
-        /// <summary>Knocked back by a same-weight clash or a won perfect clash.</summary>
+        /// <summary>Knocked back by a same-weight clash or a won perfect clash, or recovering from a successful parry.</summary>
         Recoil,
     }
 
