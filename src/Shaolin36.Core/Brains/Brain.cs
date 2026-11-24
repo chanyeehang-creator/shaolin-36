@@ -64,6 +64,7 @@ namespace Shaolin36.Core.Brains
     /// attacks (<see cref="BrainStyle.Aggression"/>), parries on a guess (<see cref="BrainStyle.Guess"/>),
     /// circles (<see cref="BrainStyle.Circle"/>) or waits.</item>
     /// </list>
+    /// It does nothing for the first opponent_ready ticks of a duel (rules.csv), so a new duel never opens with a hit.
     /// Every chance is rolled on a seeded <see cref="Dice"/>, so the same seed and the same fight give the same
     /// choices. Call <see cref="Think"/> once per sim tick, before the duel steps (not during hit-stop).
     /// </summary>
@@ -123,7 +124,7 @@ namespace Shaolin36.Core.Brains
             var foe = duel[side == Side.One ? Side.Two : Side.One];
             Record(foe, duel.Tick);
 
-            if (!Active || duel.IsOver)
+            if (!Active || duel.IsOver || duel.Tick < duel.Rules.OpponentReady)
             {
                 _plannedParryTick = -1;
                 Intent = BrainIntent.Still;

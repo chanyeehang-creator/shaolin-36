@@ -186,13 +186,13 @@ public class KnockbackTests
     }
 
     [Fact]
-    public void The_whole_string_stays_in_reach_from_the_duel_start()
+    public void The_whole_string_stays_in_reach_from_110_cm()
     {
-        var d = RunString(SheetRules().StartDistance);
+        var d = RunString(110);
         Assert.Equal(new[] { "luohan_quan_1", "luohan_quan_2", "luohan_quan_3", "luohan_quan_4" }, d.Hits.Select(h => h.Technique.Id));
         var hits = Sheet().Values.Where(t => t.Id.StartsWith("luohan_quan_")).ToList();
         int pushed = hits.Sum(t => t.KnockbackCm), stepped = hits.Sum(t => t.AdvanceCm);
-        Assert.Equal(SheetRules().StartDistance + pushed - stepped, d.DistanceCm);
+        Assert.Equal(110 + pushed - stepped, d.DistanceCm);
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public class KnockbackTests
     public void The_finisher_ends_the_string_out_of_reach()
     {
         // After the finisher's knockback, hit 1 can't reach: the string has a clear end.
-        var d = RunString(SheetRules().StartDistance);
+        var d = RunString(110);
         var first = Sheet()["luohan_quan_1"];
         Assert.True(d.DistanceCm > first.ReachCm + first.AdvanceCm);
     }

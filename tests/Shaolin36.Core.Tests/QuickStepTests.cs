@@ -243,7 +243,7 @@ public class QuickStepTests
 
     // ---------- What it's for ----------
 
-    /// <summary>The dummy's 罗汉拳 from the start distance; the player quick-steps on <paramref name="stepTick"/>.</summary>
+    /// <summary>The dummy's 罗汉拳 from 110 cm; the player quick-steps on <paramref name="stepTick"/>.</summary>
     private static Duel DodgeLuohan(StepDirection way, int stepTick)
     {
         var sheet = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques;
@@ -251,7 +251,7 @@ public class QuickStepTests
         var book = new TechniqueBook(sheet);
         var dummy = new Loadout(book);
         dummy.Assign(Slot.Square, book.Find("luohan_quan_1")!);
-        var d = Duel.Start(rules, new Loadout(book), dummy);
+        var d = new Duel(rules, new Loadout(book), dummy, -55, 55); // 110 cm apart, in 罗汉拳 reach
         for (int t = 0; t < 20; t++)
             d.Step(None, t == 0 ? Square : None, t == stepTick ? Step(way) : Stand, Stand);
         return d;
@@ -275,7 +275,7 @@ public class QuickStepTests
         var book = new TechniqueBook(sheet);
         var loadout = new Loadout(book);
         loadout.Assign(Slot.Square, book.Find("luohan_quan_1")!);
-        var d = Duel.Start(rules, new Loadout(book), loadout);
+        var d = new Duel(rules, new Loadout(book), loadout, -55, 55); // 110 cm apart, in 罗汉拳 reach
         var dummy = TrainingDummy.FromRules(rules, Slot.Square);
         bool stepped = false;
         int deepest = 0;

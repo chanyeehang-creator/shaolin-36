@@ -369,7 +369,7 @@ public class ClashParryDuelTests
         var them = new Loadout(book);
         them.Assign(Slot.Square, hit1);
         var dummy = new TrainingDummy(Slot.Square, pauseFrames: 0, chainFrame: 0);
-        var d = Duel.Start(rules, you, them);
+        var d = new Duel(rules, you, them, 0, 110); // in hit 1's reach (a real duel starts out of reach)
 
         // The dummy starts on tick `lead`, so hit 1 lands on lead + its startup. Parry so it lands on
         // the first perfect frame, or on the last frame of the block window (which can mean pressing
