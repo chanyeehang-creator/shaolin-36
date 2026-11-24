@@ -147,9 +147,9 @@ Because of the small pushes, the full 罗汉拳 string only stays in reach if yo
 
 **Full 3D: the floor, the camera and walking.** The fight is no longer on a line. You and the dummy stand on a 14 m square floor (the grid lines are 1 m apart), and you can walk in any direction.
 
-- **The camera** sits behind you and a little to your right, always looking at the dummy (lock-on). Each capsule has a small dark "nose" on its chest that shows which way it faces.
+- **The camera** sits behind you (4.4 m back, 3.5 m up) and a little to your right (2.2 m), always looking at the dummy (lock-on). Each capsule has a small dark "nose" on its chest that shows which way it faces.
 - **Walking is relative to the dummy:** W / stick up walks straight at it, S / stick down backs away, A and D (stick left and right) circle round it. Up close, walking into it slides you round its side. The stick walks as fast as you push it; full speed is 200 cm per second, diagonals included.
-- **Both fighters always turn to face each other**, except during a move: a move aims where the other fighter stood on the frame it started and keeps that aim. Each hit of a string aims again.
+- **Both fighters turn to face each other** while they're free (standing, walking, quick-stepping or reeling from a hit). **Once a fighter attacks, the turning stops:** the attack aims where the other fighter stood on the frame it started, and every follow-up hit of that string goes the same way. Turning comes back when the string is over. So if you side-step the dummy's first punch, the rest of its 罗汉拳 string carries on into empty air.
 - **Hits have a width now (hit angle).** A strike only lands if you're inside its wedge, not just inside its reach. Step to the side during the wind-up and it can miss you.
 
 | Move | Reach | Hit angle (wedge) |
@@ -173,7 +173,7 @@ So the whole 罗汉拳 string walks 41 cm forward, and it now reaches if you sta
 
 **Quick step (everyone has it, no slot needed).** Tap a direction twice quickly (W W, S S, A A or D D, or the stick or D-pad the same way twice) for a short, quick step that way: forward to close in, back to get out of reach, left or right to get off the line of an attack and reach the dummy's side.
 
-- **70 cm** in **8 frames (0.13 s)**, then **6 frames (0.1 s)** before you can act again: 14 frames (0.23 s) in all. Walking covers 70 cm in 0.35 s, so it's about three times as fast, but it's a step, not a roll or a dash.
+- **70 cm forward or back, 90 cm left or right**, in **8 frames (0.13 s)**, then **6 frames (0.1 s)** before you can act again: 14 frames (0.23 s) in all. Walking covers 70 cm in 0.35 s, so it's about three times as fast, but it's a step, not a roll or a dash.
 - The second tap must come within **14 frames (0.23 s)** of the first. Only the four straight directions count: a diagonal does nothing.
 - Costs **6 stamina**. You can't quick step while exhausted.
 - **No invincibility and no perfect-timing dodge.** If a strike reaches you during the step, it hits you as normal. It works by moving you, so it has to happen before the hit comes out: a side step as the dummy starts its 罗汉拳 wind-up (yellow) takes you out of the punch's wedge, and you end up at its side, in reach for your own punch. Step on the last few frames of the wind-up and you're still hit.
@@ -190,7 +190,7 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - `walk_speed`: how fast you walk, in cm per second (200).
   - `start_distance`: how far apart the duel starts (110 cm, inside 罗汉拳's 120 cm reach).
   - `min_distance`, `arena_width`: how close the capsules can get, and how big the square floor is (1400 = 14 m each way).
-  - `quick_step_distance` (70 cm), `quick_step_frames` (8), `quick_step_recovery` (6), `quick_step_stamina` (6), `quick_step_tap_window` (14): the quick step.
+  - `quick_step_distance` (70 cm forward/back), `quick_step_side_distance` (90 cm left/right), `quick_step_frames` (8), `quick_step_recovery` (6), `quick_step_stamina` (6), `quick_step_tap_window` (14): the quick step.
   - `dummy_pause`: frames the dummy waits between strings (40, about 0.7 s).
   - `parry_recovery`, `parry_perfect_recovery`, `parry_perfect_stagger`: how long you recover after a block or a perfect parry, and how long a perfect parry staggers the attacker.
   - `clash_recoil_frames`, `clash_lose_stagger`, `clash_perfect_stagger`, `clash_perfect_recovery`: the clash results.
