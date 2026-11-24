@@ -14,11 +14,17 @@ namespace Shaolin36.Core.Combat
         Two = 1,
     }
 
-    /// <summary>A hit that connected on a tick.</summary>
+    /// <summary>
+    /// A strike that reached the other fighter on a tick. Most deal their damage, but a strike
+    /// can also be deflected by a 化绵掌 parry or meet the defender's wind-up in a clash
+    /// (<see cref="Landed"/> tells which).
+    /// </summary>
     public sealed class HitEvent
     {
         public HitEvent(int tick, Side attacker, Technique technique, int damage, int hitstunFrames, int defenderHpAfter,
-            Technique? defenderTechnique = null, int defenderMoveFrame = -1)
+            Technique? defenderTechnique = null, int defenderMoveFrame = -1,
+            ParryOutcome parry = ParryOutcome.NotParried, ParryEffect? parryEffect = null,
+            ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null)
         {
             DefenderTechnique = defenderTechnique;
             DefenderMoveFrame = defenderTechnique == null ? -1 : defenderMoveFrame;
@@ -28,6 +34,10 @@ namespace Shaolin36.Core.Combat
             Damage = damage;
             HitstunFrames = hitstunFrames;
             DefenderHpAfter = defenderHpAfter;
+            Parry = parry;
+            ParryEffect = parryEffect;
+            Clash = clash;
+            ClashEffect = clashEffect;
         }
 
         /// <summary>The duel tick the hit landed on (the first tick is 0).</summary>
@@ -35,7 +45,10 @@ namespace Shaolin36.Core.Combat
         public Side Attacker { get; }
         public Side Defender => Attacker == Side.One ? Side.Two : Side.One;
         public Technique Technique { get; }
+        /// <summary>HP the defender lost. 0 when the strike was parried or lost its clash.</summary>
         public int Damage { get; }
+
+        /// <summary>Frames the defender is frozen from this tick. 0 when the strike didn't land.</summary>
         public int HitstunFrames { get; }
         public int DefenderHpAfter { get; }
 
@@ -45,8 +58,25 @@ namespace Shaolin36.Core.Combat
         /// <summary>The defender's frame within <see cref="DefenderTechnique"/> when the hit landed; -1 if none.</summary>
         public int DefenderMoveFrame { get; }
 
+        /// <summary>How a 化绵掌 parry dealt with the strike; <see cref="ParryOutcome.NotParried"/> if it didn't.</summary>
+        public ParryOutcome Parry { get; }
+
+        /// <summary>The parry's numbers (stamina and Qi are applied once stamina exists); null if not parried.</summary>
+        public ParryEffect? ParryEffect { get; }
+
+        /// <summary>The clash the strike caused against the defender's wind-up; <see cref="ClashOutcome.NoClash"/> if none.</summary>
+        public ClashOutcome Clash { get; }
+
+        /// <summary>The clash's numbers (stamina and Qi are applied once stamina exists); null if no clash.</summary>
+        public ClashEffect? ClashEffect { get; }
+
+        /// <summary>True when the strike dealt its damage and hitstun.</summary>
+        public bool Landed => Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
+
         public override string ToString() =>
-            $"t{Tick} {Attacker} hits with {Technique.Id}: {Damage} damage, {HitstunFrames}f hitstun, {DefenderHpAfter} HP left";
+            Parry != ParryOutcome.NotParried ? $"t{Tick} {Attacker}'s {Technique.Id} is {Parry}"
+            : Clash != ClashOutcome.NoClash && !Landed ? $"t{Tick} {Attacker}'s {Technique.Id} clashes: {Clash}"
+            : $"t{Tick} {Attacker} hits with {Technique.Id}: {Damage} damage, {HitstunFrames}f hitstun, {DefenderHpAfter} HP left";
     }
 
     /// <summary>
@@ -62,9 +92,30 @@ namespace Shaolin36.Core.Combat
     /// both deal damage and both fighters go into hitstun. Hitstun counts from this tick
     /// (see <see cref="Fighter"/>).</item>
     /// </list>
-    /// A technique with reach 0 (such as the 化绵掌 parry) never hits. Clash and parry
-    /// are not resolved here yet: every connecting hit deals its full damage and hitstun.
+    /// A technique with reach 0 (such as the 化绵掌 parry) never hits.
     /// Once a fighter is down the duel is over and ticks do nothing.
+    ///
+    /// What a connecting strike does depends on what the defender was doing on that tick
+    /// (all stun frames count from this tick, like hitstun):
+    /// <list type="bullet">
+    /// <item><b>Parry</b> (化劲, see <see cref="Combat.Parry"/>): if the defender's parry is in its
+    /// window, the strike deals nothing. The defender's parry ends and they recover
+    /// (<see cref="FighterState.Recoil"/>) for parry_recovery frames, or parry_perfect_recovery
+    /// in the perfect frames. On a plain parry the attacker finishes their move's recovery but
+    /// can't chain into the next hit; on a perfect parry the attacker is staggered for
+    /// parry_perfect_stagger frames instead. A parry pressed too early or too late does nothing,
+    /// and the strike lands as normal.</item>
+    /// <item><b>Clash</b> (拼招, see <see cref="Combat.Clash"/>): if the defender is in the clash window
+    /// of a wind-up, the clash table decides. Same weight: both moves stop and both recoil.
+    /// Heavier striker: the hit lands with full damage and the defender is staggered for the
+    /// longer of the hitstun and clash_lose_stagger. Lighter striker: no damage, the striker's
+    /// move stops and they stagger, the defender's move carries on. Perfect clash: no damage,
+    /// the striker's move stops and they recover in clash_perfect_recovery frames
+    /// (<see cref="FighterState.Recoil"/>), the defender's move stops and they stagger.</item>
+    /// <item>Otherwise the hit lands: damage and hitstun.</item>
+    /// </list>
+    /// Stamina and Qi from parries and clashes are carried on the <see cref="HitEvent"/> and
+    /// applied once stamina and Qi exist (the next step of Stage 1).
     ///
     /// Walking: each tick, after acting, a fighter who is idle walks one step in the
     /// direction given (-1 left, +1 right, 0 stand) at the rules sheet's walk_speed. Speeds
@@ -158,8 +209,48 @@ namespace Shaolin36.Core.Combat
 
         private HitEvent Land(Side attacker, Technique move, Fighter defender, Technique? defenderMove, int defenderFrame)
         {
+            var striker = this[attacker];
+
+            if (defenderMove != null)
+            {
+                var parry = Combat.Parry.Resolve(defenderMove, defenderFrame);
+                if (parry != ParryOutcome.NotParried)
+                {
+                    var e = Combat.Parry.Effect(parry, defenderMove, Rules);
+                    defender.Stun(FighterState.Recoil, e.DefenderRecoveryFrames);
+                    if (e.AttackerStaggerFrames > 0) striker.Stun(FighterState.Stagger, e.AttackerStaggerFrames);
+                    else if (striker.State.IsInMove()) striker.BlockChain();
+                    return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame, parry, e);
+                }
+
+                var clash = Combat.Clash.Resolve(move, defenderMove, defenderFrame);
+                if (clash != ClashOutcome.NoClash)
+                {
+                    var e = Combat.Clash.Effect(clash, Rules);
+                    if (e.StrikerHitLands)
+                    {
+                        // The heavier move breaks through: full damage, and the defender stays
+                        // frozen for the longer of the hitstun and the clash stagger.
+                        defender.TakeHit(move.Damage, 0);
+                        int frames = Math.Max(move.HitstunFrames, e.Target.StunFrames);
+                        if (frames > 0 && !defender.IsDown) defender.Stun(FighterState.Stagger, frames);
+                        return new HitEvent(Tick, attacker, move, move.Damage, frames, defender.Hp, defenderMove, defenderFrame,
+                            clash: clash, clashEffect: e);
+                    }
+                    ApplyClashSide(striker, e.Striker, clash == ClashOutcome.TargetWins ? FighterState.Stagger : FighterState.Recoil);
+                    ApplyClashSide(defender, e.Target, clash == ClashOutcome.PerfectClash ? FighterState.Stagger : FighterState.Recoil);
+                    return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame,
+                        clash: clash, clashEffect: e);
+                }
+            }
+
             defender.TakeHit(move.Damage, move.HitstunFrames);
             return new HitEvent(Tick, attacker, move, move.Damage, move.HitstunFrames, defender.Hp, defenderMove, defenderFrame);
+        }
+
+        private static void ApplyClashSide(Fighter f, ClashSide side, FighterState state)
+        {
+            if (side.MoveCancelled && side.StunFrames > 0) f.Stun(state, side.StunFrames);
         }
 
         private void Walk(int dirOne, int dirTwo)

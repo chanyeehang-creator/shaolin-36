@@ -98,8 +98,15 @@ namespace Shaolin36.Core.Fighters
         /// </summary>
         public bool InChainWindow =>
             State == FighterState.Recovery
+            && !ChainBlocked
             && Technique!.HasNext
             && MoveFrame - Technique.StartupFrames - Technique.ActiveFrames < Technique.ChainWindowFrames;
+
+        /// <summary>
+        /// True once the current move was parried: it plays out its recovery, but the string
+        /// can't continue from it. Cleared when the move ends.
+        /// </summary>
+        public bool ChainBlocked { get; private set; }
 
         /// <summary>
         /// The state the fighter will be in on the next tick before any input is used: what
@@ -203,12 +210,20 @@ namespace Shaolin36.Core.Fighters
             HitLanded = true;
         }
 
+        /// <summary>Stop the current move from chaining into the next hit of its string (it was parried).</summary>
+        public void BlockChain()
+        {
+            if (!State.IsInMove()) throw new InvalidOperationException("only a fighter in a move can have its chain blocked");
+            ChainBlocked = true;
+        }
+
         private void Start(Slot slot, Technique technique)
         {
             Technique = technique;
             Slot = slot;
             MoveFrame = 0;
             HitLanded = false;
+            ChainBlocked = false;
             StringHit = 1;
             State = PhaseAt(technique, 0);
         }
@@ -245,6 +260,7 @@ namespace Shaolin36.Core.Fighters
             Slot = null;
             MoveFrame = -1;
             HitLanded = false;
+            ChainBlocked = false;
             StringHit = 0;
         }
 

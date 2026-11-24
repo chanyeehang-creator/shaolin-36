@@ -23,12 +23,15 @@ public partial class Arena : Node3D
     private static readonly Color ParryColor = new(0.20f, 0.75f, 1.00f);
     private static readonly Color RecoveryColor = new(0.25f, 0.35f, 0.95f);
     private static readonly Color HitstunColor = new(1.00f, 1.00f, 1.00f);
+    private static readonly Color StaggerColor = new(0.85f, 0.30f, 0.95f);
+    private static readonly Color RecoilColor = new(0.55f, 0.55f, 0.60f);
     private static readonly Color PlayerColor = new(0.95f, 0.65f, 0.15f);
     private static readonly Color DummyColor = new(0.55f, 0.15f, 0.15f);
 
     private const string Legend =
         "[color=#ffd11a]■ startup[/color]   [color=#f2261a]■ active (hit)[/color]   [color=#33ff59]■ perfect parry[/color]   " +
-        "[color=#33bfff]■ parry[/color]   [color=#4059f2]■ recovery[/color]   [color=#ffffff]■ hit[/color]";
+        "[color=#33bfff]■ parry[/color]   [color=#4059f2]■ recovery[/color]   [color=#ffffff]■ hit[/color]   " +
+        "[color=#d94df2]■ staggered (open!)[/color]   [color=#8c8c99]■ recoil / recovering from a parry[/color]";
 
     private readonly Rules _rules = null!;
     private readonly TechniqueBook _book = null!;
@@ -340,9 +343,16 @@ public partial class Arena : Node3D
         var hits = _duel.Step(input, _dummy.Think(_duel.Two), Controls.WalkDirection(), 0);
         foreach (var hit in hits)
         {
-            bool comboing = hit.Attacker == Side.One ? twoWasStunned : oneWasStunned;
-            _combo = comboing && _comboBy == hit.Attacker ? _combo + 1 : 1;
-            _comboBy = hit.Attacker;
+            if (hit.Landed)
+            {
+                bool comboing = hit.Attacker == Side.One ? twoWasStunned : oneWasStunned;
+                _combo = comboing && _comboBy == hit.Attacker ? _combo + 1 : 1;
+                _comboBy = hit.Attacker;
+            }
+            else
+            {
+                _combo = 0;
+            }
             _event.Text = Describe(hit);
         }
 
@@ -355,35 +365,57 @@ public partial class Arena : Node3D
 
     private string Describe(HitEvent hit)
     {
-        var combo = _combo > 1 ? $"   [b]{_combo} hit combo[/b]" : "";
-        if (hit.Attacker == Side.One)
-            return $"[color=#ffb347]You hit with {hit.Technique.Name}: {hit.Damage} damage.[/color]{combo}";
+        bool mine = hit.Attacker == Side.One;
+        var name = hit.Technique.Name;
 
-        var line = $"[color=#ff6666]{hit.Technique.Name} hit you: {hit.Damage} damage.[/color]{combo}";
+        switch (hit.Parry)
+        {
+            case ParryOutcome.PerfectParry:
+                return mine
+                    ? $"[color=#33ff59][b]PERFECT PARRY![/b][/color] The dummy caught your {name}. You're staggered."
+                    : $"[color=#33ff59][b]PERFECT PARRY![/b][/color] You stopped {name}; the dummy is staggered. Hit it now!";
+            case ParryOutcome.Parried:
+                return mine
+                    ? $"[color=#33bfff][b]Blocked.[/b][/color] The dummy parried your {name}; your string stops."
+                    : $"[color=#33bfff][b]Blocked[/b][/color] {name}: no damage, and its string stops. " +
+                      $"({PerfectMiss(hit.DefenderTechnique!, hit.DefenderMoveFrame)} frame(s) late for a perfect parry.)";
+        }
+
+        switch (hit.Clash)
+        {
+            case ClashOutcome.BothRecoil:
+                return "[color=#ffd11a][b]CLASH![/b][/color] Same weight: both of you bounce off.";
+            case ClashOutcome.PerfectClash:
+                return mine
+                    ? "[color=#33ff59][b]PERFECT CLASH![/b][/color] You broke the dummy's wind-up. It's wide open!"
+                    : "[color=#ff6666][b]PERFECT CLASH[/b][/color] by the dummy: your wind-up was broken.";
+            case ClashOutcome.TargetWins:
+                return mine
+                    ? $"[color=#ff6666][b]Clash lost.[/b][/color] Your {name} was lighter and got knocked aside."
+                    : $"[color=#ffd11a][b]Clash won![/b][/color] Your heavier move knocked {name} aside.";
+        }
+
+        var combo = _combo > 1 ? $"   [b]{_combo} hit combo[/b]" : "";
+        var clash = hit.Clash == ClashOutcome.StrikerWins ? "[b]Clash won, breaking through![/b] " : "";
+        if (mine)
+            return $"[color=#ffb347]{clash}You hit with {name}: {hit.Damage} damage.[/color]{combo}";
+
+        var line = $"[color=#ff6666]{(clash.Length > 0 ? "[b]Clash lost.[/b] " : "")}{name} hit you: {hit.Damage} damage.[/color]{combo}";
         return hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Huajin
-            ? line + "\n" + ParryTiming(hit.DefenderTechnique, hit.DefenderMoveFrame)
+            ? line + "\n" + MissedParry(hit.DefenderTechnique, hit.DefenderMoveFrame)
             : line;
     }
 
-    /// <summary>
-    /// Parries don't stop hits until the next step of Stage 1, so for now this says how
-    /// the timing was: perfect, parry, too early or too late, and by how many frames.
-    /// </summary>
-    private static string ParryTiming(Technique parry, int frame)
+    private static int PerfectMiss(Technique parry, int frame) => frame - parry.StartupFrames - parry.PerfectParryFrames + 1;
+
+    /// <summary>You were parrying but outside the window: say whether it was early or late, and by how much.</summary>
+    private static string MissedParry(Technique parry, int frame)
     {
         int windowStart = parry.StartupFrames;
         int windowEnd = parry.StartupFrames + parry.ActiveFrames; // first frame after the window
-        switch (Parry.Resolve(parry, frame))
-        {
-            case ParryOutcome.PerfectParry:
-                return $"[color=#33ff59][b]PERFECT PARRY timing[/b][/color] (frame {frame - windowStart + 1} of the {parry.PerfectParryFrames} perfect frames). Parrying doesn't block hits yet; that's the next step.";
-            case ParryOutcome.Parried:
-                return $"[color=#33bfff][b]PARRY timing[/b][/color] (frame {frame - windowStart + 1} of {parry.ActiveFrames}; {frame - windowStart - parry.PerfectParryFrames + 1} frame(s) too late for perfect). Parrying doesn't block hits yet; that's the next step.";
-            default:
-                return frame < windowStart
-                    ? $"Parry [b]too late[/b]: it was still winding up. Press {windowStart - frame} frame(s) earlier."
-                    : $"Parry [b]too early[/b]: the window had closed. Press {frame - windowEnd + 1} frame(s) later.";
-        }
+        return frame < windowStart
+            ? $"化绵掌 [b]too late[/b]: it was still winding up. Press {windowStart - frame} frame(s) earlier."
+            : $"化绵掌 [b]too early[/b]: the window had closed. Press {frame - windowEnd + 1} frame(s) later.";
     }
 
     // ---------------------------------------------------------------- drawing
@@ -432,9 +464,9 @@ public partial class Arena : Node3D
                     return f.Technique.IsInPerfectParry(f.MoveFrame) ? ParryPerfectColor : ParryColor;
                 return ActiveColor;
             case FighterState.Recovery: return RecoveryColor;
-            case FighterState.Hitstun:
-            case FighterState.Stagger:
-            case FighterState.Recoil: return HitstunColor;
+            case FighterState.Hitstun: return HitstunColor;
+            case FighterState.Stagger: return StaggerColor;
+            case FighterState.Recoil: return RecoilColor;
             default: return idle;
         }
     }
