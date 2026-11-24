@@ -19,12 +19,14 @@ clash_lose_stamina,8,Lighter move: its owner loses this much stamina
 clash_perfect_stagger,40,Perfect clash: the target is staggered this long
 clash_perfect_recovery,6,Perfect clash: the striker recovers in this many frames
 clash_perfect_qi,10,Perfect clash: the striker gains this much Qi
+clash_recoil_push,25,Same weight: each fighter is pushed back this many cm (a real reset: 110 cm apart becomes 160)
 parry_recovery,8,Parry: the defender recovers in this many frames
 parry_perfect_recovery,4,Perfect parry: the defender recovers in this many frames
 parry_perfect_stagger,30,Perfect parry: the attacker is staggered this long
 parry_perfect_drain,15,Perfect parry: the attacker loses this much stamina (the defender's parry cost is refunded)
 parry_perfect_qi,10,Perfect parry: the defender gains this much Qi
 input_buffer,6,A press made while busy is kept this many frames and used as soon as it can be (chain window or idle)
+knockback_frames,8,Knockback and clash pushes slide the fighter back over this many frames (8 = 0.13 s)
 walk_speed,200,Walking speed in cm per second (only while idle)
 min_distance,80,Fighters can't walk closer than this many cm (the capsules touch at 80)
 start_distance,110,How far apart a duel starts in cm (罗汉拳 hit 1 reaches 120)

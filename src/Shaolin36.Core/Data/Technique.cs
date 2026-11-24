@@ -41,8 +41,10 @@ namespace Shaolin36.Core.Data
             int perfectParryFrames = 0,
             int empowerQi = 0,
             int empowerDamagePct = 100,
-            bool empowerArmor = false)
+            bool empowerArmor = false,
+            int knockbackCm = 0)
         {
+            KnockbackCm = knockbackCm;
             EmpowerQi = empowerQi;
             EmpowerDamagePct = empowerDamagePct;
             EmpowerArmor = empowerArmor;
@@ -108,6 +110,9 @@ namespace Shaolin36.Core.Data
         /// <summary>True if the empowered version has hyper armor: hits still deal damage but don't interrupt it.</summary>
         public bool EmpowerArmor { get; }
 
+        /// <summary>How far a landed hit pushes the defender back, in whole centimetres (slid over knockback_frames).</summary>
+        public int KnockbackCm { get; }
+
         public bool CanEmpower => EmpowerQi > 0;
 
         public bool HasNext => Next.Length > 0;
@@ -141,6 +146,23 @@ namespace Shaolin36.Core.Data
             int frames = HitstunFrames - ActiveFrames - next.StartupFrames;
             if (frames < 0) frames = 0;
             return frames < ChainWindowFrames ? frames : ChainWindowFrames;
+        }
+
+        /// <summary>
+        /// For a string starting with this technique: the farthest the defender can stand at the first hit
+        /// for every hit to stay in reach, given each landed hit's knockback (which has finished sliding
+        /// by the next hit when knockback_frames is shorter than the gaps). <paramref name="find"/> looks up
+        /// the next hits by id. Hits whose next id is missing end the string.
+        /// </summary>
+        public int StringReachFrom(System.Func<string, Technique?> find)
+        {
+            int best = ReachCm, pushed = 0, guard = 0;
+            for (Technique? t = this; t != null && guard < 32; t = t.HasNext ? find(t.Next) : null, guard++)
+            {
+                best = System.Math.Min(best, t.ReachCm - pushed);
+                pushed += t.KnockbackCm;
+            }
+            return best;
         }
 
         public override string ToString() => $"{Id} ({Name})";

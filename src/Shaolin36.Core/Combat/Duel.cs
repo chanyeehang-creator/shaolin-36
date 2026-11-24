@@ -25,8 +25,10 @@ namespace Shaolin36.Core.Combat
             Technique? defenderTechnique = null, int defenderMoveFrame = -1,
             ParryOutcome parry = ParryOutcome.NotParried, ParryEffect? parryEffect = null,
             ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null, bool defenderExhausted = false,
-            int attackerQiGained = 0, int defenderQiGained = 0, bool empowered = false, bool defenderArmored = false)
+            int attackerQiGained = 0, int defenderQiGained = 0, bool empowered = false, bool defenderArmored = false,
+            int knockbackCm = 0)
         {
+            KnockbackCm = knockbackCm;
             Empowered = empowered;
             DefenderArmored = defenderArmored;
             AttackerQiGained = attackerQiGained;
@@ -91,6 +93,12 @@ namespace Shaolin36.Core.Combat
         /// <summary>True when the defender's hyper armor took the hit: damage dealt, but no hitstun.</summary>
         public bool DefenderArmored { get; }
 
+        /// <summary>
+        /// How far this strike pushes the defender back, in centimetres (the technique's knockback for a landed
+        /// hit, clash_recoil_push for a same-weight clash, which pushes both). 0 for hyper armor, parries and lost clashes.
+        /// </summary>
+        public int KnockbackCm { get; }
+
         /// <summary>True when the strike dealt its damage and hitstun.</summary>
         public bool Landed => Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
 
@@ -153,6 +161,12 @@ namespace Shaolin36.Core.Combat
     /// parries or clashes: a perfect parry still staggers an armored attacker, and the clash table still
     /// applies to an armored wind-up.
     ///
+    /// Knockback: a landed hit pushes the defender straight back from the attacker by the technique's
+    /// knockback, and a same-weight clash pushes both apart by clash_recoil_push. The push is slid over
+    /// knockback_frames ticks, starting the tick after the strike, in whole centimetres (larger steps
+    /// first); a new push adds to what is left and restarts the slide. Hyper armor holds its ground
+    /// (no knockback), and the arena ends stop a push.
+    ///
     /// Walking: each tick, after acting, a fighter who is idle walks one step in the
     /// direction given (-1 left, +1 right, 0 stand) at the rules sheet's walk_speed. Speeds
     /// are whole centimetres per second, so each fighter carries the leftover fraction of
@@ -167,6 +181,8 @@ namespace Shaolin36.Core.Combat
         private readonly Fighter[] _fighters;
         private readonly List<HitEvent> _hits = new List<HitEvent>();
         private readonly int[] _walkRemainder = new int[2];
+        private readonly int[] _pushLeft = new int[2];
+        private readonly int[] _pushTicks = new int[2];
 
         /// <param name="oneQi">Qi fighter One starts with; null for the rules sheet's qi_start. A run passes what it carried over.</param>
         /// <param name="twoQi">Qi fighter Two starts with; null for qi_start.</param>
@@ -224,6 +240,8 @@ namespace Shaolin36.Core.Combat
             One.Tick(one, walkOne != 0);
             Two.Tick(two, walkTwo != 0);
             Walk(Math.Sign(walkOne), Math.Sign(walkTwo));
+            Push(Side.One);
+            Push(Side.Two);
 
             // Find both hits before applying either, so a same-tick trade doesn't depend on order.
             bool oneHits = Connects(One, DistanceCm);
@@ -292,16 +310,22 @@ namespace Shaolin36.Core.Combat
                         int frames = Math.Max(move.HitstunFrames, e.Target.StunFrames);
                         if (frames > 0 && !defender.IsDown) defender.Stun(FighterState.Stagger, frames);
                         int breakQi = striker.GainQi(Rules.QiPerHit);
+                        StartPush(OtherSide(attacker), move.KnockbackCm);
                         return new HitEvent(Tick, attacker, move, damage, frames, defender.Hp, defenderMove, defenderFrame,
-                            clash: clash, clashEffect: e, defenderExhausted: tired, attackerQiGained: breakQi, empowered: empowered);
+                            clash: clash, clashEffect: e, defenderExhausted: tired, attackerQiGained: breakQi, empowered: empowered,
+                            knockbackCm: move.KnockbackCm);
                     }
                     defender.LoseStamina(e.Target.StaminaLoss);
                     ApplyClashSide(striker, e.Striker, clash == ClashOutcome.TargetWins ? FighterState.Stagger : FighterState.Recoil);
                     ApplyClashSide(defender, e.Target, clash == ClashOutcome.PerfectClash ? FighterState.Stagger : FighterState.Recoil);
                     int strikerQi = striker.GainQi(e.Striker.QiGain);
                     int targetQi = defender.GainQi(e.Target.QiGain);
+                    int recoilPush = clash == ClashOutcome.BothRecoil ? Rules.ClashRecoilPush : 0;
+                    StartPush(attacker, recoilPush);
+                    StartPush(OtherSide(attacker), recoilPush);
                     return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame,
-                        clash: clash, clashEffect: e, attackerQiGained: strikerQi, defenderQiGained: targetQi, empowered: empowered);
+                        clash: clash, clashEffect: e, attackerQiGained: strikerQi, defenderQiGained: targetQi, empowered: empowered,
+                        knockbackCm: recoilPush);
                 }
             }
 
@@ -311,8 +335,41 @@ namespace Shaolin36.Core.Combat
             int hitstun = defenderArmored ? 0 : move.HitstunFrames;
             defender.TakeHit(dealt, hitstun);
             int hitQi = striker.GainQi(Rules.QiPerHit);
+            // Hyper armor holds its ground.
+            int knockback = defenderArmored ? 0 : move.KnockbackCm;
+            StartPush(OtherSide(attacker), knockback);
             return new HitEvent(Tick, attacker, move, dealt, hitstun, defender.Hp, defenderMove, defenderFrame,
-                defenderExhausted: exhausted, attackerQiGained: hitQi, empowered: empowered, defenderArmored: defenderArmored);
+                defenderExhausted: exhausted, attackerQiGained: hitQi, empowered: empowered, defenderArmored: defenderArmored,
+                knockbackCm: knockback);
+        }
+
+        private static Side OtherSide(Side side) => side == Side.One ? Side.Two : Side.One;
+
+        /// <summary>Centimetres of knockback <paramref name="side"/> still has to slide.</summary>
+        public int PushLeftCm(Side side) => _pushLeft[(int)side];
+
+        private void StartPush(Side side, int cm)
+        {
+            if (cm <= 0) return;
+            _pushLeft[(int)side] += cm;
+            _pushTicks[(int)side] = Rules.KnockbackFrames;
+        }
+
+        /// <summary>Slide <paramref name="side"/> one tick's worth of its push, away from the other fighter.</summary>
+        private void Push(Side side)
+        {
+            int i = (int)side;
+            if (_pushLeft[i] <= 0 || _pushTicks[i] <= 0) return;
+            int step = (_pushLeft[i] + _pushTicks[i] - 1) / _pushTicks[i];
+            _pushLeft[i] -= step;
+            _pushTicks[i]--;
+
+            var me = this[side];
+            var other = this[OtherSide(side)];
+            // Away from the other fighter; if they stand on the same spot, One goes left and Two right.
+            int dir = me.PositionCm != other.PositionCm ? Math.Sign(me.PositionCm - other.PositionCm) : (side == Side.One ? -1 : 1);
+            int half = Rules.ArenaWidth / 2;
+            me.PositionCm = Clamp(me.PositionCm + dir * step, -half, half);
         }
 
         private static void ApplyClashSide(Fighter f, ClashSide side, FighterState state)

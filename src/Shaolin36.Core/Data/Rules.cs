@@ -17,9 +17,9 @@ namespace Shaolin36.Core.Data
             "hp_max", "stamina_max", "stamina_regen", "stamina_regen_still", "stamina_regen_delay",
             "exhausted_until", "exhausted_damage_pct", "exhausted_walk_pct", "qi_max", "qi_start", "qi_per_hit",
             "clash_recoil_frames", "clash_recoil_stamina", "clash_lose_stagger", "clash_lose_stamina",
-            "clash_perfect_stagger", "clash_perfect_recovery", "clash_perfect_qi",
+            "clash_perfect_stagger", "clash_perfect_recovery", "clash_perfect_qi", "clash_recoil_push",
             "parry_recovery", "parry_perfect_recovery", "parry_perfect_stagger", "parry_perfect_drain", "parry_perfect_qi",
-            "input_buffer",
+            "input_buffer", "knockback_frames",
             "walk_speed", "min_distance", "start_distance", "arena_width",
             "dummy_pause", "dummy_chain_frame",
         };
@@ -55,6 +55,11 @@ namespace Shaolin36.Core.Data
         public int ClashPerfectStagger => V("clash_perfect_stagger");
         public int ClashPerfectRecovery => V("clash_perfect_recovery");
         public int ClashPerfectQi => V("clash_perfect_qi");
+        /// <summary>Same-weight clash: each fighter is pushed back this many centimetres.</summary>
+        public int ClashRecoilPush => V("clash_recoil_push");
+
+        /// <summary>Knockback (and clash push) slides the fighter back over this many frames.</summary>
+        public int KnockbackFrames => V("knockback_frames");
 
         public int ParryRecovery => V("parry_recovery");
         public int ParryPerfectRecovery => V("parry_perfect_recovery");
@@ -171,6 +176,7 @@ namespace Shaolin36.Core.Data
                 Check(values["qi_start"] <= values["qi_max"], "qi_start",
                     $"({values["qi_start"]}) cannot be more than 'qi_max' ({values["qi_max"]})");
                 Check(values["input_buffer"] <= 30, "input_buffer", "must be 30 frames or fewer (half a second), or presses fire long after the player meant them");
+                Check(values["knockback_frames"] >= 1, "knockback_frames", "must be at least 1 frame");
                 Check(values["walk_speed"] <= 2000, "walk_speed", "must be 2000 cm per second or less");
                 Check(values["min_distance"] > 0, "min_distance", "must be at least 1, or the fighters walk through each other");
                 Check(values["start_distance"] >= values["min_distance"], "start_distance",

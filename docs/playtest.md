@@ -129,6 +129,20 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 
 The sounds are placeholders made in code (no sound files yet), so judge their timing and weight, not their quality.
 
+**Hit reactions and knockback (Stage 2):** a fighter who gets hit leans back, holds that lean through the hit-stop, then springs upright in about 0.3 s. Bigger hits lean further (a 罗汉拳 jab 10°, a heavy hit 18°, Qi 铁砂掌 26°). A staggered fighter wobbles, and the loser of the duel tips over. Hyper armor barely flinches.
+
+Hits also **push the defender back** (knockback). This is a rule, not just a look, so F3 doesn't turn it off. The push slides over 8 frames (0.13 s) once the hit-stop ends.
+
+| What happened | Pushed back |
+| --- | --- |
+| 罗汉拳 hits 1 to 3 | 4 cm each |
+| 罗汉拳 finisher | 60 cm, so the string ends with them out of reach |
+| 铁砂掌 (plain or Qi) | 50 cm |
+| Same-weight clash | both fighters 25 cm, a real reset (110 cm apart becomes 160) |
+| Hit on hyper armor, a parry, a lost clash | nobody moves |
+
+Because of the small pushes, the full 罗汉拳 string only stays in reach if you start it **116 cm away or closer**. The duel starts at 110 cm, so you're fine from the start position. If you start it at the very tip of hit 1's 120 cm reach, hit 2 will miss: step in first.
+
 ## 6. Tuning while you play
 
 All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**), then close the game and double-click `play.bat` again:
@@ -153,6 +167,8 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - `shake`: camera shake in cm (0 to 50). `push`: how far the camera moves in, in cm (0 to 100).
   - `spark`: size of the spark burst in cm (0 = none, up to 200).
   - `sound`: none, thud, smack, crack, block, ring, clang or gong.
+
+- Knockback: the `knockback` column of `techniques.csv` (cm per hit), and in `rules.csv` `knockback_frames` (how long the slide takes) and `clash_recoil_push` (how far a same-weight clash pushes each fighter). The test script prints how close a string must start for every hit to stay in reach.
 
 Run `scripts\test.bat` after editing to check the sheets.
 

@@ -61,6 +61,10 @@ Each tick, an idle fighter can walk left or right at `walk_speed` cm per second,
 
 Every strike is sorted into one row of `feel.csv` (hit, heavy hit, block, perfect parry, the clashes, KO...). The core's `FeelClock` drives the duel and freezes it for that row's `hitstop` frames after the strike: nothing in the rules moves during a freeze, so all frame data keeps its meaning, and slot presses made during it are used right after. The Godot side plays the row's sparks, sound and camera shake and push. F3 turns the kit off and on in the playtest.
 
+## Knockback
+
+A landed hit pushes the defender straight back by the technique's `knockback` (cm), slid over `knockback_frames` ticks starting the tick after the hit; a same-weight clash pushes both apart by `clash_recoil_push`. Hyper armor holds its ground, parries and lost clashes push nobody, and the arena ends stop a push. The data check prints how close each string must start so every hit stays in reach.
+
 ## Editing data
 
 Edit `game/data/techniques.csv`, `game/data/rules.csv` or `game/data/feel.csv` (in Excel, save as **CSV UTF-8**). Category and weight accept English or Chinese (`waigong` or `外功`, `heavy` or `重`). Lines starting with `#` are comments. Run the test script afterwards: the check tells you the line and column of anything wrong.
