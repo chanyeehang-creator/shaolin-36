@@ -1,0 +1,6 @@
+# Technique sheet. Frames are 1/60 s sim ticks. PLACEHOLDER numbers: Stage 1 reviews them.
+# category: waigong/外功 neigong/内功 qinggong/轻功 dianxue/点穴 huajin/化劲 qinna/擒拿 qigong/气功
+# weight: light/medium/heavy. clash_window = last N frames of startup; perfect_clash = first N frames of that window.
+id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable
+luohan_quan_1,罗汉拳 1,waigong,medium,false,10,3,14,4,2,8,0,6,true
+timed_parry,化劲 timed parry,huajin,light,false,2,8,18,0,0,10,0,0,true
