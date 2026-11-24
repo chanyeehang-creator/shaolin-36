@@ -25,8 +25,10 @@ namespace Shaolin36.Core.Combat
             Technique? defenderTechnique = null, int defenderMoveFrame = -1,
             ParryOutcome parry = ParryOutcome.NotParried, ParryEffect? parryEffect = null,
             ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null, bool defenderExhausted = false,
-            int attackerQiGained = 0, int defenderQiGained = 0)
+            int attackerQiGained = 0, int defenderQiGained = 0, bool empowered = false, bool defenderArmored = false)
         {
+            Empowered = empowered;
+            DefenderArmored = defenderArmored;
             AttackerQiGained = attackerQiGained;
             DefenderQiGained = defenderQiGained;
             DefenderExhausted = defenderExhausted;
@@ -83,6 +85,12 @@ namespace Shaolin36.Core.Combat
         /// <summary>Qi the defender gained from this strike (parry_perfect_qi for a perfect parry), after the cap.</summary>
         public int DefenderQiGained { get; }
 
+        /// <summary>True when the strike came from a Qi-empowered move (its damage is already multiplied).</summary>
+        public bool Empowered { get; }
+
+        /// <summary>True when the defender's hyper armor took the hit: damage dealt, but no hitstun.</summary>
+        public bool DefenderArmored { get; }
+
         /// <summary>True when the strike dealt its damage and hitstun.</summary>
         public bool Landed => Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
 
@@ -138,6 +146,12 @@ namespace Shaolin36.Core.Combat
     /// attacker qi_per_hit; a perfect parry gives the defender parry_perfect_qi; a perfect clash gives
     /// the striker clash_perfect_qi. Blocks, lost clashes and same-weight recoils give nothing.
     /// What was gained is on the <see cref="HitEvent"/>.
+    ///
+    /// Empowered moves (see <see cref="Fighter.Empowered"/>): the hit deals empower_damage_pct of its
+    /// damage (before the exhausted bonus). A defender with hyper armor (<see cref="Fighter.HasArmor"/>)
+    /// takes the damage of a landed hit but no hitstun, so their move carries on. Armor doesn't stop
+    /// parries or clashes: a perfect parry still staggers an armored attacker, and the clash table still
+    /// applies to an armored wind-up.
     ///
     /// Walking: each tick, after acting, a fighter who is idle walks one step in the
     /// direction given (-1 left, +1 right, 0 stand) at the rules sheet's walk_speed. Speeds
@@ -215,14 +229,16 @@ namespace Shaolin36.Core.Combat
             bool oneHits = Connects(One, DistanceCm);
             bool twoHits = Connects(Two, DistanceCm);
             Technique? oneMove = One.Technique, twoMove = Two.Technique;
+            bool oneEmpowered = One.Empowered, twoEmpowered = Two.Empowered;
+            bool oneArmored = One.HasArmor, twoArmored = Two.HasArmor;
             if (oneHits) One.MarkHitLanded();
             if (twoHits) Two.MarkHitLanded();
 
             // Note what each defender was doing before either hit changes it.
             int oneFrame = One.MoveFrame, twoFrame = Two.MoveFrame;
             var landed = new List<HitEvent>(2);
-            if (oneHits) landed.Add(Land(Side.One, oneMove!, Two, twoMove, twoFrame));
-            if (twoHits) landed.Add(Land(Side.Two, twoMove!, One, oneMove, oneFrame));
+            if (oneHits) landed.Add(Land(Side.One, oneMove!, oneEmpowered, Two, twoMove, twoFrame, twoArmored));
+            if (twoHits) landed.Add(Land(Side.Two, twoMove!, twoEmpowered, One, oneMove, oneFrame, oneArmored));
 
             _hits.AddRange(landed);
             Tick++;
@@ -236,7 +252,12 @@ namespace Shaolin36.Core.Combat
             && attacker.Technique!.ReachCm > 0
             && distanceCm <= attacker.Technique.ReachCm;
 
-        private HitEvent Land(Side attacker, Technique move, Fighter defender, Technique? defenderMove, int defenderFrame)
+        /// <summary>The damage <paramref name="move"/> deals, before the exhausted bonus.</summary>
+        public static int StrikeDamage(Technique move, bool empowered) =>
+            empowered ? (move.Damage * move.EmpowerDamagePct + 50) / 100 : move.Damage;
+
+        private HitEvent Land(Side attacker, Technique move, bool empowered, Fighter defender, Technique? defenderMove,
+            int defenderFrame, bool defenderArmored)
         {
             var striker = this[attacker];
 
@@ -252,7 +273,7 @@ namespace Shaolin36.Core.Combat
                     striker.LoseStamina(e.AttackerStaminaLoss);
                     int parryQi = defender.GainQi(e.DefenderQiGain);
                     return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame, parry, e,
-                        defenderQiGained: parryQi);
+                        defenderQiGained: parryQi, empowered: empowered);
                 }
 
                 var clash = Combat.Clash.Resolve(move, defenderMove, defenderFrame);
@@ -265,14 +286,14 @@ namespace Shaolin36.Core.Combat
                         // The heavier move breaks through: full damage, and the defender stays
                         // frozen for the longer of the hitstun and the clash stagger.
                         bool tired = defender.IsExhausted;
-                        int damage = defender.DamageTaken(move.Damage);
+                        int damage = defender.DamageTaken(StrikeDamage(move, empowered));
                         defender.TakeHit(damage, 0);
                         defender.LoseStamina(e.Target.StaminaLoss);
                         int frames = Math.Max(move.HitstunFrames, e.Target.StunFrames);
                         if (frames > 0 && !defender.IsDown) defender.Stun(FighterState.Stagger, frames);
                         int breakQi = striker.GainQi(Rules.QiPerHit);
                         return new HitEvent(Tick, attacker, move, damage, frames, defender.Hp, defenderMove, defenderFrame,
-                            clash: clash, clashEffect: e, defenderExhausted: tired, attackerQiGained: breakQi);
+                            clash: clash, clashEffect: e, defenderExhausted: tired, attackerQiGained: breakQi, empowered: empowered);
                     }
                     defender.LoseStamina(e.Target.StaminaLoss);
                     ApplyClashSide(striker, e.Striker, clash == ClashOutcome.TargetWins ? FighterState.Stagger : FighterState.Recoil);
@@ -280,16 +301,18 @@ namespace Shaolin36.Core.Combat
                     int strikerQi = striker.GainQi(e.Striker.QiGain);
                     int targetQi = defender.GainQi(e.Target.QiGain);
                     return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame,
-                        clash: clash, clashEffect: e, attackerQiGained: strikerQi, defenderQiGained: targetQi);
+                        clash: clash, clashEffect: e, attackerQiGained: strikerQi, defenderQiGained: targetQi, empowered: empowered);
                 }
             }
 
             bool exhausted = defender.IsExhausted;
-            int dealt = defender.DamageTaken(move.Damage);
-            defender.TakeHit(dealt, move.HitstunFrames);
+            int dealt = defender.DamageTaken(StrikeDamage(move, empowered));
+            // Hyper armor: the damage goes through, but the defender's move isn't interrupted.
+            int hitstun = defenderArmored ? 0 : move.HitstunFrames;
+            defender.TakeHit(dealt, hitstun);
             int hitQi = striker.GainQi(Rules.QiPerHit);
-            return new HitEvent(Tick, attacker, move, dealt, move.HitstunFrames, defender.Hp, defenderMove, defenderFrame,
-                defenderExhausted: exhausted, attackerQiGained: hitQi);
+            return new HitEvent(Tick, attacker, move, dealt, hitstun, defender.Hp, defenderMove, defenderFrame,
+                defenderExhausted: exhausted, attackerQiGained: hitQi, empowered: empowered, defenderArmored: defenderArmored);
         }
 
         private static void ApplyClashSide(Fighter f, ClashSide side, FighterState state)

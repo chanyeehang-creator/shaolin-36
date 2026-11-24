@@ -18,7 +18,7 @@ clash_lose_stagger,24,Lighter move: its owner is staggered this long
 clash_lose_stamina,8,Lighter move: its owner loses this much stamina
 clash_perfect_stagger,40,Perfect clash: the target is staggered this long
 clash_perfect_recovery,6,Perfect clash: the striker recovers in this many frames
-clash_perfect_qi,15,Perfect clash: the striker gains this much Qi
+clash_perfect_qi,10,Perfect clash: the striker gains this much Qi
 parry_recovery,8,Parry: the defender recovers in this many frames
 parry_perfect_recovery,4,Perfect parry: the defender recovers in this many frames
 parry_perfect_stagger,30,Perfect parry: the attacker is staggered this long

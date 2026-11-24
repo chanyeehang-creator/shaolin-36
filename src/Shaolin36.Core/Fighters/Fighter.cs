@@ -44,7 +44,9 @@ namespace Shaolin36.Core.Fighters
     /// Qi (only when the fighter is given a max Qi above 0; a <see cref="Combat.Duel"/> always does):
     /// Qi is earned in the fight (<see cref="GainQi"/>, never above <see cref="MaxQi"/>) and spent by
     /// techniques with a Qi cost: such a technique only starts with at least its cost in Qi, and pays it
-    /// on the tick it starts. Qi does not regenerate.
+    /// on the tick it starts. Qi does not regenerate. A technique with an empowered version
+    /// (<see cref="Data.Technique.EmpowerQi"/>) is empowered automatically when, after paying any Qi
+    /// cost, the fighter still has EmpowerQi Qi: it spends that too (see <see cref="Empowered"/>).
     /// </summary>
     public sealed class Fighter
     {
@@ -145,6 +147,16 @@ namespace Shaolin36.Core.Fighters
 
         /// <summary>Ticks the buffered press has left. 0 when nothing is buffered.</summary>
         public int BufferedTicksLeft { get; private set; }
+
+        /// <summary>True while the current move is its Qi-empowered version (spent its empower_qi when it started).</summary>
+        public bool Empowered { get; private set; }
+
+        /// <summary>
+        /// True while hits can't interrupt this fighter: an empowered move with hyper armor, in its startup
+        /// or active frames. Hits still deal damage. Parries and clashes still work on it.
+        /// </summary>
+        public bool HasArmor =>
+            Empowered && Technique!.EmpowerArmor && (State == FighterState.Startup || State == FighterState.Active);
 
         /// <summary>Which hit of the current string this is: 1 for a fresh start, 2 after one chain, and so on. 0 when not in a move.</summary>
         public int StringHit { get; private set; }
@@ -345,6 +357,8 @@ namespace Shaolin36.Core.Fighters
         {
             LoseStamina(technique.StaminaCost);
             Qi -= technique.QiCost;
+            Empowered = technique.CanEmpower && Qi >= technique.EmpowerQi;
+            if (Empowered) Qi -= technique.EmpowerQi;
             Technique = technique;
             Slot = slot;
             MoveFrame = 0;
@@ -386,6 +400,7 @@ namespace Shaolin36.Core.Fighters
             MoveFrame = -1;
             HitLanded = false;
             StringHit = 0;
+            Empowered = false;
         }
 
         /// <summary>Which phase frame <paramref name="frame"/> of a technique is in.</summary>
