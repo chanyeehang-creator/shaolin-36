@@ -90,6 +90,13 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 - **At 0 you're exhausted** (the bar turns orange, "Exhausted!" floats up): you can't use any move that costs stamina, so **no 化绵掌, your guard is broken**. You walk at half speed and take 20% extra damage (a 6-damage hit does 7, the 12-damage finisher does 14). It lasts until the bar is back to 50: about 1.75 s if you stand still. Then "Breath back".
 - The dummy gets exhausted too: its 3rd string in a row empties it (on the finisher), and it rests about 2.5 s before attacking again. That's your moment: it can't attack or parry and takes extra damage.
 
+**Qi (气):** the gold bar after stamina, 0 to 100. Every duel starts you on 0, and it never refills by itself: you earn it by fighting well.
+
+- **+2 for every hit that deals damage** (a full 罗汉拳 string is +8). A heavy move that wins its clash counts too.
+- **+10 for a perfect parry** and **+15 for a perfect clash** ("+10 Qi" / "+15 Qi" float up in gold). A plain block, a same-weight clash or a lost clash gives nothing.
+- It stops at 100.
+- **Nothing spends Qi yet.** Later 点穴 (pressure-point) and 气功 (breathing) techniques will cost Qi, and in a run your Qi will carry over from one duel to the next. For now, watch how fast it fills: is perfect play rewarded enough?
+
 **Clashes (拼招):** if your hit lands in the last frames of the dummy's wind-up, the moves clash. Same weight: both bounce off (grey). Heavier move: it breaks through. Lighter move: it gets knocked aside. Hit the very first frames of that window and it's a **PERFECT CLASH**: the dummy is staggered whatever the weights. The 罗汉拳 finisher (hit 4) is heavy, so it wins normal clashes against hits 1 to 3.
 
 ## 6. Tuning while you play
@@ -107,6 +114,7 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - `stamina_max`, `stamina_regen`, `stamina_regen_still`, `stamina_regen_delay`: max stamina and how fast it comes back.
   - `exhausted_until`, `exhausted_damage_pct`, `exhausted_walk_pct`: how long exhaustion lasts, the extra damage and the slower walk.
   - `parry_perfect_drain`: how much stamina a perfect parry takes from the attacker. Each move's own cost is the `stamina` column of `techniques.csv`.
+  - `qi_max`, `qi_start`, `qi_per_hit`, `parry_perfect_qi`, `clash_perfect_qi`: the Qi bar's size, what you start on, and what a hit, a perfect parry and a perfect clash give.
   - `dummy_chain_frame`: when the dummy presses for its next hit. 0 is a true combo you can't escape. Try 7 (the last frame of the window): it leaves gaps you can parry into.
 
 Run `scripts\test.bat` after editing to check the sheets.

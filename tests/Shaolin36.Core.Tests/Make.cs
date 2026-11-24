@@ -22,8 +22,9 @@ internal static class Make
         int chain = 0,
         int perfectParry = 0,
         int stamina = 5,
-        int damage = 5) =>
-        new(id, id, category, weight, weapon, startup, active, recovery, window, perfect, stamina, 0, damage, clashable,
+        int damage = 5,
+        int qi = 0) =>
+        new(id, id, category, weight, weapon, startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
             hitstun, reach, next, chain, perfectParry);
 
     /// <summary>A parry like the sheet's: startup 3, a 10-frame window (frames 3-12), perfect on frames 3-6.</summary>
