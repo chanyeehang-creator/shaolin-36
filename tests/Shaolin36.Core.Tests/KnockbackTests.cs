@@ -175,8 +175,13 @@ public class KnockbackTests
         var one = new Loadout(book);
         one.Assign(Slot.Square, sheet["luohan_quan_1"]);
         var d = new Duel(SheetRules(), one, new Loadout(book), 0, distance);
-        // Mash every other tick: the buffer chains each hit as early as it can.
-        for (int t = 0; t < 200; t++) d.Step(t % 2 == 0 ? Square : None, None);
+        // Mash every other tick until the finisher starts: the buffer chains each hit as early as it can.
+        bool finisher = false;
+        for (int t = 0; t < 200; t++)
+        {
+            d.Step(t % 2 == 0 && !finisher ? Square : None, None);
+            finisher |= d.One.Technique?.Id == "luohan_quan_4";
+        }
         return d;
     }
 
@@ -185,8 +190,9 @@ public class KnockbackTests
     {
         var d = RunString(SheetRules().StartDistance);
         Assert.Equal(new[] { "luohan_quan_1", "luohan_quan_2", "luohan_quan_3", "luohan_quan_4" }, d.Hits.Select(h => h.Technique.Id));
-        int pushed = Sheet().Values.Where(t => t.Id.StartsWith("luohan_quan_")).Sum(t => t.KnockbackCm);
-        Assert.Equal(SheetRules().StartDistance + pushed, d.DistanceCm);
+        var hits = Sheet().Values.Where(t => t.Id.StartsWith("luohan_quan_")).ToList();
+        int pushed = hits.Sum(t => t.KnockbackCm), stepped = hits.Sum(t => t.AdvanceCm);
+        Assert.Equal(SheetRules().StartDistance + pushed - stepped, d.DistanceCm);
     }
 
     [Fact]
@@ -194,7 +200,7 @@ public class KnockbackTests
     {
         var sheet = Sheet();
         int limit = sheet["luohan_quan_1"].StringReachFrom(id => sheet.TryGetValue(id, out var t) ? t : null);
-        Assert.Equal(116, limit);
+        Assert.Equal(130, limit); // hit 1's 120 cm reach plus its 10 cm step in
         Assert.Equal(4, RunString(limit).Hits.Count);
         Assert.True(RunString(limit + 1).Hits.Count < 4);
     }
@@ -204,7 +210,8 @@ public class KnockbackTests
     {
         // After the finisher's knockback, hit 1 can't reach: the string has a clear end.
         var d = RunString(SheetRules().StartDistance);
-        Assert.True(d.DistanceCm > Sheet()["luohan_quan_1"].ReachCm);
+        var first = Sheet()["luohan_quan_1"];
+        Assert.True(d.DistanceCm > first.ReachCm + first.AdvanceCm);
     }
 
     // ---------- The sheet column ----------

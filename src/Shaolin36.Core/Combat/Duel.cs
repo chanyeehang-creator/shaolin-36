@@ -171,6 +171,11 @@ namespace Shaolin36.Core.Combat
     /// first); a new push adds to what is left and restarts the slide. Hyper armor holds its ground
     /// (no knockback), and the arena ends stop a push.
     ///
+    /// Stepping in: a move with an advance (such as each hit of 罗汉拳) steps its fighter forward along
+    /// its aim by that many centimetres, slid over its startup frames from the tick it starts (whole centimetres,
+    /// larger steps first), so the step is done as the hit comes out. It stops at min_distance like walking,
+    /// and a hit that knocks the fighter out of the move stops it.
+    ///
     /// Walking: each tick, a fighter who is idle walks the way their <see cref="MoveInput"/> says,
     /// relative to the other fighter (forward is straight at them, right is round their side), at the
     /// rules sheet's walk_speed scaled by how far the stick is pushed. Speeds in cm per second are
@@ -186,6 +191,8 @@ namespace Shaolin36.Core.Combat
         private readonly List<HitEvent> _hits = new List<HitEvent>();
         private readonly int[] _pushLeft = new int[2];
         private readonly int[] _pushTicks = new int[2];
+        private readonly int[] _advanceLeft = new int[2];
+        private readonly int[] _advanceTicks = new int[2];
 
         /// <param name="oneQi">Qi fighter One starts with; null for the rules sheet's qi_start. A run passes what it carried over.</param>
         /// <param name="twoQi">Qi fighter Two starts with; null for qi_start.</param>
@@ -247,8 +254,8 @@ namespace Shaolin36.Core.Combat
             Two.Tick(two, moveTwo.IsWalking);
             Aim(One, Two);
             Aim(Two, One);
-            var stepOne = WalkStep(One, Two, moveOne) + PushStep(Side.One);
-            var stepTwo = WalkStep(Two, One, moveTwo) + PushStep(Side.Two);
+            var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + PushStep(Side.One);
+            var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + PushStep(Side.Two);
             Move(stepOne, stepTwo);
 
             // Find both hits before applying either, so a same-tick trade doesn't depend on order.
@@ -369,6 +376,35 @@ namespace Shaolin36.Core.Combat
             if (cm <= 0) return;
             _pushLeft[(int)side] += cm;
             _pushTicks[(int)side] = Rules.KnockbackFrames;
+        }
+
+        /// <summary>Centimetres <paramref name="side"/>'s current move still has to step forward.</summary>
+        public int AdvanceLeftCm(Side side) => _advanceLeft[(int)side];
+
+        /// <summary>
+        /// This tick's share of <paramref name="side"/>'s step forward: a move with advance starts it on its first
+        /// frame and slides it over its startup frames (whole centimetres, larger steps first) along its aim.
+        /// Being knocked out of the move (hitstun, stagger, recoil) stops the step where it is.
+        /// </summary>
+        private FloorPoint AdvanceStep(Side side)
+        {
+            int i = (int)side;
+            var f = this[side];
+            if (!f.State.IsInMove())
+            {
+                _advanceLeft[i] = 0;
+                return FloorPoint.Zero;
+            }
+            if (f.MoveFrame == 0)
+            {
+                _advanceLeft[i] = f.Technique!.AdvanceCm;
+                _advanceTicks[i] = f.Technique.StartupFrames;
+            }
+            if (_advanceLeft[i] <= 0 || _advanceTicks[i] <= 0) return FloorPoint.Zero;
+            int step = (_advanceLeft[i] + _advanceTicks[i] - 1) / _advanceTicks[i];
+            _advanceLeft[i] -= step;
+            _advanceTicks[i]--;
+            return f.Facing.WithLength(step * FloorPoint.UnitsPerCm);
         }
 
         /// <summary>This tick's share of <paramref name="side"/>'s push (whole centimetres, larger steps first), away from the other fighter.</summary>

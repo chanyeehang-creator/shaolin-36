@@ -44,7 +44,7 @@ Console.WriteLine($"OK: {FeelSheet.EventNames.Count} feel events in {feelPath}")
 var byId = techniques.Techniques.ToDictionary(t => t.Id);
 var starts = techniques.Techniques.Where(t => t.HasNext && !techniques.Techniques.Any(o => o.Next == t.Id));
 foreach (var t in starts)
-    Console.WriteLine($"  {t.Id} string: every hit stays in reach (with knockback) if it starts {t.StringReachFrom(id => byId.GetValueOrDefault(id))} cm away or closer");
+    Console.WriteLine($"  {t.Id} string: every hit stays in reach (with step-in and knockback) if it starts {t.StringReachFrom(id => byId.GetValueOrDefault(id))} cm away or closer");
 foreach (var t in techniques.Techniques.Where(t => t.HasNext))
 {
     var next = byId[t.Next];
