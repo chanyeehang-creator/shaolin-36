@@ -1,6 +1,6 @@
 # First playable test: how to play it
 
-You (the orange capsule, with the camera behind you) against a training dummy (the dark red capsule) that throws the 罗汉拳 string over and over, on a square floor in full 3D. The point is to feel the numbers, so play for a few minutes and then answer the questions at the bottom. New in this build: walking in any direction with a lock-on camera, hit angles, attacks that step in, and the quick step (all in section 5, under "Full 3D").
+You (the orange capsule, with the camera behind you) against an opponent (the dark red capsule) on a square floor in full 3D. **New in this build: the opponent has a brain.** It walks in to reach you, attacks with the same 罗汉拳, 铁砂掌 and 化绵掌 you start with, parries strikes it sees coming, steps aside, punishes your mistakes and backs off when it's out of breath (section 5, "The opponent brain"). The old training dummy that only repeats 罗汉拳 is still there, picked from the loadout screen.
 
 ## 1. Get the new version on your PC
 
@@ -53,14 +53,14 @@ Every fight button is a **slot**. Slots don't mean anything on their own: whatev
 | --- | --- | --- |
 | Walk (any direction) | Left stick or D-pad | W / A / S / D or the arrow keys |
 | Quick step | Tap the stick or D-pad twice the same way | Tap W, A, S or D twice |
-| Dummy stands still / attacks again | 9 (Back / Select) | T |
+| Opponent stands still / fights again | 9 (Back / Select) | T |
 | Loadout screen (pauses) | 10 (Start) | Tab or Esc |
 | Restart the duel | Start after a KO, or the loadout screen's last row | Enter |
 | Half speed on/off | | F1 |
 | Floating text on/off | | F2 |
 | Feel kit on/off (hit-stop, sparks, sound, camera) | | F3 |
 
-On the **loadout screen**: move up and down to pick a technique (W/S, ↑/↓ or the D-pad), then press the button you want it on. Want 化绵掌 on ✕ instead of L1? Highlight 化绵掌 and press ✕. If something was already on that button, the two swap. Below the techniques, one row turns the dummy's attacks on and off (Select or T does the same from the fight), and the last row restarts the duel.
+On the **loadout screen**: move up and down to pick a technique (W/S, ↑/↓ or the D-pad), then press the button you want it on. Want 化绵掌 on ✕ instead of L1? Highlight 化绵掌 and press ✕. If something was already on that button, the two swap. Below the techniques, the **Opponent** row picks who you fight: press any button or ←/→ on it to go through 弟子 (novice), 武僧 (monk), 方丈 (master) and the old training dummy. Changing it starts a new duel. Select or T makes the opponent stand still (and fight again). The last row restarts the duel.
 
 ## 5. Reading the screen
 
@@ -145,6 +145,32 @@ Hits also **push the defender back** (knockback). This is a rule, not just a loo
 
 Because of the small pushes, the full 罗汉拳 string only stays in reach if you start it **116 cm away or closer**. The duel starts at 110 cm, so you're fine from the start position. If you start it at the very tip of hit 1's 120 cm reach, hit 2 will miss: step in first.
 
+**The opponent brain (Stage 3).** The opponent is now played by a brain that uses the same buttons and stick you do: the same three techniques (罗汉拳 on □, 铁砂掌 on △, 化绵掌 on L1), the same stamina, Qi and frame data, and the quick step. It never reads your buttons. It only "sees" what you do a little late, like a person reacting. What it does, in order of priority:
+
+1. **Carries on its string:** at each link of its 罗汉拳 it decides whether to press for the next hit. When it does, it presses on the first chain frame, so the rest of the string is a true combo once hit 1 lands.
+2. **Answers a strike it sees coming:** a parry timed for your hit frame (sometimes aiming for the perfect part, sometimes the plain block part), or else a quick step to the side.
+3. **Backs off to breathe** when its stamina is low (it walks back to 250 cm and waits). It still parries if it can pay for it.
+4. **Punishes:** if it sees you recovering from a move, staggered or recoiling while you're in its reach, it may attack straight away.
+5. **Otherwise** it walks in until its attacks reach (120 cm), with the odd quick step forward to close a long gap. In reach, every so often it chooses: attack (with enough Qi it always picks the Qi 铁砂掌), throw its parry on a guess, circle round you, or wait.
+
+The top line shows what it is up to, for example "closing in", "circling you", "saw your strike, parrying", "parrying on a guess" or "backing off to breathe".
+
+Three brains to pick from on the loadout screen (you start against the monk):
+
+| Brain | Reaction | Parries what it sees | Aims for perfect | Guesses | Punishes | Attacks when it chooses |
+| --- | --- | --- | --- | --- | --- | --- |
+| 弟子 (novice) | 24 frames (0.4 s) | 15% | 20% | 5% | 30% | 35%, every 30 frames (0.5 s) |
+| 武僧 (monk) | 18 frames (0.3 s) | 40% | 35% | 15% | 60% | 50%, every 20 frames (0.33 s) |
+| 方丈 (master) | 12 frames (0.2 s) | 65% | 60% | 25% | 90% | 60%, every 12 frames (0.2 s) |
+
+Things worth knowing when you fight it:
+
+- **罗汉拳 hit 1 lands 13 frames (0.22 s) after you press**, faster than any of the brains can react (12 frames to see it plus 3 to open a parry is already 15). So your opening jab only gets parried when the brain **guesses**. Its slow moves are different: your 铁砂掌 winds up for 36 frames (0.6 s), and every brain sees that coming in time.
+- **A wrong guess is your chance.** When it throws 化绵掌 and nothing comes, it's stuck for 27 frames (0.45 s) and paid 10 stamina. Wait for the parry colours to pass, then hit it.
+- **After it blocks one hit, it can block the next only if the gap is long enough.** A block costs 8 frames of recovery and a new parry takes 3 frames to open. 罗汉拳 hit 3 lands only 9 frames after hit 2, so if you mash the string, hit 3 always gets through a block. The same is true for you when it attacks you.
+- **It gets tired like you do.** Every parry costs it 10 stamina and every strike its own cost. When it backs off to breathe, chase it.
+- Its choices come from a random roll that starts the same way every time (a "seed"), and the seed changes each new duel, so duels differ but the game stays fully repeatable for testing.
+
 **Full 3D: the floor, the camera and walking.** The fight is no longer on a line. You and the dummy stand on a 14 m square floor (the grid lines are 1 m apart), and you can walk in any direction.
 
 - **The camera** sits behind you (4.4 m back, 3.5 m up) and a little to your right (2.2 m), always looking at the dummy (lock-on). Each capsule has a small dark "nose" on its chest that shows which way it faces.
@@ -191,7 +217,7 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - `start_distance`: how far apart the duel starts (110 cm, inside 罗汉拳's 120 cm reach).
   - `min_distance`, `arena_width`: how close the capsules can get, and how big the square floor is (1400 = 14 m each way).
   - `quick_step_distance` (70 cm forward/back), `quick_step_side_distance` (90 cm left/right), `quick_step_frames` (8), `quick_step_recovery` (6), `quick_step_stamina` (6), `quick_step_tap_window` (14): the quick step.
-  - `dummy_pause`: frames the dummy waits between strings (40, about 0.7 s).
+  - `dummy_pause`: frames the training dummy waits between strings (40, about 0.7 s).
   - `parry_recovery`, `parry_perfect_recovery`, `parry_perfect_stagger`: how long you recover after a block or a perfect parry, and how long a perfect parry staggers the attacker.
   - `clash_recoil_frames`, `clash_lose_stagger`, `clash_perfect_stagger`, `clash_perfect_recovery`: the clash results.
   - `stamina_max`, `stamina_regen`, `stamina_regen_still`, `stamina_regen_delay`: max stamina and how fast it comes back.
@@ -199,7 +225,7 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - `parry_perfect_drain`: how much stamina a perfect parry takes from the attacker. Each move's own cost is the `stamina` column of `techniques.csv`.
   - 铁砂掌's power-up is three columns in `techniques.csv`: `empower_qi` (30), `empower_damage_pct` (200 = double) and `empower_armor` (true). Any technique can get them.
   - `qi_max`, `qi_start`, `qi_per_hit`, `parry_perfect_qi`, `clash_perfect_qi`: the Qi bar's size, what you start on, and what a hit, a perfect parry and a perfect clash give.
-  - `dummy_chain_frame`: when the dummy presses for its next hit. 0 is a true combo you can't escape. Try 7 (the last frame of the window): it leaves gaps you can parry into.
+  - `dummy_chain_frame`: when the training dummy presses for its next hit. 0 is a true combo you can't escape. Try 7 (the last frame of the window): it leaves gaps you can parry into.
 
 - `game\data\feel.csv`: the feel kit, one row per kind of strike (hit, heavy_hit, empowered_hit, armor_hit, block, perfect_parry, clash_recoil, clash_break, clash_lost, perfect_clash, ko):
   - `hitstop`: frames the fight freezes (0 to 30).
@@ -210,12 +236,19 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
 - Knockback: the `knockback` column of `techniques.csv` (cm per hit), and in `rules.csv` `knockback_frames` (how long the slide takes) and `clash_recoil_push` (how far a same-weight clash pushes each fighter). The test script prints how close a string must start for every hit to stay in reach.
 - Stepping in and hit width: the `advance` column of `techniques.csv` (cm the attacker steps forward) and `hit_angle` (how wide the strike is, in degrees; 360 or empty = all round).
 
+- `game\data\brains.csv`: the opponent brains, one row each (novice, monk, master). Add a row to make a new opponent; it appears on the loadout screen.
+  - `reaction`: frames before it notices what you do (0 to 60; a person takes 15 to 20).
+  - `think_every`: in reach with nothing to react to, how often it makes a new choice, in frames.
+  - Chances out of 100: `aggression` (attack at a choice), `punish` (attack when it sees you open), `chain` (press for the next hit of its string), `parry` (parry a strike it sees coming), `perfect` (aim that parry at the perfect frames), `step` (quick step aside from a strike it didn't parry, or forward to close a long gap), `circle` (circle round you instead of waiting), `guess` (throw its parry on a guess), `heavy` (pick 铁砂掌 over 罗汉拳).
+  - `rest_below`: below this much stamina it backs off to breathe.
+
 Run `scripts\test.bat` after editing to check the sheets.
 
 ## 7. The questions for this build
 
-1. **3D and the camera:** does walking round the dummy feel right, and does the camera keep both of you in view? Is it too close, too far, or swinging round too slowly or too fast?
-2. **Step-in:** do the 罗汉拳 and 铁砂掌 steps feel like a fighter committing to a strike? Too little, too much, or about right?
-3. **Quick step:** can you double-tap it reliably (is 0.23 s between taps too strict or too loose)? Is 70 cm enough to slip the dummy's punch and get to its side? Does 6 stamina feel cheap enough to use, but not so cheap you'd spam it?
+1. **Does it feel like a fight now?** Against the monk, does the opponent close in, attack and defend in a way you can read? Anything it does that looks robotic or unfair?
+2. **Difficulty:** is the novice easy enough to learn on, and the master hard but beatable? Which numbers would you change first (reaction, parry chance, how often it attacks)?
+3. **Guessing:** can you spot its guessed parries and punish them? Does it guess too often or too rarely?
+4. **What should it learn next?** For example: clashing on purpose, keeping its distance with quick steps, or holding back its string when you block.
 
 Anything else that feels off is useful too, with roughly which move and what you expected.

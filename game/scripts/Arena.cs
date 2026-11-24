@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Shaolin36.Core;
+using Shaolin36.Core.Brains;
 using Shaolin36.Core.Combat;
 using Shaolin36.Core.Data;
 using Shaolin36.Core.Feel;
@@ -11,11 +12,11 @@ using Side = Shaolin36.Core.Combat.Side;
 namespace Shaolin36.Game;
 
 /// <summary>
-/// The playable test: you against a dummy that repeats its string, on a square floor in full 3D.
+/// The playable test: you against an opponent brain (or the old training dummy), on a square floor in full 3D.
 /// This node only shows and drives the core: it turns button presses into slot presses and the
 /// stick or WASD into lock-on-relative walking, steps the <see cref="Duel"/> once per 60 Hz physics tick
 /// (through the <see cref="FeelClock"/>, which adds hit-stop), paints the capsules by state and keeps a
-/// third-person camera behind you, locked on to the dummy. The feel kit's sparks, sounds and camera
+/// third-person camera behind you, locked on to the opponent. The feel kit's sparks, sounds and camera
 /// moves are in ArenaFeel.cs.
 /// </summary>
 public partial class Arena : Node3D
@@ -62,6 +63,13 @@ public partial class Arena : Node3D
     private readonly Loadout _playerLoadout = null!;
     private readonly Loadout _dummyLoadout = null!;
     private readonly TrainingDummy _dummy = null!;
+    private readonly BrainSheet _brains = null!;
+    private Brain? _brain;
+    /// <summary>Which opponent: an index into the brain sheet's rows, or the row count for the training dummy.</summary>
+    private int _opponentMode;
+    /// <summary>False: the opponent stands still and presses nothing (T / Select).</summary>
+    private bool _opponentActive = true;
+    private int _duelNumber;
     private readonly DoubleTap _doubleTap = null!;
 
     private Duel _duel = null!;
@@ -85,10 +93,13 @@ public partial class Arena : Node3D
 
     /// <param name="techniques">Every technique from the sheet.</param>
     /// <param name="feel">The feel sheet: hit-stop, sparks, sound and camera for each kind of strike.</param>
-    public Arena(Rules rules, IReadOnlyList<Technique> techniques, FeelSheet feel)
+    /// <param name="brains">The brain sheet: how each opponent plays. The arena starts against the "monk" row.</param>
+    public Arena(Rules rules, IReadOnlyList<Technique> techniques, FeelSheet feel, BrainSheet brains)
     {
         _rules = rules;
         _feel = feel;
+        _brains = brains;
+        _opponentMode = System.Math.Max(0, brains.Styles.ToList().FindIndex(b => b.Id == "monk"));
         _book = new TechniqueBook(techniques);
         // What can sit on a slot: everything that isn't a later hit of a string.
         var followUps = new HashSet<string>(techniques.Where(t => t.HasNext).Select(t => t.Next));
@@ -99,8 +110,12 @@ public partial class Arena : Node3D
         _playerLoadout.Assign(Slot.L1, Find("timed_parry"));
         _playerLoadout.Assign(Slot.Triangle, Find("tiesha_zhang"));
 
+        // The opponent gets the same starting techniques as you: 罗汉拳 on □, 铁砂掌 on △, 化绵掌 on L1.
+        // (The training dummy only ever presses □.)
         _dummyLoadout = new Loadout(_book);
         _dummyLoadout.Assign(Slot.Square, Find("luohan_quan_1"));
+        _dummyLoadout.Assign(Slot.L1, Find("timed_parry"));
+        _dummyLoadout.Assign(Slot.Triangle, Find("tiesha_zhang"));
         _dummy = TrainingDummy.FromRules(rules, Slot.Square);
         _doubleTap = new DoubleTap(rules.QuickStepTapWindow);
 
@@ -119,17 +134,49 @@ public partial class Arena : Node3D
         _cameraPlaced = false;
         _doubleTap?.Reset();
         _duel = Duel.Start(_rules, _playerLoadout, _dummyLoadout);
+        // A new seed each duel, counted up from 1: the brain's choices change from duel to duel but every run is repeatable.
+        _duelNumber++;
+        _brain = UsingDummy ? null : new Brain(_brains.Styles[_opponentMode], _duelNumber) { Active = _opponentActive };
+        _dummy.Attacks = _opponentActive;
         _clock = new FeelClock(_duel, _feel) { HitStopOn = _feelOn };
         _combo = 0;
         _comboBy = null;
         ClearFloats();
     }
 
+    private bool UsingDummy => _opponentMode >= _brains.Styles.Count;
+
+    /// <summary>The opponent's name for the screen: the brain row's name, or "Training dummy".</summary>
+    private string OpponentName => UsingDummy ? "Training dummy" : _brains.Styles[_opponentMode].Name;
+
+    /// <summary>This tick's buttons and stick for the opponent. Not called during hit-stop, so its timers stay in step with the fight.</summary>
+    private BrainInput OpponentInput()
+    {
+        if (_brain != null) return _brain.Think(_duel, Side.Two);
+        return new BrainInput(_dummy.Think(_duel.Two), MoveInput.None);
+    }
+
+    /// <summary>Switch to the next opponent (each brain row, then the training dummy) and start a new duel.</summary>
+    private void NextOpponent(int by)
+    {
+        int count = _brains.Styles.Count + 1;
+        _opponentMode = (_opponentMode + by + count) % count;
+        NewDuel();
+        _event.Text = $"New duel against: {OpponentName}.";
+    }
+
+    private void ToggleOpponent()
+    {
+        _opponentActive = !_opponentActive;
+        _dummy.Attacks = _opponentActive;
+        if (_brain != null) _brain.Active = _opponentActive;
+    }
+
     // ---------------------------------------------------------------- headless check
 
     /// <summary>
     /// Runs the duel for <paramref name="ticks"/> ticks with no screen, the player fighting
-    /// back with its own dummy brain, hit-stop on. Returns how many hits landed, and how many
+    /// back with a training dummy's presses against the opponent brain, hit-stop on. Returns how many hits landed, and how many
     /// ticks were hit-stop. Used by the boot check.
     /// </summary>
     public int Simulate(int ticks, out int frozenTicks)
@@ -147,7 +194,8 @@ public partial class Arena : Node3D
             // Circle and close in now and then, so the boot check walks the floor in 3D too.
             var walk = i % 90 < 10 ? MoveInput.WalkForward : i % 90 < 30 ? MoveInput.WalkRight : MoveInput.None;
             if (i % 150 == 75) walk = MoveInput.Step(StepDirection.Left);
-            _clock.Step(player.Think(_duel.One), _dummy.Think(_duel.Two), walk, MoveInput.None);
+            var opponent = OpponentInput();
+            _clock.Step(player.Think(_duel.One), opponent.Slots, walk, opponent.Move);
         }
         return _duel.Hits.Count;
     }
@@ -173,7 +221,7 @@ public partial class Arena : Node3D
         BuildFloor();
 
         _player = Capsule("Player", PlayerColor);
-        _opponent = Capsule("Dummy", DummyColor);
+        _opponent = Capsule("Opponent", DummyColor);
         _playerReach = ReachBar();
         _opponentReach = ReachBar();
 
@@ -212,7 +260,7 @@ public partial class Arena : Node3D
         _menuBack = new ColorRect { Color = new Color(0, 0, 0, 0.8f), Position = new Vector2(100, 120), Size = new Vector2(940, 500), Visible = false };
         foreach (var c in new Control[] { _status, _event, _pad, _help, legend, _menuBack, _menu }) hud.AddChild(c);
 
-        _event.Text = "Walk any way with W/A/S/D or the left stick: the camera stays behind you, locked on to the dummy. Fight with your slot buttons. Tab / Start opens the loadout. T / Select makes the dummy stand still.";
+        _event.Text = "Walk any way with W/A/S/D or the left stick: the camera stays behind you, locked on to your opponent. It walks in, attacks, parries and steps aside like you do. Fight with your slot buttons. Tab / Start opens the loadout, where you can pick the opponent. T / Select makes it stand still.";
         RefreshMenu();
     }
 
@@ -329,8 +377,8 @@ public partial class Arena : Node3D
 
         if (command == Command.DummyToggle)
         {
-            _dummy.Attacks = !_dummy.Attacks;
-            _event.Text = _dummy.Attacks ? "The dummy attacks again." : "The dummy stands still. Hit it as much as you like.";
+            ToggleOpponent();
+            _event.Text = _opponentActive ? "Your opponent fights again." : "Your opponent stands still. Hit it as much as you like.";
             RefreshMenu();
             return;
         }
@@ -373,12 +421,12 @@ public partial class Arena : Node3D
 
         if (_menuOpen)
         {
-            int rows = _starters.Count + 2; // techniques, the dummy row, the restart row
+            int rows = _starters.Count + 2; // techniques, the opponent row, the restart row
             if (command == Command.MenuUp) _menuRow = (_menuRow + rows - 1) % rows;
             else if (command == Command.MenuDown) _menuRow = (_menuRow + 1) % rows;
             else if (slot != null) PutOnSlot(slot.Value);
             else if ((command == Command.MenuLeft || command == Command.MenuRight) && _menuRow == _starters.Count)
-                _dummy.Attacks = !_dummy.Attacks;
+                NextOpponent(command == Command.MenuLeft ? -1 : 1);
             RefreshMenu();
             return;
         }
@@ -391,7 +439,7 @@ public partial class Arena : Node3D
     {
         if (_menuRow == _starters.Count)
         {
-            _dummy.Attacks = !_dummy.Attacks;
+            NextOpponent(1);
             return;
         }
         if (_menuRow == _starters.Count + 1)
@@ -427,7 +475,8 @@ public partial class Arena : Node3D
             var line = $"{t.Name}  ·  {t.Category}  ·  {where}";
             sb.Append(i == _menuRow ? $"[color=#ffd11a]▶ {line}[/color]\n" : $"   {line}\n");
         }
-        var dummyLine = $"Dummy: {(_dummy.Attacks ? "attacks with 罗汉拳" : "stands still")}  (any button, ←/→, Select or T to change)";
+        var what = UsingDummy ? "repeats 罗汉拳 where it stands" : "walks in, attacks, parries, steps aside";
+        var dummyLine = $"Opponent: {OpponentName} ({what}){(_opponentActive ? "" : ", standing still")}  (any button or ←/→ to change and restart; Select or T: stand still)";
         sb.Append(_menuRow == _starters.Count ? $"[color=#ffd11a]▶ {dummyLine}[/color]\n" : $"   {dummyLine}\n");
         var restartLine = "Restart the duel  (press any button)";
         sb.Append(_menuRow == _starters.Count + 1 ? $"[color=#ffd11a]▶ {restartLine}[/color]\n" : $"   {restartLine}\n");
@@ -469,14 +518,14 @@ public partial class Arena : Node3D
         if (_floatingText && _duel.One.IsExhausted && PressedUnaffordable(input))
             Float(Side.One, "No stamina!", ExhaustedColor);
 
-        // The dummy doesn't think during hit-stop, so its own timers stay in step with the fight.
-        var dummyInput = _clock.IsFrozen ? SlotInput.None : _dummy.Think(_duel.Two);
+        // The opponent doesn't think during hit-stop, so its own timers stay in step with the fight.
+        var opponent = _clock.IsFrozen ? BrainInput.None : OpponentInput();
         // Double-tapping one of the four directions asks for a quick step that way.
         var walk = Controls.WalkInput();
         var quickStep = _doubleTap.Update(DoubleTap.Cardinal(walk));
         if (_floatingText && quickStep != StepDirection.None && _duel.One.IsExhausted && !_duel.One.CanQuickStep && _duel.One.CanAct)
             Float(Side.One, "No stamina!", ExhaustedColor);
-        var hits = _clock.Step(input, dummyInput, walk.WithQuickStep(quickStep), MoveInput.None);
+        var hits = _clock.Step(input, opponent.Slots, walk.WithQuickStep(quickStep), opponent.Move);
         if (_feelOn) foreach (var cue in _clock.Cues) PlayCue(cue);
         foreach (var hit in hits)
         {
@@ -501,7 +550,7 @@ public partial class Arena : Node3D
 
         if (_duel.IsOver)
         {
-            var winner = _duel.Two.IsDown ? "You win" : "The dummy wins";
+            var winner = _duel.Two.IsDown ? "You win" : "Your opponent wins";
             _event.Text += $"\n[font_size=28][b]{winner}![/b][/font_size]  Press Enter, or Start on the pad, to fight again.";
         }
     }
@@ -523,7 +572,7 @@ public partial class Arena : Node3D
         var f = side == Side.One ? _duel.One : _duel.Two;
         if (!f.Empowered || f.Technique == before || f.MoveFrame != 0) return;
         var t = f.Technique!;
-        _event.Text = $"[color=#ffd640][b]Qi {t.Name}![/b][/color] {(side == Side.One ? "You spent" : "The dummy spent")} {t.EmpowerQi} Qi: " +
+        _event.Text = $"[color=#ffd640][b]Qi {t.Name}![/b][/color] {(side == Side.One ? "You spent" : "Your opponent spent")} {t.EmpowerQi} Qi: " +
                       $"{t.EmpowerDamagePct}% damage{(t.EmpowerArmor ? ", and hits won't stop it until it lands (hyper armor)" : "")}.";
         if (_floatingText)
         {
@@ -543,12 +592,12 @@ public partial class Arena : Node3D
             _event.Text += you
                 ? "\n[color=#ff8c1a][b]You're exhausted![/b][/color] No moves (and no 化绵掌) until your stamina is back to " +
                   $"{_rules.ExhaustedUntil}. You walk slower and take {_rules.ExhaustedDamagePct - 100}% extra damage. Stand still to recover faster."
-                : $"\n[color=#ff8c1a][b]The dummy is exhausted![/b][/color] It can't attack or parry, and takes {_rules.ExhaustedDamagePct - 100}% extra damage. Punish it!";
+                : $"\n[color=#ff8c1a][b]Your opponent is exhausted![/b][/color] It can't attack or parry, and takes {_rules.ExhaustedDamagePct - 100}% extra damage. Punish it!";
             if (_floatingText) Float(side, "Exhausted!", ExhaustedColor);
         }
         else
         {
-            _event.Text += you ? "\nYou have your breath back." : "\nThe dummy has its breath back.";
+            _event.Text += you ? "\nYou have your breath back." : "\nYour opponent has its breath back.";
             if (_floatingText) Float(side, "Breath back", StaminaColor);
         }
     }
@@ -562,12 +611,12 @@ public partial class Arena : Node3D
         {
             case ParryOutcome.PerfectParry:
                 return mine
-                    ? $"[color=#33ff59][b]PERFECT PARRY![/b][/color] The dummy caught your {name}. You're staggered."
-                    : $"[color=#33ff59][b]PERFECT PARRY![/b][/color] You stopped {name}; the dummy is staggered. Hit it now! " +
-                      $"Your {hit.ParryEffect!.DefenderStaminaRefund} stamina came back and the dummy lost {hit.ParryEffect.AttackerStaminaLoss}.";
+                    ? $"[color=#33ff59][b]PERFECT PARRY![/b][/color] Your opponent caught your {name}. You're staggered."
+                    : $"[color=#33ff59][b]PERFECT PARRY![/b][/color] You stopped {name}; your opponent is staggered. Hit it now! " +
+                      $"Your {hit.ParryEffect!.DefenderStaminaRefund} stamina came back and your opponent lost {hit.ParryEffect.AttackerStaminaLoss}.";
             case ParryOutcome.Parried:
                 return mine
-                    ? $"[color=#33bfff][b]Blocked.[/b][/color] The dummy blocked your {name}; your string can carry on."
+                    ? $"[color=#33bfff][b]Blocked.[/b][/color] Your opponent blocked your {name}; your string can carry on."
                     : $"[color=#33bfff][b]Blocked[/b][/color] {name}: no damage, but its string carries on, so tap again for the next hit " +
                       $"(each tap costs {hit.DefenderTechnique!.StaminaCost} stamina). " +
                       $"({PerfectMiss(hit.DefenderTechnique!, hit.DefenderMoveFrame)} frame(s) late for a perfect parry.)";
@@ -579,8 +628,8 @@ public partial class Arena : Node3D
                 return "[color=#ffd11a][b]CLASH![/b][/color] Same weight: both of you bounce off.";
             case ClashOutcome.PerfectClash:
                 return mine
-                    ? "[color=#33ff59][b]PERFECT CLASH![/b][/color] You broke the dummy's wind-up. It's wide open!"
-                    : "[color=#ff6666][b]PERFECT CLASH[/b][/color] by the dummy: your wind-up was broken.";
+                    ? "[color=#33ff59][b]PERFECT CLASH![/b][/color] You broke your opponent's wind-up. It's wide open!"
+                    : "[color=#ff6666][b]PERFECT CLASH[/b][/color] by your opponent: your wind-up was broken.";
             case ClashOutcome.TargetWins:
                 return mine
                     ? $"[color=#ff6666][b]Clash lost.[/b][/color] Your {name} was lighter and got knocked aside."
@@ -731,12 +780,12 @@ public partial class Arena : Node3D
 
         _status.Text =
             $"[b]You[/b]    HP {Bar(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
-            $"[b]Dummy[/b] HP {Bar(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
-            $"Distance {_duel.DistanceCm} cm   ·   dummy {(_dummy.Attacks ? "attacking" : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_clock.IsFrozen ? " [color=#ffd11a](hit-stop)[/color]" : "")}   ·   feel kit {(_feelOn ? "on" : "[color=#ffd11a]off[/color]")} (F3){(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
+            $"[b]Foe[/b]   HP {Bar(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
+            $"Distance {_duel.DistanceCm} cm   ·   {OpponentName}: {(_opponentActive ? Thinking() : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_clock.IsFrozen ? " [color=#ffd11a](hit-stop)[/color]" : "")}   ·   feel kit {(_feelOn ? "on" : "[color=#ffd11a]off[/color]")} (F3){(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward the dummy)  ·  Quick step: double-tap a direction  ·  Loadout: Tab / Esc / pad Start  ·  Dummy still/attack: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
@@ -811,6 +860,25 @@ public partial class Arena : Node3D
         const int width = 10;
         int filled = f.MaxQi == 0 ? 0 : (int)System.Math.Round(width * (double)f.Qi / f.MaxQi);
         return $"[color=#ffd640]{new string('█', filled)}[/color][color=#444444]{new string('█', width - filled)}[/color] {f.Qi}/{f.MaxQi}";
+    }
+
+    /// <summary>What the opponent brain is up to, in plain words.</summary>
+    private string Thinking()
+    {
+        if (_brain == null) return "repeating 罗汉拳";
+        switch (_brain.Intent)
+        {
+            case BrainIntent.Closing: return "closing in";
+            case BrainIntent.Waiting: return "waiting for its moment";
+            case BrainIntent.Circling: return "circling you";
+            case BrainIntent.Attacking: return "attacking";
+            case BrainIntent.Punishing: return "[color=#ff6666]punishing your opening[/color]";
+            case BrainIntent.Parrying: return "[color=#33bfff]saw your strike, parrying[/color]";
+            case BrainIntent.Guessing: return "[color=#33bfff]parrying on a guess[/color]";
+            case BrainIntent.Dodging: return "saw your strike, quick-stepping aside";
+            case BrainIntent.Resting: return "[color=#ff8c1a]backing off to breathe[/color]";
+            default: return "still";
+        }
     }
 
     private static string Doing(Fighter f)

@@ -8,11 +8,11 @@ Built in **Godot 4.7 (.NET / C#)**. The combat rules live in a plain C# library 
 
 | Path | What it is |
 | --- | --- |
-| `src/Shaolin36.Core/` | The rules: techniques, frame data, clash, parry, stamina, Qi, and later the AI brain. **No Godot code allowed here.** |
+| `src/Shaolin36.Core/` | The rules: techniques, frame data, clash, parry, stamina, Qi, and the opponent brain (`Brains/`). **No Godot code allowed here.** |
 | `tests/Shaolin36.Core.Tests/` | Unit and scenario tests for the rules (xUnit). |
 | `tools/DataCheck/` | Check script: rejects bad rows in the data sheets before the game loads them. |
 | `game/` | The Godot project (`project.godot`). Shows and drives the core; holds scenes, scripts and assets. |
-| `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet; `rules.csv` holds base stats and the clash and parry numbers; `feel.csv` holds the hit feel (hit-stop, sparks, sound, camera) for each kind of strike. |
+| `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet; `rules.csv` holds base stats and the clash and parry numbers; `feel.csv` holds the hit feel (hit-stop, sparks, sound, camera) for each kind of strike; `brains.csv` holds how each opponent brain plays. |
 | `scripts/` | One-click Play, test and headless boot scripts. |
 | `.github/workflows/` | CI: data check, core tests and a headless Godot boot on every push. |
 
@@ -29,7 +29,7 @@ setx GODOT "C:\path\to\Godot_v4.7.2-stable_mono_win64.exe"
 
 ## Play
 
-Double-click `scripts\play.bat` (Windows) or run `scripts/play.sh`. It builds the C# code and opens the playable test: you against a training dummy that repeats the 罗汉拳 string, on a square floor with the camera behind you, and 罗汉拳, 铁砂掌 and 化绵掌 on buttons you can swap. Step-by-step instructions, the full control table and gamepad setup are in [docs/playtest.md](docs/playtest.md).
+Double-click `scripts\play.bat` (Windows) or run `scripts/play.sh`. It builds the C# code and opens the playable test: you against an opponent brain (novice, monk or master, or the old training dummy), on a square floor with the camera behind you, and 罗汉拳, 铁砂掌 and 化绵掌 on buttons you can swap. Step-by-step instructions, the full control table and gamepad setup are in [docs/playtest.md](docs/playtest.md).
 
 To work in the editor instead, open `game/project.godot` in Godot .NET and press F5.
 
@@ -63,6 +63,12 @@ A hit connects when, on any of its active frames, the other fighter is within th
 - **The playtest dummy** (`TrainingDummy`) stands where it is, turns to face you, waits `dummy_pause` frames, then throws its string, chaining on chain-window frame `dummy_chain_frame`.
 
 All of these numbers are in `rules.csv` and `techniques.csv`.
+
+## The opponent brain
+
+`Brains/Brain.cs` plays a fighter through the same slot presses and stick (`MoveInput`) a player gives, so it obeys every rule the player does and never reads the player's inputs. It sees the other fighter `reaction` frames late. Each tick, in priority order, it: chains its own string; answers a strike it sees coming with a 化劲 parry timed for the hit frame (or a side quick step); backs off to breathe below `rest_below` stamina; punishes an opponent it sees recovering, staggered or recoiling in reach; otherwise walks in until its shortest attack reaches, then every `think_every` frames attacks, parries on a guess, circles or waits. Every chance is rolled on a seeded `Dice` (xorshift), so the same seed and inputs give the same fight.
+
+How each brain plays is one row of `game/data/brains.csv` (novice, monk, master), checked by the data check. Call `Think(duel, side)` once per sim tick before the duel steps, and not during hit-stop.
 
 ## Hit feel
 
