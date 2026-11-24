@@ -36,7 +36,7 @@ public class QiTests
         var all = new List<(string, string)>
         {
             ("exhausted_until", "50"), ("input_buffer", "6"), ("hp_max", "1000"),
-            ("qi_max", "100"), ("qi_start", "0"), ("qi_per_hit", "2"), ("parry_perfect_qi", "10"), ("clash_perfect_qi", "15"),
+            ("qi_max", "100"), ("qi_start", "0"), ("qi_per_hit", "2"), ("parry_perfect_qi", "10"), ("clash_perfect_qi", "10"),
         };
         all.AddRange(extra);
         var r = RulesCsv.Parse(Make.RulesText(all.ToArray()));
@@ -137,8 +137,8 @@ public class QiTests
         var d = Run(Punch, Punch, twoPressTick: 4); // Two on frame 6, the first perfect-clash frame
         var hit = Assert.Single(d.Hits);
         Assert.Equal(ClashOutcome.PerfectClash, hit.Clash);
-        Assert.Equal(15, hit.AttackerQiGained);
-        Assert.Equal(15, d.One.Qi);
+        Assert.Equal(10, hit.AttackerQiGained);
+        Assert.Equal(10, d.One.Qi);
         Assert.Equal(0, d.Two.Qi);
     }
 
@@ -221,6 +221,6 @@ public class QiTests
         Assert.Equal(0, r.QiStart);
         Assert.Equal(2, r.QiPerHit);
         Assert.Equal(10, r.ParryPerfectQi);
-        Assert.Equal(15, r.ClashPerfectQi);
+        Assert.Equal(10, r.ClashPerfectQi);
     }
 }

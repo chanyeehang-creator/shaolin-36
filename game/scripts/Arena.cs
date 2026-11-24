@@ -86,6 +86,7 @@ public partial class Arena : Node3D
         _playerLoadout = new Loadout(_book);
         _playerLoadout.Assign(Slot.Square, Find("luohan_quan_1"));
         _playerLoadout.Assign(Slot.L1, Find("timed_parry"));
+        _playerLoadout.Assign(Slot.Triangle, Find("tiesha_zhang"));
 
         _dummyLoadout = new Loadout(_book);
         _dummyLoadout.Assign(Slot.Square, Find("luohan_quan_1"));
@@ -363,6 +364,8 @@ public partial class Arena : Node3D
         bool oneWasStunned = _duel.One.State == FighterState.Hitstun;
         bool twoWasStunned = _duel.Two.State == FighterState.Hitstun;
         bool oneWasExhausted = _duel.One.IsExhausted, twoWasExhausted = _duel.Two.IsExhausted;
+        var oneMoveBefore = _duel.One.Technique;
+        var twoMoveBefore = _duel.Two.Technique;
         var input = new SlotInput(_pending);
         _pending = 0;
         if (_floatingText && _duel.One.IsExhausted && PressedUnaffordable(input))
@@ -385,6 +388,8 @@ public partial class Arena : Node3D
             if (_floatingText) FloatsFor(hit);
         }
 
+        EmpoweredStarted(Side.One, oneMoveBefore);
+        EmpoweredStarted(Side.Two, twoMoveBefore);
         ExhaustionChanged(Side.One, oneWasExhausted);
         ExhaustionChanged(Side.Two, twoWasExhausted);
 
@@ -404,6 +409,21 @@ public partial class Arena : Node3D
             if (input.IsPressed(s) && t != null && !_duel.One.CanAfford(t)) return true;
         }
         return false;
+    }
+
+    /// <summary>Say so when a fighter starts the Qi-empowered version of a move (such as 铁砂掌 at 30+ Qi).</summary>
+    private void EmpoweredStarted(Side side, Technique? before)
+    {
+        var f = side == Side.One ? _duel.One : _duel.Two;
+        if (!f.Empowered || f.Technique == before || f.MoveFrame != 0) return;
+        var t = f.Technique!;
+        _event.Text = $"[color=#ffd640][b]Qi {t.Name}![/b][/color] {(side == Side.One ? "You spent" : "The dummy spent")} {t.EmpowerQi} Qi: " +
+                      $"{t.EmpowerDamagePct}% damage{(t.EmpowerArmor ? ", and hits won't stop it until it lands (hyper armor)" : "")}.";
+        if (_floatingText)
+        {
+            Float(side, $"Qi {t.Name}!", QiColor);
+            Float(side, $"-{t.EmpowerQi} Qi", QiColor);
+        }
     }
 
     /// <summary>Say so when a fighter runs out of stamina or gets their breath back.</summary>
@@ -492,6 +512,8 @@ public partial class Arena : Node3D
     private static readonly Color StaminaColor = new(0.40f, 0.85f, 1.00f);
     private static readonly Color ExhaustedColor = new(1.00f, 0.55f, 0.10f);
     private static readonly Color QiColor = new(1.00f, 0.84f, 0.25f);
+    /// <summary>Wind-up of a Qi-empowered move with hyper armor: deep gold instead of yellow.</summary>
+    private static readonly Color ArmorColor = new(0.85f, 0.55f, 0.05f);
 
     /// <summary>Text over the fighters for one strike: who took what.</summary>
     private void FloatsFor(HitEvent hit)
@@ -535,7 +557,9 @@ public partial class Arena : Node3D
 
         if (hit.Landed)
         {
-            Float(defender, $"-{hit.Damage}{(hit.DefenderExhausted ? " (exhausted)" : "")}", defender == Side.One ? DamageOnYouColor : DamageOnDummyColor);
+            Float(defender, $"-{hit.Damage}{(hit.Empowered ? $" (x{hit.Technique.EmpowerDamagePct / 100.0:0.#})" : "")}{(hit.DefenderExhausted ? " (exhausted)" : "")}",
+                defender == Side.One ? DamageOnYouColor : DamageOnDummyColor);
+            if (hit.DefenderArmored) Float(defender, "Armor!", QiColor);
             if (hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Huajin)
                 Float(defender, hit.DefenderMoveFrame < hit.DefenderTechnique.StartupFrames ? "Too late!" : "Too early!",
                     new Color(1, 1, 1));
@@ -630,7 +654,7 @@ public partial class Arena : Node3D
     {
         switch (f.State)
         {
-            case FighterState.Startup: return StartupColor;
+            case FighterState.Startup: return f.HasArmor ? ArmorColor : StartupColor;
             case FighterState.Active:
                 if (f.Technique!.Category == Category.Huajin)
                     return f.Technique.IsInPerfectParry(f.MoveFrame) ? ParryPerfectColor : ParryColor;

@@ -18,6 +18,9 @@ namespace Shaolin36.Core.Data
             "hitstun", "reach", "next", "chain_window", "perfect_parry",
         };
 
+        /// <summary>Columns a sheet may leave out; an empty cell means the default (no empowered version).</summary>
+        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor" };
+
         private static readonly Dictionary<string, Category> CategoryNames =
             new Dictionary<string, Category>(StringComparer.OrdinalIgnoreCase)
             {
@@ -96,6 +99,7 @@ namespace Shaolin36.Core.Data
 
                 string Cell(string name)
                 {
+                    if (!col.ContainsKey(name)) return string.Empty;
                     int idx = col[name];
                     return idx < cells.Count ? cells[idx].Trim() : string.Empty;
                 }
@@ -146,6 +150,9 @@ namespace Shaolin36.Core.Data
                 var next = Cell("next");
                 int chain = Int("chain_window");
                 int perfectParry = Int("perfect_parry");
+                int empowerQi = Cell("empower_qi").Length == 0 ? 0 : Int("empower_qi");
+                int empowerPct = Cell("empower_damage_pct").Length == 0 ? 100 : Int("empower_damage_pct");
+                bool empowerArmor = Cell("empower_armor").Length != 0 && Bool("empower_armor");
 
                 if (startup < 1) rowErrors.Add("'startup' must be at least 1 frame");
                 if (active < 1) rowErrors.Add("'active' must be at least 1 frame");
@@ -159,6 +166,10 @@ namespace Shaolin36.Core.Data
                 if (perfectParry > 0 && category != Category.Huajin) rowErrors.Add("only 化劲 (huajin) techniques can have 'perfect_parry'");
                 if (perfectParry > active) rowErrors.Add($"'perfect_parry' ({perfectParry}) cannot be longer than 'active' ({active}), which is the parry window");
 
+                if (empowerQi == 0 && (empowerPct != 100 || empowerArmor))
+                    rowErrors.Add("'empower_damage_pct' or 'empower_armor' is set but 'empower_qi' is 0, so the empowered version can never happen");
+                if (empowerQi > 0 && empowerPct == 0) rowErrors.Add("'empower_damage_pct' must be above 0");
+
                 if (rowErrors.Count > 0)
                 {
                     foreach (var e in rowErrors) errors.Add($"line {lineNo} ({(id.Length > 0 ? id : "?")}): {e}");
@@ -168,7 +179,7 @@ namespace Shaolin36.Core.Data
                 if (next.Length > 0) chains.Add((lineNo, id, next));
                 techniques.Add(new Technique(id, displayName, category, weight, weapon,
                     startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
-                    hitstun, reach, next, chain, perfectParry));
+                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor));
             }
 
             foreach (var (line, id, next) in chains)

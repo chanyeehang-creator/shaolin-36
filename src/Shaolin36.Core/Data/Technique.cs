@@ -11,6 +11,11 @@ namespace Shaolin36.Core.Data
     /// </code>
     /// For a 化劲 parry the active frames are the parry window, and its first
     /// PerfectParryFrames are the perfect parry.
+    ///
+    /// Empowered version (optional, <see cref="EmpowerQi"/> above 0): if the fighter has at least
+    /// EmpowerQi Qi when the technique starts, it spends that Qi and the move is empowered: its hit
+    /// deals <see cref="EmpowerDamagePct"/> of its damage and, with <see cref="EmpowerArmor"/>, it has
+    /// hyper armor through its startup and active frames.
     /// </summary>
     public sealed class Technique
     {
@@ -33,8 +38,14 @@ namespace Shaolin36.Core.Data
             int reachCm = 0,
             string next = "",
             int chainWindowFrames = 0,
-            int perfectParryFrames = 0)
+            int perfectParryFrames = 0,
+            int empowerQi = 0,
+            int empowerDamagePct = 100,
+            bool empowerArmor = false)
         {
+            EmpowerQi = empowerQi;
+            EmpowerDamagePct = empowerDamagePct;
+            EmpowerArmor = empowerArmor;
             Id = id;
             Name = name;
             Category = category;
@@ -87,6 +98,17 @@ namespace Shaolin36.Core.Data
 
         /// <summary>化劲 only: the first N active frames that count as a perfect parry.</summary>
         public int PerfectParryFrames { get; }
+
+        /// <summary>Qi needed (and spent) for the empowered version when the move starts; 0 means it has none.</summary>
+        public int EmpowerQi { get; }
+
+        /// <summary>Damage of the empowered version as a percentage of <see cref="Damage"/> (200 = double).</summary>
+        public int EmpowerDamagePct { get; }
+
+        /// <summary>True if the empowered version has hyper armor: hits still deal damage but don't interrupt it.</summary>
+        public bool EmpowerArmor { get; }
+
+        public bool CanEmpower => EmpowerQi > 0;
 
         public bool HasNext => Next.Length > 0;
 

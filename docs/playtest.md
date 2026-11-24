@@ -41,7 +41,7 @@ Every fight button is a **slot**. Slots don't mean anything on their own: whatev
 | Slot | Gamepad (Dual Action) | Keyboard + mouse | Starts with |
 | --- | --- | --- | --- |
 | □ | 1 (left face button) | J or left click | 罗汉拳 |
-| △ | 4 (top) | I | |
+| △ | 4 (top) | I | 铁砂掌 |
 | ○ | 3 (right) | L | |
 | ✕ | 2 (bottom) | K or Space | |
 | L1 | 5 | Q or right click | 化绵掌 |
@@ -93,9 +93,17 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 **Qi (气):** the gold bar after stamina, 0 to 100. Every duel starts you on 0, and it never refills by itself: you earn it by fighting well.
 
 - **+2 for every hit that deals damage** (a full 罗汉拳 string is +8). A heavy move that wins its clash counts too.
-- **+10 for a perfect parry** and **+15 for a perfect clash** ("+10 Qi" / "+15 Qi" float up in gold). A plain block, a same-weight clash or a lost clash gives nothing.
+- **+10 for a perfect parry** and **+10 for a perfect clash** ("+10 Qi" floats up in gold). A plain block, a same-weight clash or a lost clash gives nothing.
 - It stops at 100.
-- **Nothing spends Qi yet.** Later 点穴 (pressure-point) and 气功 (breathing) techniques will cost Qi, and in a run your Qi will carry over from one duel to the next. For now, watch how fast it fills: is perfect play rewarded enough?
+- **铁砂掌 spends it** (below). Later 点穴 (pressure-point) and 气功 (breathing) techniques will cost Qi too, and in a run your Qi will carry over from one duel to the next.
+
+**铁砂掌 (iron palm), on △:** one heavy palm strike instead of a string.
+
+- Wind-up 36 frames (0.6 s), hit 4 frames, recovery 36 frames (0.6 s): 76 frames in all, about 1.3 s. Easy to see coming and very punishable if it misses.
+- Costs 20 stamina, deals 15 damage, freezes the dummy for 40 frames, reaches 130 cm. It's heavy, so it wins normal clashes against 罗汉拳 hits 1 to 3.
+- **With 30 Qi or more, it powers up automatically:** it spends 30 Qi ("Qi 铁砂掌!" and "-30 Qi" float up), deals **double damage (30)**, and has **hyper armor** until it lands: the capsule winds up in deep gold instead of yellow, and if the dummy hits you then, you still lose the HP ("Armor!") but your palm keeps going. The armor ends once the palm has struck, so the 0.6 s recovery is still open.
+- Armor doesn't beat 化绵掌: a perfect parry still staggers it. Clashes still work the normal way.
+- Under 30 Qi it's the plain palm and your Qi is kept.
 
 **Clashes (拼招):** if your hit lands in the last frames of the dummy's wind-up, the moves clash. Same weight: both bounce off (grey). Heavier move: it breaks through. Lighter move: it gets knocked aside. Hit the very first frames of that window and it's a **PERFECT CLASH**: the dummy is staggered whatever the weights. The 罗汉拳 finisher (hit 4) is heavy, so it wins normal clashes against hits 1 to 3.
 
@@ -114,6 +122,7 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - `stamina_max`, `stamina_regen`, `stamina_regen_still`, `stamina_regen_delay`: max stamina and how fast it comes back.
   - `exhausted_until`, `exhausted_damage_pct`, `exhausted_walk_pct`: how long exhaustion lasts, the extra damage and the slower walk.
   - `parry_perfect_drain`: how much stamina a perfect parry takes from the attacker. Each move's own cost is the `stamina` column of `techniques.csv`.
+  - 铁砂掌's power-up is three columns in `techniques.csv`: `empower_qi` (30), `empower_damage_pct` (200 = double) and `empower_armor` (true). Any technique can get them.
   - `qi_max`, `qi_start`, `qi_per_hit`, `parry_perfect_qi`, `clash_perfect_qi`: the Qi bar's size, what you start on, and what a hit, a perfect parry and a perfect clash give.
   - `dummy_chain_frame`: when the dummy presses for its next hit. 0 is a true combo you can't escape. Try 7 (the last frame of the window): it leaves gaps you can parry into.
 
