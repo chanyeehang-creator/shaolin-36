@@ -244,7 +244,7 @@ public class DuelTests
 
         List<string> Run()
         {
-            var rules = RulesCsv.Parse(Make.RulesText(("exhausted_until", "50"), ("qi_start", "0"), ("hp_max", "100000"))).Rules!;
+            var rules = RulesCsv.Parse(Make.RulesText(("exhausted_until", "50"), ("qi_start", "0"), ("input_buffer", "6"), ("hp_max", "100000"))).Rules!;
             Loadout L() { var l = Holding(Punch); l.Assign(Slot.L1, Make.Move("far", startup: 14, active: 2, recovery: 20, reach: 180)); return l; }
             var d = new Duel(rules, L(), L(), 0, 150);
             var log = new List<string>();

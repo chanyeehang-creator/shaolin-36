@@ -95,7 +95,7 @@ public class FighterTests
     }
 
     [Fact]
-    public void Presses_while_busy_are_ignored()
+    public void With_no_buffer_presses_while_busy_are_dropped()
     {
         var f = With(Slot.Square, Punch);
         f.Loadout.Assign(Slot.Circle, Parry);

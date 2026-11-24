@@ -19,6 +19,7 @@ namespace Shaolin36.Core.Data
             "clash_recoil_frames", "clash_recoil_stamina", "clash_lose_stagger", "clash_lose_stamina",
             "clash_perfect_stagger", "clash_perfect_recovery", "clash_perfect_qi",
             "parry_recovery", "parry_perfect_recovery", "parry_perfect_stagger", "parry_perfect_drain", "parry_perfect_qi",
+            "input_buffer",
         };
 
         private readonly Dictionary<string, int> _values;
@@ -56,6 +57,12 @@ namespace Shaolin36.Core.Data
         public int ParryPerfectStagger => V("parry_perfect_stagger");
         public int ParryPerfectDrain => V("parry_perfect_drain");
         public int ParryPerfectQi => V("parry_perfect_qi");
+
+        /// <summary>
+        /// A press that can't be used on the tick it's made (the fighter is busy) is kept and
+        /// tried again on each of the next this-many ticks. 0 turns the buffer off.
+        /// </summary>
+        public int InputBuffer => V("input_buffer");
     }
 
     /// <summary>Reads and checks the rules sheet: columns key,value,note. Bad rows are reported, never loaded.</summary>
@@ -138,6 +145,7 @@ namespace Shaolin36.Core.Data
                     $"({values["exhausted_until"]}) cannot be more than 'stamina_max' ({values["stamina_max"]})");
                 Check(values["qi_start"] <= values["qi_max"], "qi_start",
                     $"({values["qi_start"]}) cannot be more than 'qi_max' ({values["qi_max"]})");
+                Check(values["input_buffer"] <= 30, "input_buffer", "must be 30 frames or fewer (half a second), or presses fire long after the player meant them");
                 Check(values["exhausted_damage_pct"] >= 100, "exhausted_damage_pct", "must be 100 or more (100 = normal damage)");
             }
 

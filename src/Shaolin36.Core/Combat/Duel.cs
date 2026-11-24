@@ -68,8 +68,8 @@ namespace Shaolin36.Core.Combat
             Rules = rules;
             _fighters = new[]
             {
-                new Fighter(one, rules.HpMax, onePositionCm),
-                new Fighter(two, rules.HpMax, twoPositionCm),
+                new Fighter(one, rules.HpMax, onePositionCm, rules.InputBuffer),
+                new Fighter(two, rules.HpMax, twoPositionCm, rules.InputBuffer),
             };
         }
 

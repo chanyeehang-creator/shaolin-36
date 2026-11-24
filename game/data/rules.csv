@@ -23,3 +23,4 @@ parry_perfect_recovery,4,Perfect parry: the defender recovers in this many frame
 parry_perfect_stagger,30,Perfect parry: the attacker is staggered this long
 parry_perfect_drain,15,Perfect parry: the attacker loses this much stamina (the defender's parry cost is refunded)
 parry_perfect_qi,10,Perfect parry: the defender gains this much Qi
+input_buffer,6,A press made while busy is kept this many frames and used as soon as it can be (chain window or idle)
