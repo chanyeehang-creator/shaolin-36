@@ -111,7 +111,7 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 
 **Feel kit (Stage 2):** every strike now lands with a short freeze (**hit-stop**), a burst of sparks with a flash of light, a sound, and a camera shake. The big moments also push the camera in a little. Press **F3** to switch it all off and on, so you can feel the difference.
 
-- **Hit-stop** freezes the whole fight for a few frames right after a strike: both fighters, every timer, stamina regen. Nothing in the frame data changes. A 罗汉拳 hit still stuns for exactly 37 frames, but those 37 frames start after the freeze. The top line says **(hit-stop)** while it's frozen.
+- **Hit-stop** freezes the whole fight for a few frames right after a strike: both fighters, every timer, stamina regen. Nothing in the frame data changes. 罗汉拳 hit 1 still stuns for exactly 27 frames, but those 27 frames start after the freeze. The top line says **(hit-stop)** while it's frozen.
 - **Buttons pressed during the freeze are kept** and used straight after it, so chaining the string on the "chain now!" beat works the same.
 - Starting values (1 frame = 1/60 s):
 

@@ -323,6 +323,7 @@ public class ClashParryDuelTests
         var hit1 = book.Find("luohan_quan_1")!;
         var finisher = book.Find("luohan_quan_4")!;
 
+        // delay = how many ticks after the finisher starts you press hit 1; negative = before it.
         ClashOutcome Contact(int delay)
         {
             var you = new Loadout(book);
@@ -331,15 +332,16 @@ public class ClashParryDuelTests
             them.Assign(Slot.Square, finisher);
             var d = new Duel(rules, you, them, 0, Math.Min(hit1.ReachCm, finisher.ReachCm));
             for (int t = 0; d.Hits.Count == 0 && t < 120; t++)
-                d.Step(t == delay ? Square : None, t == 0 ? Square : None);
+                d.Step(t == Math.Max(delay, 0) ? Square : None, t == Math.Max(-delay, 0) ? Square : None);
             var first = d.Hits[0];
             Assert.Equal(Side.One, first.Attacker);
             Assert.Equal(delay + hit1.StartupFrames, first.DefenderMoveFrame);
             return first.Clash;
         }
 
-        int windowDelay = finisher.ClashWindowStart - hit1.StartupFrames; // your hit lands on their window's first frame
-        Assert.True(windowDelay >= 1, "the example needs hit 1 to be faster than the finisher's wind-up");
+        // Your hit lands on their window's first frame. Since the string was sped up 30% this is 0:
+        // start hit 1 on the same frame they start the finisher.
+        int windowDelay = finisher.ClashWindowStart - hit1.StartupFrames;
 
         for (int i = 0; i < finisher.PerfectClashFrames; i++)
             Assert.Equal(ClashOutcome.PerfectClash, Contact(windowDelay + i));
@@ -369,15 +371,16 @@ public class ClashParryDuelTests
         var dummy = new TrainingDummy(Slot.Square, pauseFrames: 0, chainFrame: 0);
         var d = Duel.Start(rules, you, them);
 
-        // The dummy presses on tick 0, so hit 1 lands on its startup frame. Parry so it lands on
-        // the first perfect frame, or on the last frame of the block window.
+        // The dummy starts on tick `lead`, so hit 1 lands on lead + its startup. Parry so it lands on
+        // the first perfect frame, or on the last frame of the block window (which can mean pressing
+        // before the dummy starts, so it starts late enough for that).
         int parryFrame = perfect ? parry.StartupFrames : parry.StartupFrames + parry.ActiveFrames - 1;
-        int parryTick = hit1.StartupFrames - parryFrame;
-        Assert.True(parryTick >= 0);
-        for (int t = 0; t < hit1.StartupFrames + hit1.ActiveFrames + hit2.StartupFrames + 2; t++)
+        int lead = Math.Max(0, parryFrame - hit1.StartupFrames);
+        int parryTick = lead + hit1.StartupFrames - parryFrame;
+        for (int t = 0; t < lead + hit1.StartupFrames + hit1.ActiveFrames + hit2.StartupFrames + 2; t++)
         {
             var mine = t == parryTick ? SlotInput.Press(Slot.L1) : None;
-            d.Step(mine, dummy.Think(d.Two));
+            d.Step(mine, t < lead ? None : dummy.Think(d.Two));
         }
 
         Assert.Equal(perfect ? ParryOutcome.PerfectParry : ParryOutcome.Parried, d.Hits[0].Parry);
