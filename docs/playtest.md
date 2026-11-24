@@ -82,7 +82,7 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - `start_distance`: how far apart the duel starts (110 cm, inside 罗汉拳's 120 cm reach).
   - `min_distance`, `arena_width`: how close the capsules can get, and how wide the floor is.
   - `dummy_pause`: frames the dummy waits between strings (40, about 0.7 s).
-  - `dummy_chain_frame`: when the dummy presses for its next hit. 0 is a true combo you can't escape. Try 6: it leaves gaps you can parry into.
+  - `dummy_chain_frame`: when the dummy presses for its next hit. 0 is a true combo you can't escape. Try 7 (the last frame of the window): it leaves gaps you can parry into.
 
 Run `scripts\test.bat` after editing to check the sheets.
 

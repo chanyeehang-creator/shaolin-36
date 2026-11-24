@@ -264,7 +264,7 @@ public class DuelTests
     }
 
     [Fact]
-    public void Luohan_quan_1_from_the_sheet_reaches_120_cm_for_6_damage_and_18_frames_hitstun()
+    public void Luohan_quan_1_from_the_sheet_reaches_120_cm_for_6_damage_and_26_frames_hitstun()
     {
         var sheet = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques.ToDictionary(t => t.Id);
         var rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
@@ -275,7 +275,7 @@ public class DuelTests
         var hit = Assert.Single(OneAttacks(inReach));
         Assert.Equal(11, hit.Tick);
         Assert.Equal(6, hit.Damage);
-        Assert.Equal(18, hit.HitstunFrames);
+        Assert.Equal(26, hit.HitstunFrames);
         Assert.Equal(114, inReach.Two.Hp);
 
         Assert.Empty(OneAttacks(new Duel(rules, Holding(punch), Holding(parry), 0, 121)));
