@@ -21,7 +21,7 @@ public class QuickStepTests
     private static readonly Technique Jab = Make.Move("jab", startup: 10, active: 3, recovery: 12, window: 0, perfect: 0,
         stamina: 0, damage: 5, hitstun: 20, reach: 120, hitAngle: 60);
 
-    /// <summary>70 cm over 8 frames, 6 recovery, 6 stamina, like the sheet.</summary>
+    /// <summary>70 cm (90 to the side) over 8 frames, 6 recovery, 6 stamina, like the sheet.</summary>
     private static Rules RulesWith(params (string key, string value)[] extra)
     {
         var all = new List<(string, string)>
@@ -30,6 +30,7 @@ public class QuickStepTests
             ("stamina_regen_delay", "0"), ("min_distance", "80"), ("start_distance", "110"), ("arena_width", "1400"),
             ("knockback_frames", "8"), ("quick_step_distance", "70"), ("quick_step_frames", "8"),
             ("quick_step_recovery", "6"), ("quick_step_stamina", "6"), ("quick_step_tap_window", "14"),
+            ("quick_step_side_distance", "90"),
         };
         all.AddRange(extra);
         var r = RulesCsv.Parse(Make.RulesText(all.ToArray()));
@@ -189,10 +190,26 @@ public class QuickStepTests
     {
         var d = NewDuel(110);
         for (int t = 0; t < 14; t++) d.Step(None, None, t == 0 ? Step(R) : Stand, Stand);
-        // About 70 cm round to the right (+Z for the player at the start), still about as far away.
-        Assert.InRange(d.One.ZCm, 60, 70);
-        Assert.InRange(d.DistanceCm, 110, 125);
+        // About 90 cm round to the right (+Z for the player at the start), still about as far away.
+        Assert.InRange(d.One.ZCm, 75, 90);
+        Assert.InRange(d.DistanceCm, 110, 130);
         Assert.True(d.One.XCm > 0); // it curved toward Two's side rather than going straight
+    }
+
+    [Fact]
+    public void Side_steps_go_farther_than_forward_and_back()
+    {
+        int Moved(StepDirection way)
+        {
+            var d = NewDuel(400);
+            var start = d.One.Position;
+            for (int t = 0; t < 14; t++) d.Step(None, None, t == 0 ? Step(way) : Stand, Stand);
+            return FloorPoint.DistanceCm(start, d.One.Position);
+        }
+        Assert.Equal(70, Moved(StepDirection.Back));
+        Assert.Equal(70, Moved(StepDirection.Forward));
+        Assert.InRange(Moved(StepDirection.Left), 88, 90); // 90 cm along a slight curve
+        Assert.InRange(Moved(StepDirection.Right), 88, 90);
     }
 
     [Fact]
@@ -247,6 +264,31 @@ public class QuickStepTests
     public void A_quick_step_as_the_wind_up_starts_slips_the_first_罗汉拳_punch(StepDirection way)
     {
         Assert.Empty(DodgeLuohan(way, stepTick: 0).Hits);
+    }
+
+    [Fact]
+    public void After_a_side_step_the_dummys_whole_string_misses()
+    {
+        // Chan's playtest: the dummy's string keeps the aim of its first punch, so slipping it slips them all.
+        var sheet = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques;
+        var rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
+        var book = new TechniqueBook(sheet);
+        var loadout = new Loadout(book);
+        loadout.Assign(Slot.Square, book.Find("luohan_quan_1")!);
+        var d = Duel.Start(rules, new Loadout(book), loadout);
+        var dummy = TrainingDummy.FromRules(rules, Slot.Square);
+        bool stepped = false;
+        int deepest = 0;
+        for (int t = 0; t < rules.DummyPause + 90; t++)
+        {
+            var press = dummy.Think(d.Two);
+            var move = !stepped && press.Any ? Step(StepDirection.Right) : Stand;
+            stepped |= press.Any;
+            d.Step(None, press, move, Stand);
+            deepest = Math.Max(deepest, d.Two.StringHit);
+        }
+        Assert.Equal(4, deepest); // the dummy threw all four hits
+        Assert.Empty(d.Hits);
     }
 
     [Fact]

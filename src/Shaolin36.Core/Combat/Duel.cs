@@ -113,8 +113,8 @@ namespace Shaolin36.Core.Combat
     /// at a time. Each tick:
     /// <list type="number">
     /// <item>Both fighters advance a frame and act on their slot presses.</item>
-    /// <item>Both aim (auto lock-on): a fighter not in a move faces the other; a move that starts this
-    /// tick takes its aim at where the other stands now and keeps it to its last frame.</item>
+    /// <item>Both aim (auto lock-on): a fighter not in a move faces the other; an attack started this tick
+    /// from free takes its aim at where the other stands now, and its whole string keeps that aim.</item>
     /// <item>Both move: walking, then knockback (see below), then min_distance and the arena edges.</item>
     /// <item>Each fighter in the active frames of a move that hasn't hit yet checks reach and angle:
     /// if the other fighter stands within the technique's reach across the floor (centre to centre)
@@ -177,7 +177,7 @@ namespace Shaolin36.Core.Combat
     /// and a hit that knocks the fighter out of the move stops it.
     ///
     /// Quick step: a fighter asked for one (see <see cref="MoveInput.QuickStep"/>) who is free slides
-    /// quick_step_distance in that direction over quick_step_frames, relative to the lock-on (see
+    /// quick_step_distance forward or back, or quick_step_side_distance left or right, over quick_step_frames, relative to the lock-on (see
     /// <see cref="QuickStepStep"/>), then recovers for quick_step_recovery frames. It costs quick_step_stamina.
     /// No invincible frames: a strike that reaches a stepping fighter lands as normal. Its use is getting out of
     /// reach, closing in, or getting off the line of a strike's hit angle before it comes out. It stops at
@@ -436,7 +436,8 @@ namespace Shaolin36.Core.Combat
             }
             if (f.QuickStepFrame == 0)
             {
-                _quickStepLeft[i] = f.QuickStepRules!.DistanceCm;
+                bool sideways = f.QuickStepDirection == StepDirection.Left || f.QuickStepDirection == StepDirection.Right;
+                _quickStepLeft[i] = sideways ? f.QuickStepRules!.SideDistanceCm : f.QuickStepRules!.DistanceCm;
                 _quickStepTicks[i] = f.QuickStepRules.MoveFrames;
             }
             if (_quickStepLeft[i] <= 0 || _quickStepTicks[i] <= 0) return FloorPoint.Zero;
@@ -479,12 +480,13 @@ namespace Shaolin36.Core.Combat
         }
 
         /// <summary>
-        /// Lock-on: a fighter who isn't in a move faces the other fighter. A move takes its aim on the
-        /// tick it starts (each hit of a string aims afresh) and keeps it until it ends.
+        /// Lock-on: a fighter who isn't in a move faces the other fighter. An attack takes its aim on the
+        /// tick it starts from free, and the whole string keeps that aim: follow-up hits don't turn to
+        /// track a target who stepped aside. Turning resumes once the fighter is free (or stunned) again.
         /// </summary>
         private static void Aim(Fighter me, Fighter other)
         {
-            if (me.State.IsInMove() && me.MoveFrame > 0) return;
+            if (me.State.IsInMove() && (me.MoveFrame > 0 || me.StringHit > 1)) return;
             me.Facing = other.Position - me.Position;
         }
 

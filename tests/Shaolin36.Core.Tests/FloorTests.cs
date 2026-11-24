@@ -231,7 +231,7 @@ public class FloorTests
     }
 
     [Fact]
-    public void Each_hit_of_a_string_aims_afresh()
+    public void A_string_keeps_the_aim_of_its_first_hit()
     {
         var two = Make.Move("two", startup: 6, active: 3, recovery: 12, window: 0, perfect: 0, stamina: 0, reach: 120, hitAngle: 60);
         var one = Make.Move("one", startup: 10, active: 3, recovery: 12, window: 0, perfect: 0, stamina: 0, reach: 120, hitAngle: 60,
@@ -243,11 +243,31 @@ public class FloorTests
         d.Step(Square, None);
         for (int t = 1; t <= 10; t++) d.Step(None, None);
         Assert.Single(d.Hits);
+        var aim = d.One.Facing;
         d.Two.Position = FloorPoint.FromCm(50, 70); // moved 54 degrees off the first aim
         d.Step(None, None);
         d.Step(None, None);
-        d.Step(Square, None); // chains: hit 2 aims at where Two is now
+        d.Step(Square, None); // chains: hit 2 goes the same way as hit 1, not at where Two is now
         for (int t = 1; t <= 6; t++) d.Step(None, None);
+        Assert.Single(d.Hits);
+        Assert.Equal(aim, d.One.Facing);
+
+        // Once the string is over and One is free, it turns to face Two again.
+        for (int t = 0; t < 30; t++) d.Step(None, None);
+        Assert.Equal(FighterState.Idle, d.One.State);
+        Assert.NotEqual(aim, d.One.Facing);
+        Assert.True(d.One.Facing.Z > 0);
+    }
+
+    [Fact]
+    public void A_new_string_started_from_free_aims_afresh()
+    {
+        var d = NewDuel();
+        d.Step(Square, None);
+        for (int t = 1; t < 25; t++) d.Step(None, None); // jab: 25 frames
+        d.Two.Position = FloorPoint.FromCm(60, 80);
+        d.Step(Square, None);
+        for (int t = 1; t <= 10; t++) d.Step(None, None);
         Assert.Equal(2, d.Hits.Count);
     }
 

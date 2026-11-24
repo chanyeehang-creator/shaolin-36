@@ -15,9 +15,10 @@ namespace Shaolin36.Game;
 public partial class Arena
 {
     // Third-person lock-on camera: behind you and a little to the right, looking past you at the dummy.
-    private const float CameraBack = 3.4f;    // metres behind you
-    private const float CameraHeight = 2.7f;  // metres above the floor
-    private const float CameraSide = 1.7f;    // metres to your right, so you don't block the view
+    // Chan's playtest: 30% further out than the first version (3.4, 2.7, 1.7).
+    private const float CameraBack = 4.4f;    // metres behind you
+    private const float CameraHeight = 3.5f;  // metres above the floor
+    private const float CameraSide = 2.2f;    // metres to your right, so you don't block the view
     private const float CameraLookHeight = 0.9f;
     private const float CameraFollowPerSecond = 7f; // how quickly it swings round after you (exponential)
     private Vector3 _cameraBase, _cameraLook;

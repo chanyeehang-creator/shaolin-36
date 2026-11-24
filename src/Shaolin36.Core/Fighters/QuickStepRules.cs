@@ -10,8 +10,10 @@ namespace Shaolin36.Core.Fighters
     /// </summary>
     public sealed class QuickStepRules
     {
-        public QuickStepRules(int distanceCm, int moveFrames, int recoveryFrames, int stamina)
+        public QuickStepRules(int distanceCm, int moveFrames, int recoveryFrames, int stamina, int? sideDistanceCm = null)
         {
+            SideDistanceCm = sideDistanceCm ?? distanceCm;
+            if (SideDistanceCm < 0) throw new ArgumentOutOfRangeException(nameof(sideDistanceCm), sideDistanceCm, "the distance cannot be negative");
             if (distanceCm < 0) throw new ArgumentOutOfRangeException(nameof(distanceCm), distanceCm, "the distance cannot be negative");
             if (moveFrames < 1) throw new ArgumentOutOfRangeException(nameof(moveFrames), moveFrames, "the step takes at least 1 frame");
             if (recoveryFrames < 0) throw new ArgumentOutOfRangeException(nameof(recoveryFrames), recoveryFrames, "recovery cannot be negative");
@@ -22,15 +24,19 @@ namespace Shaolin36.Core.Fighters
             Stamina = stamina;
         }
 
-        /// <summary>The rules sheet's quick_step_distance, quick_step_frames, quick_step_recovery and quick_step_stamina.</summary>
+        /// <summary>The rules sheet's quick_step_distance, quick_step_side_distance, quick_step_frames, quick_step_recovery and quick_step_stamina.</summary>
         public static QuickStepRules FromRules(Rules rules)
         {
             if (rules == null) throw new ArgumentNullException(nameof(rules));
-            return new QuickStepRules(rules.QuickStepDistance, rules.QuickStepFrames, rules.QuickStepRecovery, rules.QuickStepStamina);
+            return new QuickStepRules(rules.QuickStepDistance, rules.QuickStepFrames, rules.QuickStepRecovery, rules.QuickStepStamina,
+                rules.QuickStepSideDistance);
         }
 
-        /// <summary>How far the step goes, in centimetres.</summary>
+        /// <summary>How far a forward or back step goes, in centimetres.</summary>
         public int DistanceCm { get; }
+
+        /// <summary>How far a left or right step goes, in centimetres.</summary>
+        public int SideDistanceCm { get; }
 
         /// <summary>Frames the step slides over, from the tick it starts.</summary>
         public int MoveFrames { get; }

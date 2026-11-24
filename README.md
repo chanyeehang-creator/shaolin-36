@@ -51,7 +51,7 @@ A fighter has 8 slots: □ △ ○ ✕ L1 L2 R1 R2. Each holds any technique or 
 
 ## The floor, facing and reach (full 3D)
 
-Two fighters stand anywhere on a square floor, `arena_width` cm each way. Positions are whole numbers in 1/60 cm (`FloorPoint`), so a speed of N cm per second is exactly N units per tick and the same inputs always give the same positions. The fighters face each other automatically (lock-on). A move takes its aim on the tick it starts and keeps it to the end; each hit of a string aims afresh.
+Two fighters stand anywhere on a square floor, `arena_width` cm each way. Positions are whole numbers in 1/60 cm (`FloorPoint`), so a speed of N cm per second is exactly N units per tick and the same inputs always give the same positions. The fighters face each other automatically (lock-on). An attack takes its aim on the tick it starts, and its whole string keeps that aim; turning resumes once the fighter is free again.
 
 A hit connects when, on any of its active frames, the other fighter is within the technique's `reach` across the floor (centre to centre) **and** inside its `hit_angle`, a wedge centred on the aim (60 = 30° either side; empty or 360 = all round). So stepping to the side during a wind-up can make a strike miss. Each move hits at most once. The hit deals its `damage` and freezes the defender for `hitstun` frames counted from the hit frame. Hits on the same tick trade. A technique with reach 0, like 化绵掌, never hits.
 
@@ -59,7 +59,7 @@ A hit connects when, on any of its active frames, the other fighter is within th
 
 - **Walking:** an idle fighter walks the way the stick or WASD says, relative to the lock-on (forward is straight at the opponent, right goes round their side), at `walk_speed` cm per second scaled by how far the stick is pushed. Diagonals are no faster. Fighters stop `min_distance` apart (walking round someone up close slides you round them) and at the floor's edges.
 - **Stepping in:** a technique's `advance` (cm) steps the attacker forward along its aim, slid over its startup frames. 罗汉拳 steps 10, 8, 8 and 15 cm; 铁砂掌 20 cm. It stops at `min_distance`, and being hit out of the move stops it.
-- **Quick step:** double-tap forward, back, left or right (within `quick_step_tap_window` frames) for a short, fast step that way: `quick_step_distance` cm over `quick_step_frames`, then `quick_step_recovery` frames before you can act. It costs `quick_step_stamina` and can't start while exhausted. It is not a dodge roll: no invincible frames, no perfect-timing bonus. Side steps curve round the opponent. Anyone can use it at any time they're free; it isn't on a slot.
+- **Quick step:** double-tap forward, back, left or right (within `quick_step_tap_window` frames) for a short, fast step that way: `quick_step_distance` cm forward or back, `quick_step_side_distance` cm left or right, over `quick_step_frames`, then `quick_step_recovery` frames before you can act. It costs `quick_step_stamina` and can't start while exhausted. It is not a dodge roll: no invincible frames, no perfect-timing bonus. Side steps curve round the opponent. Anyone can use it at any time they're free; it isn't on a slot.
 - **The playtest dummy** (`TrainingDummy`) stands where it is, turns to face you, waits `dummy_pause` frames, then throws its string, chaining on chain-window frame `dummy_chain_frame`.
 
 All of these numbers are in `rules.csv` and `techniques.csv`.
