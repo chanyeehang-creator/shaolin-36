@@ -7,7 +7,7 @@ namespace Shaolin36.Core.Combat
     {
         /// <summary>The parry was not in its window (or is not a parry): the hit is resolved normally.</summary>
         NotParried,
-        /// <summary>Deflected: no damage, the attacker finishes their recovery and can't chain.</summary>
+        /// <summary>Blocked: no damage, but the attacker isn't interrupted: their move and string carry on.</summary>
         Parried,
         /// <summary>Deflected in the first frames of the window: the attacker is staggered and drained.</summary>
         PerfectParry,
@@ -52,7 +52,7 @@ namespace Shaolin36.Core.Combat
             AttackerStaminaLoss = attackerStaminaLoss;
         }
 
-        /// <summary>The hit deals no damage, and the attacker can't chain into the next hit.</summary>
+        /// <summary>The hit deals no damage. Only a perfect parry also stops the attacker (see <see cref="AttackerStaggerFrames"/>).</summary>
         public bool Deflected { get; }
 
         /// <summary>The rest of the parry is replaced by this many frames, then the defender can act.</summary>
@@ -62,7 +62,7 @@ namespace Shaolin36.Core.Combat
         public int DefenderStaminaRefund { get; }
         public int DefenderQiGain { get; }
 
-        /// <summary>0 means the attacker just finishes their move's normal recovery.</summary>
+        /// <summary>0 means the attacker isn't interrupted: a blocked string carries on.</summary>
         public int AttackerStaggerFrames { get; }
         public int AttackerStaminaLoss { get; }
     }

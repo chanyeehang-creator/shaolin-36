@@ -402,8 +402,8 @@ public partial class Arena : Node3D
                     : $"[color=#33ff59][b]PERFECT PARRY![/b][/color] You stopped {name}; the dummy is staggered. Hit it now!";
             case ParryOutcome.Parried:
                 return mine
-                    ? $"[color=#33bfff][b]Blocked.[/b][/color] The dummy parried your {name}; your string stops."
-                    : $"[color=#33bfff][b]Blocked[/b][/color] {name}: no damage, and its string stops. " +
+                    ? $"[color=#33bfff][b]Blocked.[/b][/color] The dummy blocked your {name}; your string can carry on."
+                    : $"[color=#33bfff][b]Blocked[/b][/color] {name}: no damage, but its string carries on, so tap again for the next hit. " +
                       $"({PerfectMiss(hit.DefenderTechnique!, hit.DefenderMoveFrame)} frame(s) late for a perfect parry.)";
         }
 

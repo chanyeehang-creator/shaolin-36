@@ -8,7 +8,7 @@ namespace Shaolin36.Core.Fighters
     /// and over. Before its first string, and after each one, it waits <see cref="PauseFrames"/> idle frames, then starts
     /// again. In a string it chains on chain-window frame <see cref="ChainFrame"/> (0 is the
     /// first frame, a true combo; a later frame leaves a gap you can parry into). Being hit
-    /// resets the pause. A parried hit ends the string. Deterministic: the same fight always gets the same presses.
+    /// resets the pause. A blocked hit doesn't stop it: it keeps chaining. Deterministic: the same fight always gets the same presses.
     ///
     /// Call <see cref="Think"/> once per tick, before the duel steps, and pass what it returns
     /// as the dummy's input.
@@ -64,7 +64,7 @@ namespace Shaolin36.Core.Fighters
 
             _idleFrames = 0;
             var t = me.Technique!;
-            if (next == FighterState.Recovery && t.HasNext && !me.ChainBlocked && me.Slot == Slot && ChainFrame < t.ChainWindowFrames)
+            if (next == FighterState.Recovery && t.HasNext && me.Slot == Slot && ChainFrame < t.ChainWindowFrames)
             {
                 int recoveryFrame = me.MoveFrame + 1 - t.StartupFrames - t.ActiveFrames;
                 if (recoveryFrame == ChainFrame) return SlotInput.Press(Slot);
