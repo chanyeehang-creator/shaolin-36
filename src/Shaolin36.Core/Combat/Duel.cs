@@ -101,9 +101,9 @@ namespace Shaolin36.Core.Combat
     /// <item><b>Parry</b> (化劲, see <see cref="Combat.Parry"/>): if the defender's parry is in its
     /// window, the strike deals nothing. The defender's parry ends and they recover
     /// (<see cref="FighterState.Recoil"/>) for parry_recovery frames, or parry_perfect_recovery
-    /// in the perfect frames. On a plain parry the attacker finishes their move's recovery but
-    /// can't chain into the next hit; on a perfect parry the attacker is staggered for
-    /// parry_perfect_stagger frames instead. A parry pressed too early or too late does nothing,
+    /// in the perfect frames. A plain parry (a block) doesn't interrupt the attacker at all: their
+    /// move and string carry on, so the defender has to tap again for the next hit. Only a
+    /// perfect parry stops the attack: the attacker is staggered for parry_perfect_stagger frames. A parry pressed too early or too late does nothing,
     /// and the strike lands as normal.</item>
     /// <item><b>Clash</b> (拼招, see <see cref="Combat.Clash"/>): if the defender is in the clash window
     /// of a wind-up, the clash table decides. Same weight: both moves stop and both recoil.
@@ -219,7 +219,6 @@ namespace Shaolin36.Core.Combat
                     var e = Combat.Parry.Effect(parry, defenderMove, Rules);
                     defender.Stun(FighterState.Recoil, e.DefenderRecoveryFrames);
                     if (e.AttackerStaggerFrames > 0) striker.Stun(FighterState.Stagger, e.AttackerStaggerFrames);
-                    else if (striker.State.IsInMove()) striker.BlockChain();
                     return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame, parry, e);
                 }
 

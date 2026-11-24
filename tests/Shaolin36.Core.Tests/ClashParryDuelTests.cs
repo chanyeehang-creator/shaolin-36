@@ -8,7 +8,8 @@ namespace Shaolin36.Core.Tests;
 /// <summary>
 /// Stage 1 step 6: clash and parry inside a real duel. One scenario per row of the clash
 /// table (including the brief's finisher example on the real sheet), and parry, perfect parry,
-/// missed parries being punished, and a parried hit unable to chain.
+/// missed parries being punished. A plain block doesn't interrupt the attacker (Chan's design):
+/// their string carries on; only a perfect parry stops it.
 ///
 /// In every scenario fighter One attacks first, pressing on tick 0, so its hit lands on tick
 /// 10 (its startup). Fighter Two presses on a later tick, which sets Two's frame on tick 10.
@@ -86,7 +87,6 @@ public class ClashParryDuelTests
         Assert.Equal(8, d.Two.StunFramesLeft);
         // ...while the attacker just carries on with its move.
         Assert.Same(Punch, d.One.Technique);
-        Assert.True(d.One.ChainBlocked);
 
         StepTo(d, 17);
         Assert.Equal(FighterState.Recoil, d.Two.State);
@@ -96,21 +96,37 @@ public class ClashParryDuelTests
     }
 
     [Fact]
-    public void A_parried_hit_cannot_chain_into_the_next_hit()
+    public void A_blocked_hit_does_not_interrupt_the_string()
     {
         var d = Run(Punch, Parry, twoPressTick: 2);
         Assert.Equal(ParryOutcome.Parried, d.Hits[0].Parry);
 
-        // One mashes Square all through recovery, which would normally chain into punch2.
-        for (int t = 11; t < 25; t++)
-        {
-            d.Step(Square, None);
-            Assert.False(d.One.InChainWindow);
-            Assert.Same(Punch, d.One.Technique);
-            Assert.Equal(1, d.One.StringHit);
-        }
-        StepTo(d, 60);
-        Assert.DoesNotContain(d.Hits, h => h.Technique == Punch2);
+        // One presses on the first chain-window frame (tick 13) and punch2 starts as normal.
+        StepTo(d, 12);
+        StepTo(d, 13, one: Square);
+        Assert.Same(Punch2, d.One.Technique);
+        Assert.Equal(2, d.One.StringHit);
+
+        // Two doesn't tap again, so punch2 lands on tick 23.
+        StepTo(d, 23);
+        var second = d.Hits[1];
+        Assert.Same(Punch2, second.Technique);
+        Assert.True(second.Landed);
+    }
+
+    [Fact]
+    public void Tapping_again_blocks_the_next_hit_of_the_string_too()
+    {
+        // Two blocks punch (tick 10), recovers on tick 18, taps on tick 18: parry frame 5 when punch2 lands on tick 23.
+        var d = Run(Punch, Parry, twoPressTick: 2);
+        StepTo(d, 12);
+        StepTo(d, 13, one: Square);
+        StepTo(d, 17);
+        StepTo(d, 18, two: Square);
+        StepTo(d, 23);
+        Assert.Equal(2, d.Hits.Count);
+        Assert.Equal(ParryOutcome.PerfectParry, d.Hits[1].Parry);
+        Assert.Equal(R.HpMax, d.Two.Hp);
     }
 
     [Fact]
@@ -334,14 +350,17 @@ public class ClashParryDuelTests
 
     // ---------- The real sheet's parry against the dummy's string ----------
 
-    [Fact]
-    public void Parrying_the_dummys_first_hit_stops_the_whole_string()
+    [Theory]
+    [InlineData(false)] // a plain block: the string carries on and hit 2 lands
+    [InlineData(true)]  // a perfect parry: the string stops
+    public void Against_the_dummys_string_only_a_perfect_parry_stops_it(bool perfect)
     {
         var techniques = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques;
         var rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
         var book = new TechniqueBook(techniques);
         var parry = book.Find("timed_parry")!;
         var hit1 = book.Find("luohan_quan_1")!;
+        var hit2 = book.Find("luohan_quan_2")!;
 
         var you = new Loadout(book);
         you.Assign(Slot.L1, parry);
@@ -350,16 +369,28 @@ public class ClashParryDuelTests
         var dummy = new TrainingDummy(Slot.Square, pauseFrames: 0, chainFrame: 0);
         var d = Duel.Start(rules, you, them);
 
-        // The dummy presses on tick 0, so hit 1 lands on tick 19: parry so it lands on the last window frame.
-        int parryTick = hit1.StartupFrames - (parry.StartupFrames + parry.ActiveFrames - 1);
-        for (int t = 0; t < hit1.TotalFrames + 1; t++)
+        // The dummy presses on tick 0, so hit 1 lands on its startup frame. Parry so it lands on
+        // the first perfect frame, or on the last frame of the block window.
+        int parryFrame = perfect ? parry.StartupFrames : parry.StartupFrames + parry.ActiveFrames - 1;
+        int parryTick = hit1.StartupFrames - parryFrame;
+        Assert.True(parryTick >= 0);
+        for (int t = 0; t < hit1.StartupFrames + hit1.ActiveFrames + hit2.StartupFrames + 2; t++)
         {
             var mine = t == parryTick ? SlotInput.Press(Slot.L1) : None;
             d.Step(mine, dummy.Think(d.Two));
         }
 
-        var only = Assert.Single(d.Hits);
-        Assert.Equal(ParryOutcome.Parried, only.Parry);
-        Assert.Equal(rules.HpMax, d.One.Hp);
+        Assert.Equal(perfect ? ParryOutcome.PerfectParry : ParryOutcome.Parried, d.Hits[0].Parry);
+        if (perfect)
+        {
+            Assert.Single(d.Hits);
+            Assert.Equal(rules.HpMax, d.One.Hp);
+        }
+        else
+        {
+            Assert.Equal(2, d.Hits.Count);
+            Assert.Same(hit2, d.Hits[1].Technique);
+            Assert.True(d.Hits[1].Landed);
+        }
     }
 }

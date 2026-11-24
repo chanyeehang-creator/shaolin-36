@@ -78,7 +78,7 @@ The top lines show both HP bars, what each fighter is doing with its frame numbe
 **About 化绵掌 (the parry):** it is a tap, not a hold. Each press winds up for 3 frames, opens a 14-frame window (about 0.23 s), then has a 10-frame cooldown if nothing hit it, so to block a whole string you tap once for each hit. When the dummy's hit lands in your window:
 
 - **First 4 frames: PERFECT PARRY.** No damage, the dummy's attack is stopped and it is staggered (purple) for 30 frames, and you recover in 4. Hit it straight away.
-- **The next 10 frames: Blocked.** No damage and the dummy's string stops there, but the dummy isn't staggered: it finishes its move, and you recover in 8 frames. Blocking will cost stamina once stamina is added (the next step).
+- **The next 10 frames: Blocked.** No damage, but the dummy isn't interrupted: its string carries on, so tap again for its next hit. You recover in 8 frames, then you can tap again. Blocking will cost stamina once stamina is added (the next step).
 - **Outside the window**, the hit lands as normal and the screen tells you whether you were too early or too late, and by how many frames.
 
 **Clashes (拼招):** if your hit lands in the last frames of the dummy's wind-up, the moves clash. Same weight: both bounce off (grey). Heavier move: it breaks through. Lighter move: it gets knocked aside. Hit the very first frames of that window and it's a **PERFECT CLASH**: the dummy is staggered whatever the weights. The 罗汉拳 finisher (hit 4) is heavy, so it wins normal clashes against hits 1 to 3.
