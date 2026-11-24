@@ -33,6 +33,24 @@ public partial class Arena : Node3D
         "[color=#33bfff]■ parry[/color]   [color=#4059f2]■ recovery[/color]   [color=#ffffff]■ hit[/color]   " +
         "[color=#d94df2]■ staggered (open!)[/color]   [color=#8c8c99]■ recoil / recovering from a parry[/color]";
 
+    /// <summary>
+    /// Debug floating text over the capsules ("-6", "Blocked!", "Parried!"). A playtest aid,
+    /// not the real game's UI: set this to false to start with it off, or press F2 in game.
+    /// </summary>
+    private const bool FloatingTextOnByDefault = true;
+    private const float FloatSeconds = 0.9f;
+    private const float FloatRise = 0.8f; // metres over its life
+
+    private sealed class FloatText
+    {
+        public Label3D Label = null!;
+        public float Age;
+        public Vector3 Start;
+    }
+
+    private readonly List<FloatText> _floats = new();
+    private bool _floatingText = FloatingTextOnByDefault;
+
     private readonly Rules _rules = null!;
     private readonly TechniqueBook _book = null!;
     private readonly List<Technique> _starters = new();
@@ -87,6 +105,7 @@ public partial class Arena : Node3D
         _duel = Duel.Start(_rules, _playerLoadout, _dummyLoadout);
         _combo = 0;
         _comboBy = null;
+        ClearFloats();
     }
 
     // ---------------------------------------------------------------- headless check
@@ -246,6 +265,12 @@ public partial class Arena : Node3D
             _slowMotion = !_slowMotion;
             return;
         }
+        if (command == Command.FloatingText)
+        {
+            _floatingText = !_floatingText;
+            if (!_floatingText) ClearFloats();
+            return;
+        }
 
         if (_menuOpen)
         {
@@ -354,6 +379,7 @@ public partial class Arena : Node3D
                 _combo = 0;
             }
             _event.Text = Describe(hit);
+            if (_floatingText) FloatsFor(hit);
         }
 
         if (_duel.IsOver)
@@ -418,6 +444,104 @@ public partial class Arena : Node3D
             : $"化绵掌 [b]too early[/b]: the window had closed. Press {frame - windowEnd + 1} frame(s) later.";
     }
 
+    // ---------------------------------------------------------------- floating debug text
+
+    private static readonly Color DamageOnYouColor = new(1.00f, 0.35f, 0.35f);
+    private static readonly Color DamageOnDummyColor = new(1.00f, 0.80f, 0.30f);
+
+    /// <summary>Text over the fighters for one strike: who took what.</summary>
+    private void FloatsFor(HitEvent hit)
+    {
+        var attacker = hit.Attacker;
+        var defender = hit.Defender;
+
+        switch (hit.Parry)
+        {
+            case ParryOutcome.PerfectParry:
+                Float(defender, "Parried!", ParryPerfectColor);
+                Float(attacker, "Stagger!", StaggerColor);
+                return;
+            case ParryOutcome.Parried:
+                Float(defender, "Blocked!", ParryColor);
+                return;
+        }
+
+        switch (hit.Clash)
+        {
+            case ClashOutcome.BothRecoil:
+                Float(attacker, "CLASH!", StartupColor);
+                Float(defender, "CLASH!", StartupColor);
+                return;
+            case ClashOutcome.PerfectClash:
+                Float(attacker, "Perfect clash!", ParryPerfectColor);
+                Float(defender, "Stagger!", StaggerColor);
+                return;
+            case ClashOutcome.TargetWins:
+                Float(defender, "CLASH!", StartupColor);
+                Float(attacker, "Stagger!", StaggerColor);
+                return;
+            case ClashOutcome.StrikerWins:
+                Float(attacker, "CLASH!", StartupColor);
+                break;
+        }
+
+        if (hit.Landed)
+        {
+            Float(defender, $"-{hit.Damage}", defender == Side.One ? DamageOnYouColor : DamageOnDummyColor);
+            if (hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Huajin)
+                Float(defender, hit.DefenderMoveFrame < hit.DefenderTechnique.StartupFrames ? "Too late!" : "Too early!",
+                    new Color(1, 1, 1));
+        }
+    }
+
+    private void Float(Side side, string text, Color color)
+    {
+        var f = side == Side.One ? _duel.One : _duel.Two;
+        // Stack new text above any that is still young over the same fighter.
+        int young = _floats.Count(t => t.Age < 0.3f && Mathf.Abs(t.Start.X - f.PositionCm / 100f) < 0.01f);
+        var label = new Label3D
+        {
+            Text = text,
+            Modulate = color,
+            OutlineModulate = new Color(0, 0, 0),
+            OutlineSize = 10,
+            FontSize = 64,
+            PixelSize = 0.006f,
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+            NoDepthTest = true,
+        };
+        var start = new Vector3(f.PositionCm / 100f, 2.3f + young * 0.35f, 0.5f);
+        label.Position = start;
+        AddChild(label);
+        _floats.Add(new FloatText { Label = label, Start = start });
+    }
+
+    public override void _Process(double delta)
+    {
+        for (int i = _floats.Count - 1; i >= 0; i--)
+        {
+            var t = _floats[i];
+            t.Age += (float)delta;
+            if (t.Age >= FloatSeconds)
+            {
+                t.Label.QueueFree();
+                _floats.RemoveAt(i);
+                continue;
+            }
+            float k = t.Age / FloatSeconds;
+            t.Label.Position = t.Start + new Vector3(0, FloatRise * k, 0);
+            var c = t.Label.Modulate;
+            t.Label.Modulate = new Color(c.R, c.G, c.B, k < 0.6f ? 1f : 1f - (k - 0.6f) / 0.4f);
+            t.Label.OutlineModulate = new Color(0, 0, 0, t.Label.Modulate.A);
+        }
+    }
+
+    private void ClearFloats()
+    {
+        foreach (var t in _floats) t.Label.QueueFree();
+        _floats.Clear();
+    }
+
     // ---------------------------------------------------------------- drawing
 
     private void Draw()
@@ -432,7 +556,7 @@ public partial class Arena : Node3D
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk: A/D, ←/→, D-pad or left stick  ·  Loadout: Tab / Esc / pad Start  ·  Dummy still/attack: T / pad Select  ·  Restart: Enter  ·  Half speed: F1\n" +
+            "Walk: A/D, ←/→, D-pad or left stick  ·  Loadout: Tab / Esc / pad Start  ·  Dummy still/attack: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }

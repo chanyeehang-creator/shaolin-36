@@ -55,4 +55,15 @@ public class GameDataTests
         Assert.Equal(Category.Huajin, parry.Category);
         Assert.True(parry.PerfectParryFrames > 0);
     }
+
+    [Fact]
+    public void Timed_parry_has_block_frames_after_the_perfect_ones_and_a_cooldown()
+    {
+        // Chan's design: perfect frames first, then a block window, then a cooldown so it can't be held.
+        var path = Path.Combine(RepoRoot(), "game", "data", "techniques.csv");
+        var parry = TechniqueCsv.Parse(File.ReadAllText(path)).Techniques.Single(t => t.Id == "timed_parry");
+        Assert.True(parry.ActiveFrames > parry.PerfectParryFrames, "the window needs block frames after the perfect ones");
+        Assert.True(parry.RecoveryFrames > 0, "the parry needs a cooldown");
+        Assert.Equal(Combat.ParryOutcome.Parried, Combat.Parry.Resolve(parry, parry.StartupFrames + parry.PerfectParryFrames));
+    }
 }

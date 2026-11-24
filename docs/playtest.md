@@ -65,18 +65,20 @@ The capsules change colour with what they are doing:
 
 - **Yellow**: startup (winding up). A faint yellow bar on the floor shows how far the move will reach.
 - **Red**: active, the hit is live. The floor bar turns red.
-- **Green / light blue**: your 化绵掌 window. Green is the perfect part (the first 5 frames), light blue the rest.
+- **Green / light blue**: your 化绵掌 window. Green is the perfect part (the first 4 frames), light blue the rest.
 - **Dark blue**: recovery, can't act.
 - **White**: hit and frozen (hitstun).
 - **Purple**: staggered after a perfect parry or a lost clash. Wide open: hit them!
 - **Grey**: recoil (a same-weight clash) or the short recovery after a successful parry.
 
+**Floating text** over the capsules shows what just happened: damage like **-6**, **Blocked!**, **Parried!** (perfect), **Stagger!**, **CLASH!**, and **Too early! / Too late!** for a missed parry. It's a playtest aid only: press **F2** to switch it off or on.
+
 The top lines show both HP bars, what each fighter is doing with its frame number, and **"chain now!"** while you are in the window where pressing the same button again starts the next hit. When the same fighter lands hits in a row before the other recovers, you see **"N hit combo"**.
 
-**About 化绵掌 (the parry):** it is a tap, not a hold. Each press opens a 10-frame window (about 0.17 s), then it goes into recovery, so to block a whole string you tap once for each hit. When the dummy's hit lands in your window:
+**About 化绵掌 (the parry):** it is a tap, not a hold. Each press winds up for 3 frames, opens a 14-frame window (about 0.23 s), then has a 10-frame cooldown if nothing hit it, so to block a whole string you tap once for each hit. When the dummy's hit lands in your window:
 
-- **First 5 frames: PERFECT PARRY.** No damage, the dummy's attack is stopped and it is staggered (purple) for 30 frames, and you recover in 4. Hit it straight away.
-- **The rest of the window: Blocked.** No damage and the dummy's string stops there, but the dummy isn't staggered: it finishes its move, and you recover in 8 frames. Blocking will cost stamina once stamina is added (the next step).
+- **First 4 frames: PERFECT PARRY.** No damage, the dummy's attack is stopped and it is staggered (purple) for 30 frames, and you recover in 4. Hit it straight away.
+- **The next 10 frames: Blocked.** No damage and the dummy's string stops there, but the dummy isn't staggered: it finishes its move, and you recover in 8 frames. Blocking will cost stamina once stamina is added (the next step).
 - **Outside the window**, the hit lands as normal and the screen tells you whether you were too early or too late, and by how many frames.
 
 **Clashes (拼招):** if your hit lands in the last frames of the dummy's wind-up, the moves clash. Same weight: both bounce off (grey). Heavier move: it breaks through. Lighter move: it gets knocked aside. Hit the very first frames of that window and it's a **PERFECT CLASH**: the dummy is staggered whatever the weights. The 罗汉拳 finisher (hit 4) is heavy, so it wins normal clashes against hits 1 to 3.
@@ -100,6 +102,6 @@ Run `scripts\test.bat` after editing to check the sheets.
 ## 7. The two questions
 
 1. **罗汉拳 rhythm:** does pressing on the "chain now!" beat feel natural? Is the 4-hit string too fast, too slow, or about right?
-2. **化绵掌:** with the dummy attacking, how often do you get PERFECT PARRY and Blocked? Does 5 perfect frames and a 10-frame window feel too strict, too easy, or fair? Is the stagger after a perfect parry long enough to punish?
+2. **化绵掌:** with the dummy attacking, how often do you get PERFECT PARRY and Blocked? Do 4 perfect frames and 10 block frames feel too strict, too easy, or fair? Is the stagger after a perfect parry long enough to punish?
 
 Anything else that feels off is useful too, with roughly which move and what you expected.

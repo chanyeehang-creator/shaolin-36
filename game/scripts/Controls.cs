@@ -20,6 +20,8 @@ public enum Command
     MenuRight,
     /// <summary>Half speed on and off (F1), for looking at timing.</summary>
     SlowMotion,
+    /// <summary>Floating debug text (damage numbers, Blocked!, Parried!) on and off (F2).</summary>
+    FloatingText,
 }
 
 /// <summary>
@@ -131,6 +133,7 @@ public static class Controls
                     case Key.Enter:
                     case Key.KpEnter: return key.Echo ? Command.None : Command.Restart;
                     case Key.F1: return key.Echo ? Command.None : Command.SlowMotion;
+                    case Key.F2: return key.Echo ? Command.None : Command.FloatingText;
                     case Key.T: return key.Echo ? Command.None : Command.DummyToggle;
                     case Key.W:
                     case Key.Up: return Command.MenuUp;
