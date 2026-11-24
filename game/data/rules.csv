@@ -1,7 +1,7 @@
 # Rules sheet. Frames are 1/60 s sim ticks; stamina, Qi and HP are points; regen is points per second.
 # Stage 1 starting values: tune freely, then run scripts/test.sh.
 key,value,note
-hp_max,100,Starting and max HP
+hp_max,120,Starting and max HP (4 clean 罗汉拳 strings at 31 each)
 stamina_max,100,Max stamina
 stamina_regen,25,Stamina per second while not attacking/dodging/parrying
 stamina_regen_still,40,Stamina per second while standing still

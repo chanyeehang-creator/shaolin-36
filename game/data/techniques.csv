@@ -9,4 +9,4 @@ luohan_quan_1,罗汉拳 1 冲拳,waigong,medium,false,11,3,16,5,2,8,0,6,true,18,
 luohan_quan_2,罗汉拳 2 连拳,waigong,medium,false,9,3,16,4,2,8,0,6,true,18,120,luohan_quan_3,8,0
 luohan_quan_3,罗汉拳 3 挑掌,waigong,medium,false,10,3,18,4,2,9,0,7,true,24,125,luohan_quan_4,8,0
 luohan_quan_4,罗汉拳 4 收势重拳,waigong,heavy,false,16,4,28,6,2,14,0,12,true,34,140,,0,0
-timed_parry,化绵掌 (timed parry),huajin,light,false,3,10,20,0,0,10,0,0,false,0,0,,0,4
+timed_parry,化绵掌 (timed parry),huajin,light,false,3,10,20,0,0,10,0,0,false,0,0,,0,5
