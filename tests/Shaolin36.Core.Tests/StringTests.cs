@@ -317,14 +317,17 @@ public class StringTests
     }
 
     [Fact]
-    public void The_string_has_the_playtested_rhythm_1_pause_2_3_pause_4()
+    public void The_string_has_the_playtested_rhythm()
     {
-        // From Chan's first playtest: a pause after hit 1, hits 2 and 3 quick, a longer pause before the finisher.
-        var (d, _) = RunLuohanQuan(chainFrame: 0);
+        // From Chan's second playtest: a 0.32 s wind-up, then 0.5 s, 0.2 s and 0.5 s between hits.
+        var (d, gaps) = RunLuohanQuan(chainFrame: 0);
         var ticks = d.Hits.Select(h => h.Tick).ToArray();
-        Assert.Equal(new[] { 11, 30, 41, 64 }, ticks);
-        int pause1 = ticks[1] - ticks[0], quick = ticks[2] - ticks[1], pause2 = ticks[3] - ticks[2];
-        Assert.True(pause1 > quick && pause2 > quick && pause2 > pause1, $"gaps {pause1}, {quick}, {pause2}");
+        Assert.Equal(new[] { 19, 49, 61, 91 }, ticks);
+        Assert.Equal(0.32, Sim.FramesToSeconds(ticks[0]), 2);
+        Assert.Equal(0.5, Sim.FramesToSeconds(ticks[1] - ticks[0]), 2);
+        Assert.Equal(0.2, Sim.FramesToSeconds(ticks[2] - ticks[1]), 2);
+        Assert.Equal(0.5, Sim.FramesToSeconds(ticks[3] - ticks[2]), 2);
+        Assert.Equal(new[] { false, false, false }, gaps); // still a true combo
     }
 
     [Fact]

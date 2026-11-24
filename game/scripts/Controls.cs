@@ -8,10 +8,12 @@ namespace Shaolin36.Game;
 public enum Command
 {
     None,
-    /// <summary>Open or close the loadout screen (Tab, Esc, or the pad's Back/Select button).</summary>
+    /// <summary>Open or close the loadout screen (Tab, Esc, or the pad's Start button).</summary>
     Menu,
-    /// <summary>Start the duel again (Enter, or the pad's Start button).</summary>
+    /// <summary>Start the duel again (Enter; on a pad, Start after a KO or the loadout screen's restart row).</summary>
     Restart,
+    /// <summary>Make the dummy stand still, or attack again (T, or the pad's Back/Select button).</summary>
+    DummyToggle,
     MenuUp,
     MenuDown,
     MenuLeft,
@@ -129,6 +131,7 @@ public static class Controls
                     case Key.Enter:
                     case Key.KpEnter: return key.Echo ? Command.None : Command.Restart;
                     case Key.F1: return key.Echo ? Command.None : Command.SlowMotion;
+                    case Key.T: return key.Echo ? Command.None : Command.DummyToggle;
                     case Key.W:
                     case Key.Up: return Command.MenuUp;
                     case Key.S:
@@ -143,8 +146,8 @@ public static class Controls
             case InputEventJoypadButton pad when pad.Pressed:
                 switch (pad.ButtonIndex)
                 {
-                    case JoyButton.Back: return Command.Menu;
-                    case JoyButton.Start: return Command.Restart;
+                    case JoyButton.Back: return Command.DummyToggle;
+                    case JoyButton.Start: return Command.Menu;
                     case JoyButton.DpadUp: return Command.MenuUp;
                     case JoyButton.DpadDown: return Command.MenuDown;
                     case JoyButton.DpadLeft: return Command.MenuLeft;
