@@ -1,0 +1,94 @@
+# First playable test: how to play it
+
+This is the Stage 1 step 5 test: you (the orange capsule, on the left) against a training dummy (the dark red capsule) that throws the 罗汉拳 string over and over. The point is to feel the numbers, so play for a few minutes and then answer the two questions at the bottom.
+
+## 1. Get the new version on your PC
+
+You already have the repo at `D:\GitHub\shaolin-36` in GitHub Desktop.
+
+1. Open **GitHub Desktop**.
+2. Click **Fetch origin** (top bar).
+3. To play **before** the pull request is merged: click **Current branch** (top bar), find `claude/project-thread-uhc6ej` in the list and click it. If it isn't listed, click Fetch origin again.
+   To play **after** it is merged: switch to `main` and click **Pull origin**.
+
+## 2. Start the game
+
+1. Open the folder `D:\GitHub\shaolin-36\scripts` in File Explorer.
+2. Double-click **`play.bat`**.
+3. A black window builds the code for a few seconds, then the game window opens.
+
+If the black window says Godot can't be found, your `GODOT` setting points at the wrong file. In a Command Prompt, run this once (change the file name if yours is different), then close and reopen File Explorer:
+
+```bat
+setx GODOT "D:\Tools\Godot-dotnet\Godot_v4.7.2-stable_mono_win64.exe"
+```
+
+If it says the build failed, double-click `scripts\test.bat` and send Claude a screenshot of what it prints.
+
+## 3. Connect the Logitech Dual Action gamepad
+
+1. Plug the pad into a USB port **before** you start the game. Windows sets it up by itself the first time (wait for the "device is ready" message, about 10 seconds).
+2. Optional check that Windows sees it: press **Win + R**, type `joy.cpl`, press Enter. "Logitech Dual Action" should be listed with status OK. Click **Properties** and press buttons: the matching numbers light up.
+3. Look at the small **MODE** light on the pad. When it is **off**, the left stick is the stick and the D-pad is the D-pad. When it's on they swap. Either way both of them walk, so leave it how you like.
+4. Start the game. The grey line under the fight text should say **"Gamepad: Logitech Dual Action"**. Press a few buttons: the same line shows "last pad input: …" so you can see the game hears them.
+
+If that line says "unknown layout", or a button does the wrong thing, send Claude a screenshot of that line after pressing the button. Keyboard and mouse always work at the same time as the pad, so you can keep playing either way.
+
+## 4. Controls
+
+Every fight button is a **slot**. Slots don't mean anything on their own: whatever technique you put on a slot is what that button does.
+
+| Slot | Gamepad (Dual Action) | Keyboard + mouse | Starts with |
+| --- | --- | --- | --- |
+| □ | 1 (left face button) | J or left click | 罗汉拳 |
+| △ | 4 (top) | I | |
+| ○ | 3 (right) | L | |
+| ✕ | 2 (bottom) | K or Space | |
+| L1 | 5 | Q or right click | 化绵掌 |
+| L2 | 7 | Left Shift | |
+| R1 | 6 | E | |
+| R2 | 8 | F | |
+
+| Other | Gamepad | Keyboard |
+| --- | --- | --- |
+| Walk left / right | Left stick or D-pad | A / D or ← / → |
+| Loadout screen (pauses) | 9 (Back / Select) | Tab or Esc |
+| Restart the duel | 10 (Start) | Enter |
+| Half speed on/off | | F1 |
+
+On the **loadout screen**: move up and down to pick a technique (W/S, ↑/↓ or the D-pad), then press the button you want it on. Want 化绵掌 on ✕ instead of L1? Highlight 化绵掌 and press ✕. If something was already on that button, the two swap. The last row turns the dummy's attacks on and off, which is handy for practising your own string on it.
+
+## 5. Reading the screen
+
+The capsules change colour with what they are doing:
+
+- **Yellow**: startup (winding up). A faint yellow bar on the floor shows how far the move will reach.
+- **Red**: active, the hit is live. The floor bar turns red.
+- **Green / light blue**: your 化绵掌 window. Green is the perfect part (the first 5 frames), light blue the rest.
+- **Dark blue**: recovery, can't act.
+- **White**: hit and frozen (hitstun).
+
+The top lines show both HP bars, what each fighter is doing with its frame number, and **"chain now!"** while you are in the window where pressing the same button again starts the next hit. When the same fighter lands hits in a row before the other recovers, you see **"N hit combo"**.
+
+**About the parry:** in this test 化绵掌 doesn't stop hits yet; that is the next step of Stage 1. For now, when the dummy hits you while you're parrying, the screen tells you how your timing was: **PERFECT PARRY timing**, **PARRY timing**, or **too early / too late by N frames**. That's enough to judge whether the window feels right.
+
+## 6. Tuning while you play
+
+All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**), then close the game and double-click `play.bat` again:
+
+- `game\data\techniques.csv`: each technique's frames, damage, reach, chain window, perfect parry frames.
+- `game\data\rules.csv`: HP, input buffer, and the test settings added for this step:
+  - `walk_speed`: how fast you walk, in cm per second (200).
+  - `start_distance`: how far apart the duel starts (110 cm, inside 罗汉拳's 120 cm reach).
+  - `min_distance`, `arena_width`: how close the capsules can get, and how wide the floor is.
+  - `dummy_pause`: frames the dummy waits between strings (40, about 0.7 s).
+  - `dummy_chain_frame`: when the dummy presses for its next hit. 0 is a true combo you can't escape. Try 6: it leaves gaps you can parry into.
+
+Run `scripts\test.bat` after editing to check the sheets.
+
+## 7. The two questions
+
+1. **罗汉拳 rhythm:** does pressing on the "chain now!" beat feel natural? Is the 4-hit string too fast, too slow, or about right?
+2. **化绵掌 timing:** with the dummy attacking, how often do you get PERFECT and PARRY timing? Does 5 perfect frames and a 10-frame window feel too strict, too easy, or fair?
+
+Anything else that feels off is useful too, with roughly which move and what you expected.

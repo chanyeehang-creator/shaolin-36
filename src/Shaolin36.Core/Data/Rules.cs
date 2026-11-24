@@ -20,6 +20,8 @@ namespace Shaolin36.Core.Data
             "clash_perfect_stagger", "clash_perfect_recovery", "clash_perfect_qi",
             "parry_recovery", "parry_perfect_recovery", "parry_perfect_stagger", "parry_perfect_drain", "parry_perfect_qi",
             "input_buffer",
+            "walk_speed", "min_distance", "start_distance", "arena_width",
+            "dummy_pause", "dummy_chain_frame",
         };
 
         private readonly Dictionary<string, int> _values;
@@ -63,6 +65,27 @@ namespace Shaolin36.Core.Data
         /// tried again on each of the next this-many ticks. 0 turns the buffer off.
         /// </summary>
         public int InputBuffer => V("input_buffer");
+
+        /// <summary>Walking speed in centimetres per second. Fighters only walk while idle.</summary>
+        public int WalkSpeed => V("walk_speed");
+
+        /// <summary>Fighters can't walk closer together than this, in centimetres.</summary>
+        public int MinDistance => V("min_distance");
+
+        /// <summary>How far apart the two fighters start a duel, in centimetres.</summary>
+        public int StartDistance => V("start_distance");
+
+        /// <summary>Width of the fight line, in centimetres, centred on 0. Fighters can't walk past its ends.</summary>
+        public int ArenaWidth => V("arena_width");
+
+        /// <summary>Playtest dummy: idle frames it waits between strings.</summary>
+        public int DummyPause => V("dummy_pause");
+
+        /// <summary>
+        /// Playtest dummy: which chain-window frame it presses on to chain the next hit (0 = the first,
+        /// a true combo). At or past a technique's chain window it never chains.
+        /// </summary>
+        public int DummyChainFrame => V("dummy_chain_frame");
     }
 
     /// <summary>Reads and checks the rules sheet: columns key,value,note. Bad rows are reported, never loaded.</summary>
@@ -146,6 +169,12 @@ namespace Shaolin36.Core.Data
                 Check(values["qi_start"] <= values["qi_max"], "qi_start",
                     $"({values["qi_start"]}) cannot be more than 'qi_max' ({values["qi_max"]})");
                 Check(values["input_buffer"] <= 30, "input_buffer", "must be 30 frames or fewer (half a second), or presses fire long after the player meant them");
+                Check(values["walk_speed"] <= 2000, "walk_speed", "must be 2000 cm per second or less");
+                Check(values["min_distance"] > 0, "min_distance", "must be at least 1, or the fighters walk through each other");
+                Check(values["start_distance"] >= values["min_distance"], "start_distance",
+                    $"({values["start_distance"]}) cannot be less than 'min_distance' ({values["min_distance"]})");
+                Check(values["start_distance"] <= values["arena_width"], "start_distance",
+                    $"({values["start_distance"]}) cannot be more than 'arena_width' ({values["arena_width"]})");
                 Check(values["exhausted_damage_pct"] >= 100, "exhausted_damage_pct", "must be 100 or more (100 = normal damage)");
             }
 

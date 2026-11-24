@@ -101,6 +101,20 @@ namespace Shaolin36.Core.Fighters
             && Technique!.HasNext
             && MoveFrame - Technique.StartupFrames - Technique.ActiveFrames < Technique.ChainWindowFrames;
 
+        /// <summary>
+        /// The state the fighter will be in on the next tick before any input is used: what
+        /// <see cref="Tick"/> would leave them in if nothing were pressed and nothing buffered.
+        /// Lets an AI decide this tick's press from what the fighter will be doing.
+        /// </summary>
+        public FighterState NextState()
+        {
+            if (State.IsInMove())
+                return MoveFrame + 1 >= Technique!.TotalFrames ? FighterState.Idle : PhaseAt(Technique, MoveFrame + 1);
+            if (State.IsStunned())
+                return StunFramesLeft <= 1 ? FighterState.Idle : State;
+            return State;
+        }
+
         /// <summary>Advance one frame, then act on this tick's slot presses (or a buffered one) if free to.</summary>
         public void Tick(SlotInput input)
         {

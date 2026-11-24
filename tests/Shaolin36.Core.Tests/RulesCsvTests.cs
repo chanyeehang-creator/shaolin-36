@@ -59,6 +59,10 @@ public class RulesCsvTests
     [InlineData("qi_start", "500", "cannot be more than 'qi_max'")]
     [InlineData("exhausted_damage_pct", "80", "must be 100 or more")]
     [InlineData("input_buffer", "31", "must be 30 frames or fewer")]
+    [InlineData("walk_speed", "2001", "2000 cm per second or less")]
+    [InlineData("min_distance", "0", "must be at least 1")]
+    [InlineData("start_distance", "10", "cannot be less than 'min_distance'")]
+    [InlineData("start_distance", "100000", "cannot be more than 'arena_width'")]
     public void Rejects_bad_values(string key, string value, string expected)
     {
         var overrides = new List<(string, string)> { ("exhausted_until", "50"), ("qi_start", "0"), ("input_buffer", "6") };
