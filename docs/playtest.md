@@ -1,6 +1,6 @@
 # First playable test: how to play it
 
-This is the Stage 1 step 5 test: you (the orange capsule, on the left) against a training dummy (the dark red capsule) that throws the 罗汉拳 string over and over. The point is to feel the numbers, so play for a few minutes and then answer the two questions at the bottom.
+You (the orange capsule, with the camera behind you) against a training dummy (the dark red capsule) that throws the 罗汉拳 string over and over, on a square floor in full 3D. The point is to feel the numbers, so play for a few minutes and then answer the questions at the bottom. New in this build: walking in any direction with a lock-on camera, hit angles, attacks that step in, and the quick step (all in section 5, under "Full 3D").
 
 ## 1. Get the new version on your PC
 
@@ -8,7 +8,7 @@ You already have the repo at `D:\GitHub\shaolin-36` in GitHub Desktop.
 
 1. Open **GitHub Desktop**.
 2. Click **Fetch origin** (top bar).
-3. To play **before** the pull request is merged: click **Current branch** (top bar), find `claude/project-thread-uhc6ej` in the list and click it. If it isn't listed, click Fetch origin again.
+3. To play **before** the pull request is merged: click **Current branch** (top bar), find `claude/project-thread-xjwa4z` in the list and click it. If it isn't listed, click Fetch origin again.
    To play **after** it is merged: switch to `main` and click **Pull origin**.
 
 ## 2. Start the game
@@ -51,7 +51,8 @@ Every fight button is a **slot**. Slots don't mean anything on their own: whatev
 
 | Other | Gamepad | Keyboard |
 | --- | --- | --- |
-| Walk left / right | Left stick or D-pad | A / D or ← / → |
+| Walk (any direction) | Left stick or D-pad | W / A / S / D or the arrow keys |
+| Quick step | Tap the stick or D-pad twice the same way | Tap W, A, S or D twice |
 | Dummy stands still / attacks again | 9 (Back / Select) | T |
 | Loadout screen (pauses) | 10 (Start) | Tab or Esc |
 | Restart the duel | Start after a KO, or the loadout screen's last row | Enter |
@@ -65,13 +66,14 @@ On the **loadout screen**: move up and down to pick a technique (W/S, ↑/↓ or
 
 The capsules change colour with what they are doing:
 
-- **Yellow**: startup (winding up). A faint yellow bar on the floor shows how far the move will reach.
-- **Red**: active, the hit is live. The floor bar turns red.
+- **Yellow**: startup (winding up). A faint yellow wedge on the floor shows where the move will hit: as long as its reach and as wide as its hit angle.
+- **Red**: active, the hit is live. The floor wedge turns red.
 - **Green / light blue**: your 化绵掌 window. Green is the perfect part (the first 4 frames), light blue the rest.
 - **Dark blue**: recovery, can't act.
 - **White**: hit and frozen (hitstun).
 - **Purple**: staggered after a perfect parry or a lost clash. Wide open: hit them!
 - **Grey**: recoil (a same-weight clash) or the short recovery after a successful parry.
+- **Pale mint**: a quick step.
 
 **Floating text** over the capsules shows what just happened: damage like **-6**, **Blocked!**, **Parried!** (perfect), **Stagger!**, **CLASH!**, **Too early! / Too late!** for a missed parry, and the stamina ones: **+10 stamina**, **-15 stamina**, **Exhausted!**, **Breath back**, **No stamina!** (you pressed a move while exhausted). It's a playtest aid only: press **F2** to switch it off or on.
 
@@ -143,6 +145,42 @@ Hits also **push the defender back** (knockback). This is a rule, not just a loo
 
 Because of the small pushes, the full 罗汉拳 string only stays in reach if you start it **116 cm away or closer**. The duel starts at 110 cm, so you're fine from the start position. If you start it at the very tip of hit 1's 120 cm reach, hit 2 will miss: step in first.
 
+**Full 3D: the floor, the camera and walking.** The fight is no longer on a line. You and the dummy stand on a 14 m square floor (the grid lines are 1 m apart), and you can walk in any direction.
+
+- **The camera** sits behind you and a little to your right, always looking at the dummy (lock-on). Each capsule has a small dark "nose" on its chest that shows which way it faces.
+- **Walking is relative to the dummy:** W / stick up walks straight at it, S / stick down backs away, A and D (stick left and right) circle round it. Up close, walking into it slides you round its side. The stick walks as fast as you push it; full speed is 200 cm per second, diagonals included.
+- **Both fighters always turn to face each other**, except during a move: a move aims where the other fighter stood on the frame it started and keeps that aim. Each hit of a string aims again.
+- **Hits have a width now (hit angle).** A strike only lands if you're inside its wedge, not just inside its reach. Step to the side during the wind-up and it can miss you.
+
+| Move | Reach | Hit angle (wedge) |
+| --- | --- | --- |
+| 罗汉拳 hits 1 and 2 | 120 cm | 60° (30° either side) |
+| 罗汉拳 hit 3 | 125 cm | 70° |
+| 罗汉拳 finisher | 140 cm | 90°: a wide hook, harder to step round |
+| 铁砂掌 | 130 cm | 60° |
+
+**Attacks step in (外功).** Fighters no longer punch from where they stand: each 外功 strike moves the attacker forward along its aim during the wind-up, so the step is done as the hit comes out. This is the same for you and the dummy. It stops when the two of you are touching (80 cm apart).
+
+| Move | Steps forward | Over |
+| --- | --- | --- |
+| 罗汉拳 hit 1 | 10 cm | 13 frames (0.22 s) |
+| 罗汉拳 hit 2 | 8 cm | 19 frames (0.32 s) |
+| 罗汉拳 hit 3 | 8 cm | 6 frames (0.1 s) |
+| 罗汉拳 finisher | 15 cm | 19 frames (0.32 s) |
+| 铁砂掌 | 20 cm | 36 frames (0.6 s) |
+
+So the whole 罗汉拳 string walks 41 cm forward, and it now reaches if you start it **130 cm away or closer** (it used to be 116). If a hit is knocked out of its wind-up, its step stops too.
+
+**Quick step (everyone has it, no slot needed).** Tap a direction twice quickly (W W, S S, A A or D D, or the stick or D-pad the same way twice) for a short, quick step that way: forward to close in, back to get out of reach, left or right to get off the line of an attack and reach the dummy's side.
+
+- **70 cm** in **8 frames (0.13 s)**, then **6 frames (0.1 s)** before you can act again: 14 frames (0.23 s) in all. Walking covers 70 cm in 0.35 s, so it's about three times as fast, but it's a step, not a roll or a dash.
+- The second tap must come within **14 frames (0.23 s)** of the first. Only the four straight directions count: a diagonal does nothing.
+- Costs **6 stamina**. You can't quick step while exhausted.
+- **No invincibility and no perfect-timing dodge.** If a strike reaches you during the step, it hits you as normal. It works by moving you, so it has to happen before the hit comes out: a side step as the dummy starts its 罗汉拳 wind-up (yellow) takes you out of the punch's wedge, and you end up at its side, in reach for your own punch. Step on the last few frames of the wind-up and you're still hit.
+- Left and right steps curve round the dummy, so you stay about the same distance away.
+- Pressed while you're busy (in a move, or just hit), it waits up to 6 frames (the input buffer) and comes out as soon as you're free, like a button press.
+- It isn't a 轻功 technique. Later 轻功 slot techniques will be the real dodges; the quick step is the bare minimum everyone keeps.
+
 ## 6. Tuning while you play
 
 All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**), then close the game and double-click `play.bat` again:
@@ -151,7 +189,8 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
 - `game\data\rules.csv`: HP, input buffer, and the test settings added for this step:
   - `walk_speed`: how fast you walk, in cm per second (200).
   - `start_distance`: how far apart the duel starts (110 cm, inside 罗汉拳's 120 cm reach).
-  - `min_distance`, `arena_width`: how close the capsules can get, and how wide the floor is.
+  - `min_distance`, `arena_width`: how close the capsules can get, and how big the square floor is (1400 = 14 m each way).
+  - `quick_step_distance` (70 cm), `quick_step_frames` (8), `quick_step_recovery` (6), `quick_step_stamina` (6), `quick_step_tap_window` (14): the quick step.
   - `dummy_pause`: frames the dummy waits between strings (40, about 0.7 s).
   - `parry_recovery`, `parry_perfect_recovery`, `parry_perfect_stagger`: how long you recover after a block or a perfect parry, and how long a perfect parry staggers the attacker.
   - `clash_recoil_frames`, `clash_lose_stagger`, `clash_perfect_stagger`, `clash_perfect_recovery`: the clash results.
@@ -169,12 +208,14 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - `sound`: none, thud, smack, crack, block, ring, clang or gong.
 
 - Knockback: the `knockback` column of `techniques.csv` (cm per hit), and in `rules.csv` `knockback_frames` (how long the slide takes) and `clash_recoil_push` (how far a same-weight clash pushes each fighter). The test script prints how close a string must start for every hit to stay in reach.
+- Stepping in and hit width: the `advance` column of `techniques.csv` (cm the attacker steps forward) and `hit_angle` (how wide the strike is, in degrees; 360 or empty = all round).
 
 Run `scripts\test.bat` after editing to check the sheets.
 
-## 7. The two questions
+## 7. The questions for this build
 
-1. **罗汉拳 rhythm:** does pressing on the "chain now!" beat feel natural? Is the 4-hit string too fast, too slow, or about right?
-2. **化绵掌:** with the dummy attacking, how often do you get PERFECT PARRY and Blocked? Do 4 perfect frames and 10 block frames feel too strict, too easy, or fair? Is the stagger after a perfect parry long enough to punish?
+1. **3D and the camera:** does walking round the dummy feel right, and does the camera keep both of you in view? Is it too close, too far, or swinging round too slowly or too fast?
+2. **Step-in:** do the 罗汉拳 and 铁砂掌 steps feel like a fighter committing to a strike? Too little, too much, or about right?
+3. **Quick step:** can you double-tap it reliably (is 0.23 s between taps too strict or too loose)? Is 70 cm enough to slip the dummy's punch and get to its side? Does 6 stamina feel cheap enough to use, but not so cheap you'd spam it?
 
 Anything else that feels off is useful too, with roughly which move and what you expected.
