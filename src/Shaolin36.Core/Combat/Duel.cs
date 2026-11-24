@@ -176,6 +176,13 @@ namespace Shaolin36.Core.Combat
     /// larger steps first), so the step is done as the hit comes out. It stops at min_distance like walking,
     /// and a hit that knocks the fighter out of the move stops it.
     ///
+    /// Quick step: a fighter asked for one (see <see cref="MoveInput.QuickStep"/>) who is free slides
+    /// quick_step_distance in that direction over quick_step_frames, relative to the lock-on (see
+    /// <see cref="QuickStepStep"/>), then recovers for quick_step_recovery frames. It costs quick_step_stamina.
+    /// No invincible frames: a strike that reaches a stepping fighter lands as normal. Its use is getting out of
+    /// reach, closing in, or getting off the line of a strike's hit angle before it comes out. It stops at
+    /// min_distance like walking.
+    ///
     /// Walking: each tick, a fighter who is idle walks the way their <see cref="MoveInput"/> says,
     /// relative to the other fighter (forward is straight at them, right is round their side), at the
     /// rules sheet's walk_speed scaled by how far the stick is pushed. Speeds in cm per second are
@@ -193,6 +200,8 @@ namespace Shaolin36.Core.Combat
         private readonly int[] _pushTicks = new int[2];
         private readonly int[] _advanceLeft = new int[2];
         private readonly int[] _advanceTicks = new int[2];
+        private readonly int[] _quickStepLeft = new int[2];
+        private readonly int[] _quickStepTicks = new int[2];
 
         /// <param name="oneQi">Qi fighter One starts with; null for the rules sheet's qi_start. A run passes what it carried over.</param>
         /// <param name="twoQi">Qi fighter Two starts with; null for qi_start.</param>
@@ -203,9 +212,9 @@ namespace Shaolin36.Core.Combat
             _fighters = new[]
             {
                 new Fighter(one, rules.HpMax, onePositionCm, rules.InputBuffer, StaminaRules.FromRules(rules),
-                    rules.QiMax, oneQi ?? rules.QiStart),
+                    rules.QiMax, oneQi ?? rules.QiStart, QuickStepRules.FromRules(rules)),
                 new Fighter(two, rules.HpMax, twoPositionCm, rules.InputBuffer, StaminaRules.FromRules(rules),
-                    rules.QiMax, twoQi ?? rules.QiStart),
+                    rules.QiMax, twoQi ?? rules.QiStart, QuickStepRules.FromRules(rules)),
             };
             One.Facing = Two.Position - One.Position;
             Two.Facing = One.Position - Two.Position;
@@ -250,12 +259,12 @@ namespace Shaolin36.Core.Combat
         {
             if (IsOver) return Array.Empty<HitEvent>();
 
-            One.Tick(one, moveOne.IsWalking);
-            Two.Tick(two, moveTwo.IsWalking);
+            One.Tick(one, moveOne.IsWalking, moveOne.QuickStep);
+            Two.Tick(two, moveTwo.IsWalking, moveTwo.QuickStep);
             Aim(One, Two);
             Aim(Two, One);
-            var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + PushStep(Side.One);
-            var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + PushStep(Side.Two);
+            var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + QuickStepStep(Side.One) + PushStep(Side.One);
+            var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + QuickStepStep(Side.Two) + PushStep(Side.Two);
             Move(stepOne, stepTwo);
 
             // Find both hits before applying either, so a same-tick trade doesn't depend on order.
@@ -405,6 +414,48 @@ namespace Shaolin36.Core.Combat
             _advanceLeft[i] -= step;
             _advanceTicks[i]--;
             return f.Facing.WithLength(step * FloorPoint.UnitsPerCm);
+        }
+
+        /// <summary>Centimetres <paramref name="side"/>'s quick step still has to slide.</summary>
+        public int QuickStepLeftCm(Side side) => _quickStepLeft[(int)side];
+
+        /// <summary>
+        /// This tick's share of <paramref name="side"/>'s quick step: quick_step_distance slid over quick_step_frames
+        /// from the tick it starts (whole centimetres, larger steps first). Each tick goes the way the step was asked
+        /// relative to where the other fighter is now, so a step to the side curves round them like a circling walk.
+        /// Being hit stops it where it is.
+        /// </summary>
+        private FloorPoint QuickStepStep(Side side)
+        {
+            int i = (int)side;
+            var f = this[side];
+            if (f.State != FighterState.QuickStep)
+            {
+                _quickStepLeft[i] = 0;
+                return FloorPoint.Zero;
+            }
+            if (f.QuickStepFrame == 0)
+            {
+                _quickStepLeft[i] = f.QuickStepRules!.DistanceCm;
+                _quickStepTicks[i] = f.QuickStepRules.MoveFrames;
+            }
+            if (_quickStepLeft[i] <= 0 || _quickStepTicks[i] <= 0) return FloorPoint.Zero;
+            int step = (_quickStepLeft[i] + _quickStepTicks[i] - 1) / _quickStepTicks[i];
+            _quickStepLeft[i] -= step;
+            _quickStepTicks[i]--;
+
+            var forward = this[OtherSide(side)].Position - f.Position;
+            if (forward.IsZero) forward = f.Facing;
+            FloorPoint way;
+            switch (f.QuickStepDirection)
+            {
+                case StepDirection.Forward: way = forward; break;
+                case StepDirection.Back: way = -forward; break;
+                case StepDirection.Right: way = forward.RightTurn; break;
+                case StepDirection.Left: way = -forward.RightTurn; break;
+                default: return FloorPoint.Zero;
+            }
+            return way.WithLength(step * FloorPoint.UnitsPerCm);
         }
 
         /// <summary>This tick's share of <paramref name="side"/>'s push (whole centimetres, larger steps first), away from the other fighter.</summary>

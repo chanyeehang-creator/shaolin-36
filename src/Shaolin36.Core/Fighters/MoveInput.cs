@@ -7,16 +7,18 @@ namespace Shaolin36.Core.Fighters
     /// fighter and <see cref="Right"/> is to your right as you face them. Each runs from -100 to 100,
     /// the percentage the stick is pushed (keys give 100). Together they are capped at 100, so a diagonal
     /// is no faster than a straight walk, and a half-pushed stick walks at half speed.
+    /// <see cref="QuickStep"/> asks for a quick step this tick (from a double tap, see <see cref="DoubleTap"/>).
     /// </summary>
     public readonly struct MoveInput : IEquatable<MoveInput>
     {
         /// <summary>A stick pushed all the way (or a key held).</summary>
         public const int Full = 100;
 
-        public MoveInput(int forward, int right)
+        public MoveInput(int forward, int right, StepDirection quickStep = StepDirection.None)
         {
             Forward = Clamp(forward);
             Right = Clamp(right);
+            QuickStep = quickStep;
         }
 
         public static MoveInput None => default;
@@ -27,7 +29,16 @@ namespace Shaolin36.Core.Fighters
         /// <summary>To your right as you face the other fighter (-100 to 100; negative is left).</summary>
         public int Right { get; }
 
+        /// <summary>A quick step asked for on this tick, or <see cref="StepDirection.None"/>.</summary>
+        public StepDirection QuickStep { get; }
+
         public bool IsWalking => Forward != 0 || Right != 0;
+
+        /// <summary>A quick step this way, with no walking.</summary>
+        public static MoveInput Step(StepDirection direction) => new MoveInput(0, 0, direction);
+
+        /// <summary>This walk with a quick step added.</summary>
+        public MoveInput WithQuickStep(StepDirection direction) => new MoveInput(Forward, Right, direction);
 
         public static MoveInput WalkForward => new MoveInput(Full, 0);
         public static MoveInput WalkBack => new MoveInput(-Full, 0);
@@ -36,9 +47,10 @@ namespace Shaolin36.Core.Fighters
 
         private static int Clamp(int v) => v < -Full ? -Full : v > Full ? Full : v;
 
-        public bool Equals(MoveInput other) => Forward == other.Forward && Right == other.Right;
+        public bool Equals(MoveInput other) => Forward == other.Forward && Right == other.Right && QuickStep == other.QuickStep;
         public override bool Equals(object? obj) => obj is MoveInput m && Equals(m);
-        public override int GetHashCode() => (Forward * 397) ^ Right;
-        public override string ToString() => IsWalking ? $"walk {Forward} forward, {Right} right" : "stand";
+        public override int GetHashCode() => ((Forward * 397) ^ Right) * 31 + (int)QuickStep;
+        public override string ToString() =>
+            (IsWalking ? $"walk {Forward} forward, {Right} right" : "stand") + (QuickStep != StepDirection.None ? $", quick step {QuickStep}" : "");
     }
 }

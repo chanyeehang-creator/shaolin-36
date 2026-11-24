@@ -47,6 +47,14 @@ namespace Shaolin36.Core.Fighters
     /// on the tick it starts. Qi does not regenerate. A technique with an empowered version
     /// (<see cref="Data.Technique.EmpowerQi"/>) is empowered automatically when, after paying any Qi
     /// cost, the fighter still has EmpowerQi Qi: it spends that too (see <see cref="Empowered"/>).
+    ///
+    /// Quick step (only when the fighter is given <see cref="QuickStepRules"/>; a <see cref="Combat.Duel"/> always does):
+    /// an idle fighter asked for a quick step starts it on that tick, pays its stamina, and is in
+    /// <see cref="FighterState.QuickStep"/> for its slide and recovery frames, then idle again. The
+    /// <see cref="Combat.Duel"/> does the sliding. Like a move: it can't start while exhausted (unless it costs
+    /// nothing), stamina doesn't regenerate during it, an ask made while busy waits in the input buffer (its own,
+    /// beside the slot one), and a slot press on the same tick goes first. Unlike a 轻功 dodge it has no
+    /// invincible frames: a hit during a quick step lands as normal and stops it.
     /// </summary>
     public sealed class Fighter
     {
@@ -57,9 +65,11 @@ namespace Shaolin36.Core.Fighters
         /// <param name="stamina">The stamina numbers. Null turns stamina off: moves are free and the fighter is never exhausted.</param>
         /// <param name="maxQi">Max Qi. 0 turns Qi off: nothing is gained and techniques that cost Qi can't start.</param>
         /// <param name="qi">Qi to start with (a <see cref="Combat.Duel"/> passes qi_start, or what a run carried over).</param>
+        /// <param name="quickStep">The quick step's numbers. Null means this fighter can't quick-step.</param>
         public Fighter(Loadout? loadout = null, int maxHp = 1, int positionCm = 0, int inputBufferFrames = 0, StaminaRules? stamina = null,
-            int maxQi = 0, int qi = 0)
+            int maxQi = 0, int qi = 0, QuickStepRules? quickStep = null)
         {
+            QuickStepRules = quickStep;
             if (maxQi < 0) throw new ArgumentOutOfRangeException(nameof(maxQi), maxQi, "max Qi cannot be negative");
             if (qi < 0 || qi > maxQi) throw new ArgumentOutOfRangeException(nameof(qi), qi, $"starting Qi must be between 0 and max Qi ({maxQi})");
             MaxQi = maxQi;
@@ -76,6 +86,20 @@ namespace Shaolin36.Core.Fighters
         }
 
         public Loadout Loadout { get; }
+
+        /// <summary>The quick step's numbers, or null when this fighter can't quick-step.</summary>
+        public QuickStepRules? QuickStepRules { get; }
+
+        /// <summary>Which way the current quick step goes; <see cref="StepDirection.None"/> when not stepping.</summary>
+        public StepDirection QuickStepDirection { get; private set; }
+
+        /// <summary>Frame within the current quick step, 0-based. -1 when not stepping.</summary>
+        public int QuickStepFrame { get; private set; } = -1;
+
+        /// <summary>A quick step asked for while busy and not used yet, or <see cref="StepDirection.None"/>.</summary>
+        public StepDirection BufferedStep { get; private set; }
+
+        private int _bufferedStepTicksLeft;
 
         /// <summary>The stamina numbers, or null when this fighter doesn't use stamina.</summary>
         public StaminaRules? StaminaRules { get; }
@@ -203,6 +227,8 @@ namespace Shaolin36.Core.Fighters
         /// </summary>
         public FighterState NextState()
         {
+            if (State == FighterState.QuickStep)
+                return QuickStepFrame + 1 >= QuickStepRules!.TotalFrames ? FighterState.Idle : FighterState.QuickStep;
             if (State.IsInMove())
                 return MoveFrame + 1 >= Technique!.TotalFrames ? FighterState.Idle : PhaseAt(Technique, MoveFrame + 1);
             if (State.IsStunned())
@@ -211,11 +237,12 @@ namespace Shaolin36.Core.Fighters
         }
 
         /// <summary>
-        /// Advance one frame, then act on this tick's slot presses (or a buffered one) if free to,
-        /// then regain stamina. <paramref name="walking"/> says the fighter is being told to walk this
-        /// tick, which only matters for the regen rate.
+        /// Advance one frame, then act on this tick's slot presses (or a buffered one) if free to, then
+        /// start a quick step if asked (or one is buffered) and still free, then regain stamina.
+        /// <paramref name="walking"/> says the fighter is being told to walk this tick, which only matters
+        /// for the regen rate.
         /// </summary>
-        public void Tick(SlotInput input, bool walking = false)
+        public void Tick(SlotInput input, bool walking = false, StepDirection quickStep = StepDirection.None)
         {
             Advance();
 
@@ -224,7 +251,36 @@ namespace Shaolin36.Core.Fighters
             else
                 KeepBuffered(input);
 
+            if (TryQuickStep(quickStep) || TryQuickStep(BufferedStep))
+            {
+                BufferedStep = StepDirection.None;
+                _bufferedStepTicksLeft = 0;
+            }
+            else if (quickStep != StepDirection.None && InputBufferFrames > 0)
+            {
+                BufferedStep = quickStep;
+                _bufferedStepTicksLeft = InputBufferFrames;
+            }
+            else if (_bufferedStepTicksLeft > 0 && --_bufferedStepTicksLeft == 0)
+            {
+                BufferedStep = StepDirection.None;
+            }
+
             Regen(walking);
+        }
+
+        /// <summary>True if a quick step could start now: free, able to quick-step, and not out of breath for it.</summary>
+        public bool CanQuickStep =>
+            CanAct && QuickStepRules != null && (!IsExhausted || QuickStepRules.Stamina == 0);
+
+        private bool TryQuickStep(StepDirection direction)
+        {
+            if (direction == StepDirection.None || !CanQuickStep) return false;
+            LoseStamina(QuickStepRules!.Stamina);
+            State = FighterState.QuickStep;
+            QuickStepDirection = direction;
+            QuickStepFrame = 0;
+            return true;
         }
 
         private void KeepBuffered(SlotInput input)
@@ -323,7 +379,7 @@ namespace Shaolin36.Core.Fighters
         private void Regen(bool walking)
         {
             if (!UsesStamina) return;
-            if (State.IsInMove())
+            if (State.IsInMove() || State == FighterState.QuickStep)
             {
                 _restTicks = 0;
                 _regenSixtieths = 0;
@@ -356,6 +412,7 @@ namespace Shaolin36.Core.Fighters
             if (!state.IsStunned()) throw new ArgumentException($"{state} is not a stun state", nameof(state));
             if (frames < 1) throw new ArgumentOutOfRangeException(nameof(frames), frames, "a stun lasts at least 1 frame");
             EndMove();
+            EndQuickStep();
             State = state;
             StunFramesLeft = frames;
         }
@@ -396,7 +453,16 @@ namespace Shaolin36.Core.Fighters
 
         private void Advance()
         {
-            if (State.IsInMove())
+            if (State == FighterState.QuickStep)
+            {
+                QuickStepFrame++;
+                if (QuickStepFrame >= QuickStepRules!.TotalFrames)
+                {
+                    EndQuickStep();
+                    State = FighterState.Idle;
+                }
+            }
+            else if (State.IsInMove())
             {
                 MoveFrame++;
                 if (MoveFrame >= Technique!.TotalFrames)
@@ -420,6 +486,12 @@ namespace Shaolin36.Core.Fighters
             }
         }
 
+        private void EndQuickStep()
+        {
+            QuickStepDirection = StepDirection.None;
+            QuickStepFrame = -1;
+        }
+
         private void EndMove()
         {
             Technique = null;
@@ -439,7 +511,8 @@ namespace Shaolin36.Core.Fighters
         }
 
         public override string ToString() =>
-            State.IsInMove() ? $"{State} {Technique!.Id} f{MoveFrame}"
+            State == FighterState.QuickStep ? $"QuickStep {QuickStepDirection} f{QuickStepFrame}"
+            : State.IsInMove() ? $"{State} {Technique!.Id} f{MoveFrame}"
             : State.IsStunned() ? $"{State} ({StunFramesLeft} left)"
             : State.ToString();
     }

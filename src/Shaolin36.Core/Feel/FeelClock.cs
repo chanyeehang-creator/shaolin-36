@@ -53,7 +53,7 @@ namespace Shaolin36.Core.Feel
     /// After a tick with strikes, the whole fight freezes for the largest hitstop of those strikes
     /// (feel sheet). While frozen, the duel doesn't advance at all: no frames, no stamina regen, no
     /// walking. So every number in the technique and rules sheets means exactly what it did before:
-    /// hit-stop only adds still ticks between them. Slot presses made during a freeze are kept and
+    /// hit-stop only adds still ticks between them. Slot presses (and a quick step asked for) during a freeze are kept and
     /// given to the duel on the first tick after it, so a chain pressed during the freeze isn't lost.
     /// </para>
     /// A brain (the dummy, later the AI) shouldn't think during a freeze: check <see cref="IsFrozen"/>
@@ -63,6 +63,7 @@ namespace Shaolin36.Core.Feel
     {
         private static readonly IReadOnlyList<FeelCue> NoCues = Array.Empty<FeelCue>();
         private byte _heldOne, _heldTwo;
+        private StepDirection _heldStepOne, _heldStepTwo;
 
         public FeelClock(Duel duel, FeelSheet sheet)
         {
@@ -96,6 +97,8 @@ namespace Shaolin36.Core.Feel
                 FrozenFor--;
                 _heldOne |= one.Bits;
                 _heldTwo |= two.Bits;
+                if (moveOne.QuickStep != StepDirection.None) _heldStepOne = moveOne.QuickStep;
+                if (moveTwo.QuickStep != StepDirection.None) _heldStepTwo = moveTwo.QuickStep;
                 Cues = NoCues;
                 return Array.Empty<HitEvent>();
             }
@@ -103,6 +106,9 @@ namespace Shaolin36.Core.Feel
             var inOne = new SlotInput((byte)(one.Bits | _heldOne));
             var inTwo = new SlotInput((byte)(two.Bits | _heldTwo));
             _heldOne = _heldTwo = 0;
+            if (moveOne.QuickStep == StepDirection.None && _heldStepOne != StepDirection.None) moveOne = moveOne.WithQuickStep(_heldStepOne);
+            if (moveTwo.QuickStep == StepDirection.None && _heldStepTwo != StepDirection.None) moveTwo = moveTwo.WithQuickStep(_heldStepTwo);
+            _heldStepOne = _heldStepTwo = StepDirection.None;
 
             var hits = Duel.Step(inOne, inTwo, moveOne, moveTwo);
             if (hits.Count == 0)

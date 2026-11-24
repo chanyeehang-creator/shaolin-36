@@ -17,6 +17,8 @@ namespace Shaolin36.Core.Fighters
         Stagger,
         /// <summary>Knocked back by a same-weight clash or a won perfect clash, or recovering from a successful parry.</summary>
         Recoil,
+        /// <summary>Doing a quick step (the short slide, then its few recovery frames). Can be hit like any other time.</summary>
+        QuickStep,
     }
 
     public static class FighterStates

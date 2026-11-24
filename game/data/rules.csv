@@ -33,3 +33,8 @@ start_distance,110,How far apart a duel starts in cm (罗汉拳 hit 1 reaches 12
 arena_width,1400,The fight floor is a square this many cm each way (14 m); fighters stop at the edges
 dummy_pause,40,Playtest dummy: idle frames between its 罗汉拳 strings
 dummy_chain_frame,0,Playtest dummy: chain-window frame it chains on (0 = first frame and a true combo; 7 leaves gaps you can parry)
+quick_step_distance,70,Quick step (double-tap a direction): how far it goes in cm. A short step, not a roll or a dash
+quick_step_frames,8,Quick step: frames the step slides over (8 = 0.13 s)
+quick_step_recovery,6,Quick step: frames after the slide before you can act again (6 = 0.1 s). No invincible frames at any point
+quick_step_stamina,6,Quick step: stamina it costs (none while exhausted)
+quick_step_tap_window,14,Quick step: the second tap must come within this many frames of the first (14 = 0.23 s)

@@ -29,13 +29,14 @@ public partial class Arena : Node3D
     private static readonly Color HitstunColor = new(1.00f, 1.00f, 1.00f);
     private static readonly Color StaggerColor = new(0.85f, 0.30f, 0.95f);
     private static readonly Color RecoilColor = new(0.55f, 0.55f, 0.60f);
+    private static readonly Color QuickStepColor = new(0.70f, 1.00f, 0.85f);
     private static readonly Color PlayerColor = new(0.95f, 0.65f, 0.15f);
     private static readonly Color DummyColor = new(0.55f, 0.15f, 0.15f);
 
     private const string Legend =
         "[color=#ffd11a]■ startup[/color]   [color=#f2261a]■ active (hit)[/color]   [color=#33ff59]■ perfect parry[/color]   " +
         "[color=#33bfff]■ parry[/color]   [color=#4059f2]■ recovery[/color]   [color=#ffffff]■ hit[/color]   " +
-        "[color=#d94df2]■ staggered (open!)[/color]   [color=#8c8c99]■ recoil / recovering from a parry[/color]";
+        "[color=#d94df2]■ staggered (open!)[/color]   [color=#8c8c99]■ recoil / recovering from a parry[/color]   [color=#b3ffd9]■ quick step[/color]";
 
     /// <summary>
     /// Debug floating text over the capsules ("-6", "Blocked!", "Parried!"). A playtest aid,
@@ -61,6 +62,7 @@ public partial class Arena : Node3D
     private readonly Loadout _playerLoadout = null!;
     private readonly Loadout _dummyLoadout = null!;
     private readonly TrainingDummy _dummy = null!;
+    private readonly DoubleTap _doubleTap = null!;
 
     private Duel _duel = null!;
     private readonly FeelSheet _feel = null!;
@@ -100,6 +102,7 @@ public partial class Arena : Node3D
         _dummyLoadout = new Loadout(_book);
         _dummyLoadout.Assign(Slot.Square, Find("luohan_quan_1"));
         _dummy = TrainingDummy.FromRules(rules, Slot.Square);
+        _doubleTap = new DoubleTap(rules.QuickStepTapWindow);
 
         NewDuel();
     }
@@ -114,6 +117,7 @@ public partial class Arena : Node3D
     {
         _lean[0] = _lean[1] = 0;
         _cameraPlaced = false;
+        _doubleTap?.Reset();
         _duel = Duel.Start(_rules, _playerLoadout, _dummyLoadout);
         _clock = new FeelClock(_duel, _feel) { HitStopOn = _feelOn };
         _combo = 0;
@@ -142,6 +146,7 @@ public partial class Arena : Node3D
             }
             // Circle and close in now and then, so the boot check walks the floor in 3D too.
             var walk = i % 90 < 10 ? MoveInput.WalkForward : i % 90 < 30 ? MoveInput.WalkRight : MoveInput.None;
+            if (i % 150 == 75) walk = MoveInput.Step(StepDirection.Left);
             _clock.Step(player.Think(_duel.One), _dummy.Think(_duel.Two), walk, MoveInput.None);
         }
         return _duel.Hits.Count;
@@ -466,7 +471,12 @@ public partial class Arena : Node3D
 
         // The dummy doesn't think during hit-stop, so its own timers stay in step with the fight.
         var dummyInput = _clock.IsFrozen ? SlotInput.None : _dummy.Think(_duel.Two);
-        var hits = _clock.Step(input, dummyInput, Controls.WalkInput(), MoveInput.None);
+        // Double-tapping one of the four directions asks for a quick step that way.
+        var walk = Controls.WalkInput();
+        var quickStep = _doubleTap.Update(DoubleTap.Cardinal(walk));
+        if (_floatingText && quickStep != StepDirection.None && _duel.One.IsExhausted && !_duel.One.CanQuickStep && _duel.One.CanAct)
+            Float(Side.One, "No stamina!", ExhaustedColor);
+        var hits = _clock.Step(input, dummyInput, walk.WithQuickStep(quickStep), MoveInput.None);
         if (_feelOn) foreach (var cue in _clock.Cues) PlayCue(cue);
         foreach (var hit in hits)
         {
@@ -726,7 +736,7 @@ public partial class Arena : Node3D
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward the dummy)  ·  Loadout: Tab / Esc / pad Start  ·  Dummy still/attack: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward the dummy)  ·  Quick step: double-tap a direction  ·  Loadout: Tab / Esc / pad Start  ·  Dummy still/attack: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
@@ -773,6 +783,7 @@ public partial class Arena : Node3D
             case FighterState.Hitstun: return HitstunColor;
             case FighterState.Stagger: return StaggerColor;
             case FighterState.Recoil: return RecoilColor;
+            case FighterState.QuickStep: return QuickStepColor;
             default: return idle;
         }
     }
@@ -804,6 +815,8 @@ public partial class Arena : Node3D
 
     private static string Doing(Fighter f)
     {
+        if (f.State == FighterState.QuickStep)
+            return $"quick step {f.QuickStepDirection.ToString().ToLowerInvariant()} · frame {f.QuickStepFrame + 1}/{f.QuickStepRules!.TotalFrames}";
         if (f.State.IsInMove())
         {
             var t = f.Technique!;
