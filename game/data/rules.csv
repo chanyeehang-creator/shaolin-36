@@ -7,7 +7,7 @@ stamina_regen,25,Stamina per second while walking or reeling from a hit (none wh
 stamina_regen_still,40,Stamina per second while standing still
 stamina_regen_delay,30,Frames after your last move (or last stamina lost) before regen starts
 exhausted_until,50,At 0 stamina you are exhausted until it refills to this: no moves that cost stamina (so no parry: your guard is broken)
-exhausted_damage_pct,125,Damage taken while exhausted (100 = normal)
+exhausted_damage_pct,120,Damage taken while exhausted (100 = normal)
 exhausted_walk_pct,50,Walking speed while exhausted (100 = normal)
 qi_max,100,Max Qi
 qi_start,0,Qi at the start of a run
