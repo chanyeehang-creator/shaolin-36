@@ -369,12 +369,12 @@ public class StaminaTests
     public void An_exhausted_fighter_walks_at_half_speed()
     {
         var d = new Duel(R, Holding(Punch), Holding(Punch), 0, 500);
-        d.Step(None, None, 1, 0);
-        Assert.Equal(2, d.One.PositionCm); // 120 cm/s = 2 a tick
+        d.Step(None, None, MoveInput.WalkForward, MoveInput.None);
+        Assert.Equal(2, d.One.XCm); // 120 cm/s = 2 a tick
 
         d.One.LoseStamina(100);
-        d.Step(None, None, 1, 0);
-        Assert.Equal(3, d.One.PositionCm); // 60 cm/s = 1 a tick
+        d.Step(None, None, MoveInput.WalkForward, MoveInput.None);
+        Assert.Equal(3, d.One.XCm); // 60 cm/s = 1 a tick
     }
 
     [Fact]

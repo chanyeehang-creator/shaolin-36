@@ -14,6 +14,9 @@ public class PlaytestTests
     private static readonly Technique Parry = Make.ParryMove();
     private static readonly TechniqueBook Book = new(new[] { A, B, C, Parry });
     private static readonly SlotInput None = SlotInput.None;
+    private static readonly MoveInput Forward = MoveInput.WalkForward;
+    private static readonly MoveInput Back = MoveInput.WalkBack;
+    private static readonly MoveInput Stand = MoveInput.None;
 
     private static Rules RulesWith(params (string, string)[] extra)
     {
@@ -42,8 +45,8 @@ public class PlaytestTests
     {
         var d = Duel.Start(RulesWith(), Holding(A), Holding(A));
         Assert.Equal(110, d.DistanceCm);
-        Assert.Equal(-55, d.One.PositionCm);
-        Assert.Equal(55, d.Two.PositionCm);
+        Assert.Equal(-55, d.One.XCm);
+        Assert.Equal(55, d.Two.XCm);
     }
 
     [Fact]
@@ -60,51 +63,51 @@ public class PlaytestTests
     public void Walking_for_one_second_covers_walk_speed_centimetres()
     {
         var d = Duel.Start(RulesWith(("walk_speed", "175")), Holding(A), Holding(A));
-        int start = d.One.PositionCm;
-        for (int i = 0; i < Sim.TicksPerSecond; i++) d.Step(None, None, -1, 0);
-        Assert.Equal(start - 175, d.One.PositionCm); // whole cm per second, fractions carried exactly
-        Assert.Equal(55, d.Two.PositionCm);
+        int start = d.One.XCm;
+        for (int i = 0; i < Sim.TicksPerSecond; i++) d.Step(None, None, Back, Stand);
+        Assert.Equal(start - 175, d.One.XCm); // 175 cm per second is 175 floor units (1/60 cm) a tick, exactly
+        Assert.Equal(55, d.Two.XCm);
     }
 
     [Fact]
     public void A_fighter_in_a_move_does_not_walk()
     {
         var d = Duel.Start(RulesWith(), Holding(A), Holding(A));
-        int start = d.One.PositionCm;
-        d.Step(SlotInput.Press(Slot.Square), None, -1, 0);
-        for (int i = 1; i < A.TotalFrames; i++) d.Step(None, None, -1, 0);
-        Assert.Equal(start, d.One.PositionCm);
-        d.Step(None, None, -1, 0); // idle again: walks
-        Assert.True(d.One.PositionCm < start);
+        int start = d.One.XCm;
+        d.Step(SlotInput.Press(Slot.Square), None, Back, Stand);
+        for (int i = 1; i < A.TotalFrames; i++) d.Step(None, None, Back, Stand);
+        Assert.Equal(start, d.One.XCm);
+        d.Step(None, None, Back, Stand); // idle again: walks
+        Assert.True(d.One.XCm < start);
     }
 
     [Fact]
     public void Fighters_stop_at_min_distance_and_never_pass_through()
     {
         var d = Duel.Start(RulesWith(), Holding(A), Holding(A));
-        for (int i = 0; i < 120; i++) d.Step(None, None, +1, 0);
+        for (int i = 0; i < 120; i++) d.Step(None, None, Forward, Stand);
         Assert.Equal(80, d.DistanceCm);
-        Assert.Equal(55, d.Two.PositionCm); // the one who stood still was not pushed
-        Assert.True(d.One.PositionCm < d.Two.PositionCm);
+        Assert.Equal(55, d.Two.XCm); // the one who stood still was not pushed
+        Assert.True(d.One.XCm < d.Two.XCm);
     }
 
     [Fact]
     public void Walking_into_each_other_splits_the_overlap()
     {
         var d = Duel.Start(RulesWith(), Holding(A), Holding(A));
-        for (int i = 0; i < 120; i++) d.Step(None, None, +1, -1);
+        for (int i = 0; i < 120; i++) d.Step(None, None, Forward, Forward);
         Assert.Equal(80, d.DistanceCm);
-        Assert.Equal(-40, d.One.PositionCm);
-        Assert.Equal(40, d.Two.PositionCm);
+        Assert.Equal(-40, d.One.XCm);
+        Assert.Equal(40, d.Two.XCm);
     }
 
     [Fact]
     public void Fighters_stop_at_the_arena_edge()
     {
         var d = Duel.Start(RulesWith(("arena_width", "300")), Holding(A), Holding(A));
-        for (int i = 0; i < 300; i++) d.Step(None, None, -1, +1);
-        Assert.Equal(-150, d.One.PositionCm);
-        Assert.Equal(150, d.Two.PositionCm);
+        for (int i = 0; i < 300; i++) d.Step(None, None, Back, Back);
+        Assert.Equal(-150, d.One.XCm);
+        Assert.Equal(150, d.Two.XCm);
     }
 
     [Fact]
@@ -116,9 +119,9 @@ public class PlaytestTests
             var seen = new List<int>();
             for (int i = 0; i < 200; i++)
             {
-                d.Step(i % 37 == 0 ? SlotInput.Press(Slot.Square) : None, None, (i / 25) % 3 - 1, (i / 17) % 3 - 1);
-                seen.Add(d.One.PositionCm);
-                seen.Add(d.Two.PositionCm);
+                d.Step(i % 37 == 0 ? SlotInput.Press(Slot.Square) : None, None, new MoveInput(((i / 25) % 3 - 1) * 100, (i / 11) % 3 * 50 - 50), new MoveInput(((i / 17) % 3 - 1) * 100, 0));
+                seen.Add(d.One.XCm);
+                seen.Add(d.Two.XCm);
             }
             return seen.ToArray();
         }
@@ -129,8 +132,8 @@ public class PlaytestTests
     public void Walking_out_of_reach_makes_the_hit_whiff()
     {
         var d = Duel.Start(RulesWith(), Holding(A), Holding(A)); // 110 apart, reach 120
-        d.Step(None, SlotInput.Press(Slot.Square), -1, 0);
-        for (int i = 1; i < 60; i++) d.Step(None, None, -1, 0);
+        d.Step(None, SlotInput.Press(Slot.Square), Back, Stand);
+        for (int i = 1; i < 60; i++) d.Step(None, None, Back, Stand);
         Assert.Empty(d.Hits);
     }
 

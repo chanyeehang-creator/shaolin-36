@@ -48,7 +48,7 @@ namespace Shaolin36.Core.Feel
 
     /// <summary>
     /// Drives a <see cref="Duel"/> with hit-stop. Call <see cref="Step"/> once per 60 Hz tick instead of
-    /// <see cref="Duel.Step(SlotInput, SlotInput, int, int)"/>.
+    /// <see cref="Duel.Step(SlotInput, SlotInput, MoveInput, MoveInput)"/>.
     /// <para>
     /// After a tick with strikes, the whole fight freezes for the largest hitstop of those strikes
     /// (feel sheet). While frozen, the duel doesn't advance at all: no frames, no stamina regen, no
@@ -88,7 +88,7 @@ namespace Shaolin36.Core.Feel
         public IReadOnlyList<FeelCue> Cues { get; private set; } = NoCues;
 
         /// <summary>Run one 60 Hz tick: a frozen one, or one tick of the duel. Returns the duel's hits (none while frozen).</summary>
-        public IReadOnlyList<HitEvent> Step(SlotInput one, SlotInput two, int walkOne = 0, int walkTwo = 0)
+        public IReadOnlyList<HitEvent> Step(SlotInput one, SlotInput two, MoveInput moveOne = default, MoveInput moveTwo = default)
         {
             Ticks++;
             if (FrozenFor > 0)
@@ -104,7 +104,7 @@ namespace Shaolin36.Core.Feel
             var inTwo = new SlotInput((byte)(two.Bits | _heldTwo));
             _heldOne = _heldTwo = 0;
 
-            var hits = Duel.Step(inOne, inTwo, walkOne, walkTwo);
+            var hits = Duel.Step(inOne, inTwo, moveOne, moveTwo);
             if (hits.Count == 0)
             {
                 Cues = NoCues;

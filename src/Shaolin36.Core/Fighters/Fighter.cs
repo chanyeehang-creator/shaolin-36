@@ -52,7 +52,7 @@ namespace Shaolin36.Core.Fighters
     {
         /// <param name="loadout">What sits on the 8 slots; empty if null.</param>
         /// <param name="maxHp">Starting and max HP. A <see cref="Combat.Duel"/> passes the rules sheet's hp_max.</param>
-        /// <param name="positionCm">Where the fighter stands on the line, in whole centimetres.</param>
+        /// <param name="positionCm">Where the fighter stands along X, in whole centimetres (Z starts at 0; set <see cref="Position"/> for anywhere else).</param>
         /// <param name="inputBufferFrames">How long an unused press is kept. A <see cref="Combat.Duel"/> passes the rules sheet's input_buffer.</param>
         /// <param name="stamina">The stamina numbers. Null turns stamina off: moves are free and the fighter is never exhausted.</param>
         /// <param name="maxQi">Max Qi. 0 turns Qi off: nothing is gained and techniques that cost Qi can't start.</param>
@@ -72,7 +72,7 @@ namespace Shaolin36.Core.Fighters
             Loadout = loadout ?? new Loadout();
             MaxHp = maxHp;
             Hp = maxHp;
-            PositionCm = positionCm;
+            Position = FloorPoint.FromCm(positionCm, 0);
         }
 
         public Loadout Loadout { get; }
@@ -115,10 +115,37 @@ namespace Shaolin36.Core.Fighters
         public bool IsDown => Hp == 0;
 
         /// <summary>
-        /// Where the fighter stands on the fight line, in whole centimetres. Set by whoever
-        /// moves the fighter (the arena for now; movement rules come later).
+        /// Where the fighter stands on the floor, in floor units (1/60 cm). Set by whoever moves the
+        /// fighter: the <see cref="Combat.Duel"/>.
         /// </summary>
-        public int PositionCm { get; set; }
+        public FloorPoint Position { get; set; }
+
+        /// <summary>Where the fighter stands along X, in whole centimetres (rounded). Setting it keeps Z.</summary>
+        public int XCm
+        {
+            get => Position.XCm;
+            set => Position = new FloorPoint(value * FloorPoint.UnitsPerCm, Position.Z);
+        }
+
+        /// <summary>Where the fighter stands along Z, in whole centimetres (rounded). Setting it keeps X.</summary>
+        public int ZCm
+        {
+            get => Position.ZCm;
+            set => Position = new FloorPoint(Position.X, value * FloorPoint.UnitsPerCm);
+        }
+
+        /// <summary>
+        /// Which way the fighter faces: a direction on the floor (any length, never zero). The
+        /// <see cref="Combat.Duel"/> keeps it on the other fighter (auto lock-on), except during a move,
+        /// which keeps the aim it took on the tick it started: a strike goes where it was aimed.
+        /// </summary>
+        public FloorPoint Facing
+        {
+            get => _facing;
+            set => _facing = value.IsZero ? _facing : value;
+        }
+
+        private FloorPoint _facing = new FloorPoint(1, 0);
 
         /// <summary>True once the current move's hit has connected. A move hits at most once.</summary>
         public bool HitLanded { get; private set; }

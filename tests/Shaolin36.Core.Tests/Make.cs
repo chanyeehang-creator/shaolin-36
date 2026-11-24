@@ -23,9 +23,10 @@ internal static class Make
         int perfectParry = 0,
         int stamina = 5,
         int damage = 5,
-        int qi = 0) =>
+        int qi = 0,
+        int hitAngle = Technique.FullCircle) =>
         new(id, id, category, weight, weapon, startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
-            hitstun, reach, next, chain, perfectParry);
+            hitstun, reach, next, chain, perfectParry, hitAngle: hitAngle);
 
     /// <summary>A parry like the sheet's: startup 3, a 10-frame window (frames 3-12), perfect on frames 3-6.</summary>
     public static Technique ParryMove(int stamina = 10) =>

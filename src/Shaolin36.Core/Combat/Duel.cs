@@ -109,14 +109,18 @@ namespace Shaolin36.Core.Combat
     }
 
     /// <summary>
-    /// Two fighters on a line, positions in whole centimetres, advanced together one tick
+    /// Two fighters on a square floor (see <see cref="FloorPoint"/>), advanced together one tick
     /// at a time. Each tick:
     /// <list type="number">
     /// <item>Both fighters advance a frame and act on their slot presses.</item>
-    /// <item>Each fighter in the active frames of a move that hasn't hit yet checks reach:
-    /// if the other fighter stands within the technique's reach (distance &lt;= reach),
-    /// the hit connects. A move hits at most once, on its first active frame in reach;
-    /// a target who walks into reach later in the active frames still gets hit.</item>
+    /// <item>Both aim (auto lock-on): a fighter not in a move faces the other; a move that starts this
+    /// tick takes its aim at where the other stands now and keeps it to its last frame.</item>
+    /// <item>Both move: walking, then knockback (see below), then min_distance and the arena edges.</item>
+    /// <item>Each fighter in the active frames of a move that hasn't hit yet checks reach and angle:
+    /// if the other fighter stands within the technique's reach across the floor (centre to centre)
+    /// and inside its hit_angle around the aim, the hit connects. A move hits at most once, on its
+    /// first active frame that finds the target; a target who walks into it later in the active frames
+    /// still gets hit, and one who stepped out of the angle during the wind-up is missed.</item>
     /// <item>All hits found this tick land together, so two hits on the same tick trade:
     /// both deal damage and both fighters go into hitstun. Hitstun counts from this tick
     /// (see <see cref="Fighter"/>).</item>
@@ -161,26 +165,25 @@ namespace Shaolin36.Core.Combat
     /// parries or clashes: a perfect parry still staggers an armored attacker, and the clash table still
     /// applies to an armored wind-up.
     ///
-    /// Knockback: a landed hit pushes the defender straight back from the attacker by the technique's
+    /// Knockback: a landed hit pushes the defender straight away from the attacker by the technique's
     /// knockback, and a same-weight clash pushes both apart by clash_recoil_push. The push is slid over
     /// knockback_frames ticks, starting the tick after the strike, in whole centimetres (larger steps
     /// first); a new push adds to what is left and restarts the slide. Hyper armor holds its ground
     /// (no knockback), and the arena ends stop a push.
     ///
-    /// Walking: each tick, after acting, a fighter who is idle walks one step in the
-    /// direction given (-1 left, +1 right, 0 stand) at the rules sheet's walk_speed. Speeds
-    /// are whole centimetres per second, so each fighter carries the leftover fraction of
-    /// a centimetre in sixtieths, and the same inputs always give the same positions. An exhausted
-    /// fighter walks at exhausted_walk_pct of the speed. A fighter
-    /// stops at the ends of the arena (arena_width, centred on 0) and can't come closer than
-    /// min_distance to the other or pass through them; when both walk into each other, the
-    /// overlap is split between them.
+    /// Walking: each tick, a fighter who is idle walks the way their <see cref="MoveInput"/> says,
+    /// relative to the other fighter (forward is straight at them, right is round their side), at the
+    /// rules sheet's walk_speed scaled by how far the stick is pushed. Speeds in cm per second are
+    /// exactly floor units per tick, so the same inputs always give the same positions. An exhausted
+    /// fighter walks at exhausted_walk_pct of the speed. A fighter stops at the edges of the square
+    /// arena (arena_width each way, centred on 0) and can't come closer than min_distance to the other
+    /// or pass through them: whoever moved gives ground along the line between them (split when both
+    /// did), so walking round someone up close slides you round them.
     /// </summary>
     public sealed class Duel
     {
         private readonly Fighter[] _fighters;
         private readonly List<HitEvent> _hits = new List<HitEvent>();
-        private readonly int[] _walkRemainder = new int[2];
         private readonly int[] _pushLeft = new int[2];
         private readonly int[] _pushTicks = new int[2];
 
@@ -197,6 +200,9 @@ namespace Shaolin36.Core.Combat
                 new Fighter(two, rules.HpMax, twoPositionCm, rules.InputBuffer, StaminaRules.FromRules(rules),
                     rules.QiMax, twoQi ?? rules.QiStart),
             };
+            One.Facing = Two.Position - One.Position;
+            Two.Facing = One.Position - Two.Position;
+            if (One.Facing.IsZero) Two.Facing = new FloorPoint(-1, 0);
         }
 
         public Rules Rules { get; }
@@ -218,8 +224,8 @@ namespace Shaolin36.Core.Combat
         public Fighter Two => _fighters[1];
         public Fighter this[Side side] => _fighters[(int)side];
 
-        /// <summary>Distance between the two fighters in centimetres.</summary>
-        public int DistanceCm => Math.Abs(One.PositionCm - Two.PositionCm);
+        /// <summary>Distance between the two fighters across the floor, in whole centimetres (rounded).</summary>
+        public int DistanceCm => FloorPoint.DistanceCm(One.Position, Two.Position);
 
         public bool IsOver => One.IsDown || Two.IsDown;
 
@@ -227,25 +233,27 @@ namespace Shaolin36.Core.Combat
         public IReadOnlyList<HitEvent> Hits => _hits;
 
         /// <summary>Run one tick and return the hits that landed on it (empty, one, or two for a trade).</summary>
-        public IReadOnlyList<HitEvent> Step(SlotInput one, SlotInput two) => Step(one, two, 0, 0);
+        public IReadOnlyList<HitEvent> Step(SlotInput one, SlotInput two) => Step(one, two, MoveInput.None, MoveInput.None);
 
         /// <summary>
-        /// Run one tick with walking: <paramref name="walkOne"/> and <paramref name="walkTwo"/> are
-        /// -1 (left), 0 (stand) or +1 (right). Returns the hits that landed on this tick.
+        /// Run one tick with movement: <paramref name="moveOne"/> and <paramref name="moveTwo"/> say which way
+        /// each fighter walks, relative to the lock-on. Returns the hits that landed on this tick.
         /// </summary>
-        public IReadOnlyList<HitEvent> Step(SlotInput one, SlotInput two, int walkOne, int walkTwo)
+        public IReadOnlyList<HitEvent> Step(SlotInput one, SlotInput two, MoveInput moveOne, MoveInput moveTwo)
         {
             if (IsOver) return Array.Empty<HitEvent>();
 
-            One.Tick(one, walkOne != 0);
-            Two.Tick(two, walkTwo != 0);
-            Walk(Math.Sign(walkOne), Math.Sign(walkTwo));
-            Push(Side.One);
-            Push(Side.Two);
+            One.Tick(one, moveOne.IsWalking);
+            Two.Tick(two, moveTwo.IsWalking);
+            Aim(One, Two);
+            Aim(Two, One);
+            var stepOne = WalkStep(One, Two, moveOne) + PushStep(Side.One);
+            var stepTwo = WalkStep(Two, One, moveTwo) + PushStep(Side.Two);
+            Move(stepOne, stepTwo);
 
             // Find both hits before applying either, so a same-tick trade doesn't depend on order.
-            bool oneHits = Connects(One, DistanceCm);
-            bool twoHits = Connects(Two, DistanceCm);
+            bool oneHits = Connects(One, Two.Position);
+            bool twoHits = Connects(Two, One.Position);
             Technique? oneMove = One.Technique, twoMove = Two.Technique;
             bool oneEmpowered = One.Empowered, twoEmpowered = Two.Empowered;
             bool oneArmored = One.HasArmor, twoArmored = Two.HasArmor;
@@ -263,12 +271,20 @@ namespace Shaolin36.Core.Combat
             return landed;
         }
 
-        /// <summary>True if <paramref name="attacker"/>'s move connects this tick at this distance.</summary>
-        public static bool Connects(Fighter attacker, int distanceCm) =>
-            attacker.State == FighterState.Active
-            && !attacker.HitLanded
-            && attacker.Technique!.ReachCm > 0
-            && distanceCm <= attacker.Technique.ReachCm;
+        /// <summary>
+        /// True if <paramref name="attacker"/>'s move connects this tick with a target standing at
+        /// <paramref name="target"/>: in its active frames, not hit yet, the target within reach
+        /// (centre to centre) and inside the hit angle around the move's aim.
+        /// </summary>
+        public static bool Connects(Fighter attacker, FloorPoint target)
+        {
+            if (attacker.State != FighterState.Active || attacker.HitLanded) return false;
+            var t = attacker.Technique!;
+            if (t.ReachCm <= 0) return false;
+            var offset = target - attacker.Position;
+            long reach = (long)t.ReachCm * FloorPoint.UnitsPerCm;
+            return offset.LengthSquared <= reach * reach && t.Covers(attacker.Facing, offset);
+        }
 
         /// <summary>The damage <paramref name="move"/> deals, before the exhausted bonus.</summary>
         public static int StrikeDamage(Technique move, bool empowered) =>
@@ -355,21 +371,19 @@ namespace Shaolin36.Core.Combat
             _pushTicks[(int)side] = Rules.KnockbackFrames;
         }
 
-        /// <summary>Slide <paramref name="side"/> one tick's worth of its push, away from the other fighter.</summary>
-        private void Push(Side side)
+        /// <summary>This tick's share of <paramref name="side"/>'s push (whole centimetres, larger steps first), away from the other fighter.</summary>
+        private FloorPoint PushStep(Side side)
         {
             int i = (int)side;
-            if (_pushLeft[i] <= 0 || _pushTicks[i] <= 0) return;
+            if (_pushLeft[i] <= 0 || _pushTicks[i] <= 0) return FloorPoint.Zero;
             int step = (_pushLeft[i] + _pushTicks[i] - 1) / _pushTicks[i];
             _pushLeft[i] -= step;
             _pushTicks[i]--;
 
-            var me = this[side];
-            var other = this[OtherSide(side)];
-            // Away from the other fighter; if they stand on the same spot, One goes left and Two right.
-            int dir = me.PositionCm != other.PositionCm ? Math.Sign(me.PositionCm - other.PositionCm) : (side == Side.One ? -1 : 1);
-            int half = Rules.ArenaWidth / 2;
-            me.PositionCm = Clamp(me.PositionCm + dir * step, -half, half);
+            var away = this[side].Position - this[OtherSide(side)].Position;
+            // If they stand on the same spot, One goes toward -X and Two toward +X.
+            if (away.IsZero) away = new FloorPoint(side == Side.One ? -1 : 1, 0);
+            return away.WithLength(step * FloorPoint.UnitsPerCm);
         }
 
         private static void ApplyClashSide(Fighter f, ClashSide side, FighterState state)
@@ -377,50 +391,83 @@ namespace Shaolin36.Core.Combat
             if (side.MoveCancelled && side.StunFrames > 0) f.Stun(state, side.StunFrames);
         }
 
-        private void Walk(int dirOne, int dirTwo)
+        /// <summary>
+        /// Lock-on: a fighter who isn't in a move faces the other fighter. A move takes its aim on the
+        /// tick it starts (each hit of a string aims afresh) and keeps it until it ends.
+        /// </summary>
+        private static void Aim(Fighter me, Fighter other)
         {
-            int stepOne = WalkStep(0, One, dirOne);
-            int stepTwo = WalkStep(1, Two, dirTwo);
-            if (stepOne == 0 && stepTwo == 0) return;
-
-            int half = Rules.ArenaWidth / 2;
-            int a = Clamp(One.PositionCm + stepOne, -half, half);
-            int b = Clamp(Two.PositionCm + stepTwo, -half, half);
-
-            // Keep them at least min_distance apart without swapping sides.
-            bool oneOnLeft = One.PositionCm <= Two.PositionCm;
-            int gap = oneOnLeft ? b - a : a - b;
-            int overlap = Rules.MinDistance - gap;
-            if (overlap > 0)
-            {
-                // Only a fighter who walked toward the other gives ground; if both did, they split it.
-                bool oneClosed = oneOnLeft ? stepOne > 0 : stepOne < 0;
-                bool twoClosed = oneOnLeft ? stepTwo < 0 : stepTwo > 0;
-                int backOne = oneClosed && twoClosed ? (overlap + 1) / 2 : oneClosed ? overlap : 0;
-                int backTwo = twoClosed ? overlap - backOne : 0;
-                // Never push a fighter back past where they stood before this tick.
-                backOne = Math.Min(backOne, Math.Abs(stepOne));
-                backTwo = Math.Min(backTwo, Math.Abs(stepTwo));
-                a += oneOnLeft ? -backOne : backOne;
-                b += oneOnLeft ? backTwo : -backTwo;
-            }
-
-            One.PositionCm = a;
-            Two.PositionCm = b;
+            if (me.State.IsInMove() && me.MoveFrame > 0) return;
+            me.Facing = other.Position - me.Position;
         }
 
-        /// <summary>How many whole centimetres <paramref name="f"/> walks this tick, carrying the fraction.</summary>
-        private int WalkStep(int index, Fighter f, int dir)
+        /// <summary>The floor units <paramref name="f"/> walks this tick (zero unless idle and told to walk).</summary>
+        private FloorPoint WalkStep(Fighter f, Fighter other, MoveInput input)
         {
-            if (dir == 0 || !f.CanAct)
+            if (!input.IsWalking || !f.CanAct) return FloorPoint.Zero;
+            // Speeds are cm per second, which is exactly floor units per tick.
+            double speed = f.IsExhausted ? Rules.WalkSpeed * Rules.ExhaustedWalkPct / 100.0 : Rules.WalkSpeed;
+            double tilt = Math.Sqrt((double)input.Forward * input.Forward + (double)input.Right * input.Right);
+            double scale = speed * Math.Min(tilt, MoveInput.Full) / MoveInput.Full / tilt;
+
+            var toward = other.Position - f.Position;
+            if (toward.IsZero) toward = f.Facing;
+            double len = toward.Length;
+            double fx = toward.X / len, fz = toward.Z / len; // forward
+            double rx = -fz, rz = fx;                          // right
+            return new FloorPoint(
+                FloorPoint.Round((input.Forward * fx + input.Right * rx) * scale),
+                FloorPoint.Round((input.Forward * fz + input.Right * rz) * scale));
+        }
+
+        /// <summary>
+        /// Move both fighters by this tick's steps. If that leaves them closer than min_distance (and closer
+        /// than they already were), whoever moved gives ground along the line between them, split if both
+        /// moved, but never more than they moved this tick; so walking into the other fighter stops you at
+        /// min_distance, and walking around them slides you round. Then the arena edges stop them.
+        /// </summary>
+        private void Move(FloorPoint stepOne, FloorPoint stepTwo)
+        {
+            if (stepOne.IsZero && stepTwo.IsZero) return;
+            var a0 = One.Position;
+            var b0 = Two.Position;
+            var a = a0 + stepOne;
+            var b = b0 + stepTwo;
+
+            double before = (a0 - b0).Length;
+            double after = (a - b).Length;
+            double floor = Math.Min(Rules.MinDistance * (double)FloorPoint.UnitsPerCm, before);
+            if (after < floor)
             {
-                _walkRemainder[index] = 0;
-                return 0;
+                double overlap = floor - after;
+                double capOne = stepOne.Length, capTwo = stepTwo.Length;
+                double backOne, backTwo;
+                if (capOne > 0 && capTwo > 0)
+                {
+                    backOne = Math.Min(capOne, overlap / 2);
+                    backTwo = Math.Min(capTwo, overlap - backOne);
+                    backOne = Math.Min(capOne, overlap - backTwo);
+                }
+                else
+                {
+                    backOne = Math.Min(capOne, overlap);
+                    backTwo = Math.Min(capTwo, overlap);
+                }
+                var apart = a - b;
+                if (apart.IsZero) apart = a0 - b0;
+                if (apart.IsZero) apart = new FloorPoint(-1, 0);
+                a += apart.WithLength(backOne);
+                b -= apart.WithLength(backTwo);
             }
-            int speed = f.IsExhausted ? Rules.WalkSpeed * Rules.ExhaustedWalkPct / 100 : Rules.WalkSpeed;
-            int sixtieths = _walkRemainder[index] + speed;
-            _walkRemainder[index] = sixtieths % Sim.TicksPerSecond;
-            return dir * (sixtieths / Sim.TicksPerSecond);
+
+            One.Position = ClampToArena(a);
+            Two.Position = ClampToArena(b);
+        }
+
+        private FloorPoint ClampToArena(FloorPoint p)
+        {
+            int half = Rules.ArenaWidth * FloorPoint.UnitsPerCm / 2;
+            return new FloorPoint(Clamp(p.X, -half, half), Clamp(p.Z, -half, half));
         }
 
         private static int Clamp(int v, int min, int max) => v < min ? min : v > max ? max : v;

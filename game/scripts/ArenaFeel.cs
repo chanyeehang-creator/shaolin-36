@@ -14,7 +14,14 @@ namespace Shaolin36.Game;
 /// </summary>
 public partial class Arena
 {
-    private static readonly Vector3 CameraHome = new(0, 1.7f, 6.5f);
+    // Third-person lock-on camera: behind you and a little to the right, looking past you at the dummy.
+    private const float CameraBack = 3.4f;    // metres behind you
+    private const float CameraHeight = 2.7f;  // metres above the floor
+    private const float CameraSide = 1.7f;    // metres to your right, so you don't block the view
+    private const float CameraLookHeight = 0.9f;
+    private const float CameraFollowPerSecond = 7f; // how quickly it swings round after you (exponential)
+    private Vector3 _cameraBase, _cameraLook;
+    private bool _cameraPlaced;
     private const float StrikeHeight = 1.3f; // metres: where on the capsule sparks fly
     private const float BodyRadius = 0.4f;
     private const float ShakeTailSeconds = 0.15f; // shake keeps dying away this long after the freeze
@@ -120,7 +127,7 @@ public partial class Arena
             _pushCm = row.PushCm;
             _pushAge = 0;
             _pushHold = freezeSeconds;
-            _pushDir = (at - CameraHome).Normalized();
+            _pushDir = (at - _cameraBase).Normalized();
         }
 
         if (row.Sound != FeelSound.None && _sounds.TryGetValue(row.Sound, out var stream))
@@ -139,12 +146,35 @@ public partial class Arena
     /// <summary>Where the strike meets: the defender's near side for a hit or a parry, between the two for a clash.</summary>
     private Vector3 StrikePoint(HitEvent hit)
     {
-        float a = _duel[hit.Attacker].PositionCm / 100f;
-        float d = _duel[hit.Defender].PositionCm / 100f;
-        float x = hit.Clash is ClashOutcome.BothRecoil or ClashOutcome.TargetWins or ClashOutcome.PerfectClash or ClashOutcome.StrikerWins
+        var a = Floor(_duel[hit.Attacker].Position);
+        var d = Floor(_duel[hit.Defender].Position);
+        var at = hit.Clash is ClashOutcome.BothRecoil or ClashOutcome.TargetWins or ClashOutcome.PerfectClash or ClashOutcome.StrikerWins
             ? (a + d) / 2
-            : d + Mathf.Sign(a - d) * BodyRadius;
-        return new Vector3(x, StrikeHeight, 0.45f); // just in front of the capsules, so they don't hide the sparks
+            : d + (a - d).Normalized() * BodyRadius;
+        return at + new Vector3(0, StrikeHeight, 0);
+    }
+
+    /// <summary>
+    /// Where the camera sits and looks before shake and push: behind the player on the line from the dummy,
+    /// eased so it swings round smoothly as you circle.
+    /// </summary>
+    private void FollowCamera(float delta)
+    {
+        var me = Floor(_duel.One.Position);
+        var them = Floor(_duel.Two.Position);
+        var toward = them - me;
+        if (toward.LengthSquared() < 0.0001f) toward = -_player.GlobalTransform.Basis.Z;
+        toward.Y = 0;
+        var forward = toward.Normalized();
+        var right = new Vector3(-forward.Z, 0, forward.X);
+        var spot = me - forward * CameraBack + right * CameraSide + Vector3.Up * CameraHeight;
+        // Look at the dummy itself: you stand to the left of the picture, the dummy is in the middle.
+        var look = them + Vector3.Up * CameraLookHeight;
+
+        float k = _cameraPlaced ? 1 - Mathf.Exp(-CameraFollowPerSecond * delta) : 1;
+        _cameraBase = _cameraBase.Lerp(spot, k);
+        _cameraLook = _cameraLook.Lerp(look, k);
+        _cameraPlaced = true;
     }
 
     private void SpawnSpark(Vector3 at, float sizeM, Color color)
@@ -193,6 +223,9 @@ public partial class Arena
     private void UpdateFeel(float delta)
     {
         if (_camera == null) return;
+        FollowCamera(delta);
+        _camera.Position = _cameraBase;
+        _camera.LookAt(_cameraLook, Vector3.Up);
 
         var offset = Vector3.Zero;
         if (_shakeLength > 0 && _shakeAge < _shakeLength)
@@ -201,7 +234,8 @@ public partial class Arena
             float left = Remaining(_shakeAge, _shakeLength);
             float amp = _shakeCm / 100f * left * left;
             float t = _shakeAge;
-            offset += new Vector3(Mathf.Sin(t * 83f) + 0.5f * Mathf.Sin(t * 147f), Mathf.Sin(t * 61f + 1.3f), 0) * amp;
+            var b = _camera.Basis;
+            offset += (b.X * (Mathf.Sin(t * 83f) + 0.5f * Mathf.Sin(t * 147f)) + b.Y * Mathf.Sin(t * 61f + 1.3f)) * amp;
         }
 
         _pushAge += delta;
@@ -211,7 +245,7 @@ public partial class Arena
         push = push * push * (3 - 2 * push); // ease in and out
         offset += _pushDir * (_pushCm / 100f * push);
 
-        _camera.Position = CameraHome + offset;
+        _camera.Position = _cameraBase + offset;
 
         // Leans hold while the fight is frozen in hit-stop, then spring back upright.
         if (!_clock.IsFrozen)

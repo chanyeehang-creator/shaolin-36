@@ -19,7 +19,7 @@ namespace Shaolin36.Core.Data
         };
 
         /// <summary>Columns a sheet may leave out; an empty cell means the default (no empowered version).</summary>
-        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback" };
+        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle" };
 
         /// <summary>Most a hit can push the defender back, in centimetres.</summary>
         public const int MaxKnockback = 500;
@@ -157,6 +157,7 @@ namespace Shaolin36.Core.Data
                 int empowerPct = Cell("empower_damage_pct").Length == 0 ? 100 : Int("empower_damage_pct");
                 bool empowerArmor = Cell("empower_armor").Length != 0 && Bool("empower_armor");
                 int knockback = Cell("knockback").Length == 0 ? 0 : Int("knockback");
+                int hitAngle = Cell("hit_angle").Length == 0 ? Technique.FullCircle : Int("hit_angle");
 
                 if (startup < 1) rowErrors.Add("'startup' must be at least 1 frame");
                 if (active < 1) rowErrors.Add("'active' must be at least 1 frame");
@@ -174,6 +175,7 @@ namespace Shaolin36.Core.Data
                     rowErrors.Add("'empower_damage_pct' or 'empower_armor' is set but 'empower_qi' is 0, so the empowered version can never happen");
                 if (knockback > MaxKnockback) rowErrors.Add($"'knockback' ({knockback}) must be {MaxKnockback} cm or less");
                 if (knockback > 0 && reach == 0) rowErrors.Add("'knockback' is set but 'reach' is 0, so the move never hits");
+                if (hitAngle < 1 || hitAngle > Technique.FullCircle) rowErrors.Add($"'hit_angle' ({hitAngle}) must be between 1 and {Technique.FullCircle} degrees ({Technique.FullCircle} = all round)");
                 if (empowerQi > 0 && empowerPct == 0) rowErrors.Add("'empower_damage_pct' must be above 0");
 
                 if (rowErrors.Count > 0)
@@ -185,7 +187,7 @@ namespace Shaolin36.Core.Data
                 if (next.Length > 0) chains.Add((lineNo, id, next));
                 techniques.Add(new Technique(id, displayName, category, weight, weapon,
                     startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
-                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback));
+                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle));
             }
 
             foreach (var (line, id, next) in chains)

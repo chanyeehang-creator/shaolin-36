@@ -146,9 +146,9 @@ public class FeelTests
         var clock = new FeelClock(NewDuel(Jab1, Jab1), Sheet());
         for (int t = 0; t <= 5; t++) clock.Step(t == 0 ? Square : None, None);
         Assert.True(clock.IsFrozen);
-        int pos = clock.Duel.Two.PositionCm;
-        clock.Step(None, None, 0, 1);
-        Assert.Equal(pos, clock.Duel.Two.PositionCm);
+        int pos = clock.Duel.Two.XCm;
+        clock.Step(None, None, MoveInput.None, MoveInput.WalkBack);
+        Assert.Equal(pos, clock.Duel.Two.XCm);
     }
 
     [Fact]

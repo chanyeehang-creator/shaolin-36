@@ -11,11 +11,12 @@ using Side = Shaolin36.Core.Combat.Side;
 namespace Shaolin36.Game;
 
 /// <summary>
-/// The first playable test (Stage 1 brief 5): you against a dummy that repeats its string.
-/// This node only shows and drives the core: it turns button presses into slot presses,
-/// steps the <see cref="Duel"/> once per 60 Hz physics tick (through the <see cref="FeelClock"/>, which
-/// adds hit-stop), and paints the capsules by state. The feel kit's sparks, sounds and camera moves
-/// are in ArenaFeel.cs.
+/// The playable test: you against a dummy that repeats its string, on a square floor in full 3D.
+/// This node only shows and drives the core: it turns button presses into slot presses and the
+/// stick or WASD into lock-on-relative walking, steps the <see cref="Duel"/> once per 60 Hz physics tick
+/// (through the <see cref="FeelClock"/>, which adds hit-stop), paints the capsules by state and keeps a
+/// third-person camera behind you, locked on to the dummy. The feel kit's sparks, sounds and camera
+/// moves are in ArenaFeel.cs.
 /// </summary>
 public partial class Arena : Node3D
 {
@@ -112,6 +113,7 @@ public partial class Arena : Node3D
     private void NewDuel()
     {
         _lean[0] = _lean[1] = 0;
+        _cameraPlaced = false;
         _duel = Duel.Start(_rules, _playerLoadout, _dummyLoadout);
         _clock = new FeelClock(_duel, _feel) { HitStopOn = _feelOn };
         _combo = 0;
@@ -138,7 +140,9 @@ public partial class Arena : Node3D
                 _clock.Step(SlotInput.None, SlotInput.None);
                 continue;
             }
-            _clock.Step(player.Think(_duel.One), _dummy.Think(_duel.Two), i % 90 < 10 ? 1 : 0, 0);
+            // Circle and close in now and then, so the boot check walks the floor in 3D too.
+            var walk = i % 90 < 10 ? MoveInput.WalkForward : i % 90 < 30 ? MoveInput.WalkRight : MoveInput.None;
+            _clock.Step(player.Think(_duel.One), _dummy.Think(_duel.Two), walk, MoveInput.None);
         }
         return _duel.Hits.Count;
     }
@@ -158,14 +162,10 @@ public partial class Arena : Node3D
             },
         });
         AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-50, -30, 0), ShadowEnabled = true });
-        _camera = new Camera3D { Position = CameraHome, RotationDegrees = new Vector3(-8, 0, 0), Fov = 50 };
+        _camera = new Camera3D { Fov = 55 };
         AddChild(_camera);
         BuildSounds();
-        AddChild(new MeshInstance3D
-        {
-            Mesh = new PlaneMesh { Size = new Vector2(_rules.ArenaWidth / 100f + 2, 6) },
-            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.45f, 0.38f, 0.30f) },
-        });
+        BuildFloor();
 
         _player = Capsule("Player", PlayerColor);
         _opponent = Capsule("Dummy", DummyColor);
@@ -207,8 +207,39 @@ public partial class Arena : Node3D
         _menuBack = new ColorRect { Color = new Color(0, 0, 0, 0.8f), Position = new Vector2(100, 120), Size = new Vector2(940, 500), Visible = false };
         foreach (var c in new Control[] { _status, _event, _pad, _help, legend, _menuBack, _menu }) hud.AddChild(c);
 
-        _event.Text = "Walk with A/D or the left stick. Fight with your slot buttons. Tab / Start opens the loadout. T / Select makes the dummy stand still.";
+        _event.Text = "Walk any way with W/A/S/D or the left stick: the camera stays behind you, locked on to the dummy. Fight with your slot buttons. Tab / Start opens the loadout. T / Select makes the dummy stand still.";
         RefreshMenu();
+    }
+
+    /// <summary>The square floor (arena_width each way), with a 1 m grid and a darker rim so movement reads at a glance.</summary>
+    private void BuildFloor()
+    {
+        float size = _rules.ArenaWidth / 100f;
+        AddChild(new MeshInstance3D
+        {
+            Mesh = new PlaneMesh { Size = new Vector2(size + 2, size + 2) },
+            Position = new Vector3(0, -0.01f, 0),
+            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.22f, 0.19f, 0.16f) },
+        });
+        AddChild(new MeshInstance3D
+        {
+            Mesh = new PlaneMesh { Size = new Vector2(size, size) },
+            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.45f, 0.38f, 0.30f) },
+        });
+        var lineMaterial = new StandardMaterial3D
+        {
+            AlbedoColor = new Color(0.36f, 0.30f, 0.24f),
+            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+        };
+        int lines = (int)size;
+        for (int i = 0; i <= lines; i++)
+        {
+            float at = -size / 2 + i * size / lines;
+            bool centre = System.Math.Abs(at) < 0.01f;
+            var w = centre ? 0.05f : 0.02f;
+            AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(size, 0.004f, w) }, Position = new Vector3(0, 0.002f, at), MaterialOverride = lineMaterial });
+            AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(w, 0.004f, size) }, Position = new Vector3(at, 0.002f, 0), MaterialOverride = lineMaterial });
+        }
     }
 
     private MeshInstance3D Capsule(string name, Color color)
@@ -219,25 +250,56 @@ public partial class Arena : Node3D
             Mesh = new CapsuleMesh { Radius = 0.4f, Height = 2f },
             MaterialOverride = new StandardMaterial3D { AlbedoColor = color },
         };
+        // A "nose" on the front of the chest, so you can see which way each fighter faces.
+        m.AddChild(new MeshInstance3D
+        {
+            Mesh = new BoxMesh { Size = new Vector3(0.22f, 0.14f, 0.2f) },
+            Position = new Vector3(0, 0.45f, -0.4f),
+            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.14f) },
+        });
         AddChild(m);
         return m;
     }
 
+    /// <summary>The strike's reach shown on the floor: a wedge as wide as its hit angle, as long as its reach.</summary>
     private MeshInstance3D ReachBar()
     {
         var m = new MeshInstance3D
         {
-            Mesh = new BoxMesh { Size = new Vector3(1, 0.04f, 0.5f) },
             MaterialOverride = new StandardMaterial3D
             {
                 AlbedoColor = new Color(1, 1, 1, 0.45f),
                 Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
                 ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                CullMode = BaseMaterial3D.CullModeEnum.Disabled,
             },
             Visible = false,
         };
         AddChild(m);
         return m;
+    }
+
+    private readonly Dictionary<int, ArrayMesh> _wedges = new();
+
+    /// <summary>A flat wedge of radius 1 m, <paramref name="degrees"/> wide, pointing along -Z (a node's forward).</summary>
+    private ArrayMesh Wedge(int degrees)
+    {
+        if (_wedges.TryGetValue(degrees, out var mesh)) return mesh;
+        var st = new SurfaceTool();
+        st.Begin(Mesh.PrimitiveType.Triangles);
+        int segments = System.Math.Max(2, degrees / 6);
+        float half = Mathf.DegToRad(degrees / 2f);
+        for (int i = 0; i < segments; i++)
+        {
+            float a0 = -half + 2 * half * i / segments;
+            float a1 = -half + 2 * half * (i + 1) / segments;
+            st.AddVertex(Vector3.Zero);
+            st.AddVertex(new Vector3(Mathf.Sin(a0), 0, -Mathf.Cos(a0)));
+            st.AddVertex(new Vector3(Mathf.Sin(a1), 0, -Mathf.Cos(a1)));
+        }
+        mesh = st.Commit();
+        _wedges[degrees] = mesh;
+        return mesh;
     }
 
     private static RichTextLabel Rich(Vector2 position, Vector2 size) => new()
@@ -404,7 +466,7 @@ public partial class Arena : Node3D
 
         // The dummy doesn't think during hit-stop, so its own timers stay in step with the fight.
         var dummyInput = _clock.IsFrozen ? SlotInput.None : _dummy.Think(_duel.Two);
-        var hits = _clock.Step(input, dummyInput, Controls.WalkDirection(), 0);
+        var hits = _clock.Step(input, dummyInput, Controls.WalkInput(), MoveInput.None);
         if (_feelOn) foreach (var cue in _clock.Cues) PlayCue(cue);
         foreach (var hit in hits)
         {
@@ -603,8 +665,9 @@ public partial class Arena : Node3D
     private void Float(Side side, string text, Color color)
     {
         var f = side == Side.One ? _duel.One : _duel.Two;
+        var at = Floor(f.Position);
         // Stack new text above any that is still young over the same fighter.
-        int young = _floats.Count(t => t.Age < 0.3f && Mathf.Abs(t.Start.X - f.PositionCm / 100f) < 0.01f);
+        int young = _floats.Count(t => t.Age < 0.3f && new Vector2(t.Start.X - at.X, t.Start.Z - at.Z).Length() < 0.01f);
         var label = new Label3D
         {
             Text = text,
@@ -616,7 +679,7 @@ public partial class Arena : Node3D
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
             NoDepthTest = true,
         };
-        var start = new Vector3(f.PositionCm / 100f, 2.3f + young * 0.35f, 0.5f);
+        var start = at + new Vector3(0, 2.3f + young * 0.35f, 0);
         label.Position = start;
         AddChild(label);
         _floats.Add(new FloatText { Label = label, Start = start });
@@ -653,8 +716,8 @@ public partial class Arena : Node3D
 
     private void Draw()
     {
-        Place(_player, _playerReach, Side.One, PlayerColor, +1);
-        Place(_opponent, _opponentReach, Side.Two, DummyColor, -1);
+        Place(_player, _playerReach, Side.One, PlayerColor);
+        Place(_opponent, _opponentReach, Side.Two, DummyColor);
 
         _status.Text =
             $"[b]You[/b]    HP {Bar(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
@@ -663,20 +726,26 @@ public partial class Arena : Node3D
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk: A/D, ←/→, D-pad or left stick  ·  Loadout: Tab / Esc / pad Start  ·  Dummy still/attack: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward the dummy)  ·  Loadout: Tab / Esc / pad Start  ·  Dummy still/attack: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
 
-    private void Place(MeshInstance3D body, MeshInstance3D reach, Side side, Color idle, int facing)
+    /// <summary>A floor point in metres in the scene (core X and Z are the scene's X and Z).</summary>
+    private static Vector3 Floor(FloorPoint p) =>
+        new(p.X / (100f * FloorPoint.UnitsPerCm), 0, p.Z / (100f * FloorPoint.UnitsPerCm));
+
+    /// <summary>The scene rotation (about Y) that points a node's forward (-Z) along <paramref name="facing"/>.</summary>
+    private static float Yaw(FloorPoint facing) => Mathf.Atan2(-facing.X, -facing.Z);
+
+    private void Place(MeshInstance3D body, MeshInstance3D reach, Side side, Color idle)
     {
         var f = _duel[side];
-        float x = f.PositionCm / 100f;
-        // Hit reaction: lean back from the feet, away from the other fighter (see ArenaFeel.cs).
+        var feet = Floor(f.Position);
+        // Hit reaction: lean back from the feet, away from the way the fighter faces (see ArenaFeel.cs).
         float lean = Mathf.DegToRad(LeanDegrees(side));
-        float away = -facing;
-        body.Rotation = new Vector3(0, 0, -away * lean);
-        body.Position = new Vector3(x + away * Mathf.Sin(lean), Mathf.Cos(lean), 0);
+        var basis = new Basis(Vector3.Up, Yaw(f.Facing)) * new Basis(Vector3.Right, lean);
+        body.Transform = new Transform3D(basis, feet + basis * new Vector3(0, 1, 0));
         ((StandardMaterial3D)body.MaterialOverride).AlbedoColor = ColorOf(f, idle);
 
         var t = f.Technique;
@@ -684,8 +753,9 @@ public partial class Arena : Node3D
         reach.Visible = show;
         if (!show) return;
         float length = t!.ReachCm / 100f;
-        reach.Scale = new Vector3(length, 1, 1);
-        reach.Position = new Vector3(x + facing * length / 2, 0.03f, 0);
+        reach.Mesh = Wedge(t.HitAngle);
+        reach.Transform = new Transform3D(new Basis(Vector3.Up, Yaw(f.Facing)).Scaled(new Vector3(length, 1, length)),
+            feet + new Vector3(0, 0.03f, 0));
         ((StandardMaterial3D)reach.MaterialOverride).AlbedoColor =
             f.State == FighterState.Active ? new Color(ActiveColor, 0.6f) : new Color(StartupColor, 0.35f);
     }

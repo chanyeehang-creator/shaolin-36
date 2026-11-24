@@ -96,7 +96,7 @@ public class DuelTests
         for (int t = 1; t <= Punch.StartupFrames; t++) d.Step(None, None); // tick 10: first active frame, out of reach
         Assert.Empty(d.Hits);
 
-        d.Two.PositionCm = 110; // steps in before tick 11, the second active frame
+        d.Two.XCm = 110; // steps in before tick 11, the second active frame
         var hit = Assert.Single(d.Step(None, None));
         Assert.Equal(Punch.StartupFrames + 1, hit.Tick);
     }
@@ -107,7 +107,7 @@ public class DuelTests
         var d = Make2(200);
         d.Step(Press, None);
         for (int t = 1; t < Punch.StartupFrames + Punch.ActiveFrames; t++) d.Step(None, None);
-        d.Two.PositionCm = 50; // first recovery frame is next
+        d.Two.XCm = 50; // first recovery frame is next
         for (int t = 0; t < 30; t++) d.Step(None, None);
         Assert.Empty(d.Hits);
     }
@@ -250,8 +250,8 @@ public class DuelTests
             var log = new List<string>();
             foreach (var (one, two, m1, m2) in script)
             {
-                d.One.PositionCm += m1;
-                d.Two.PositionCm += m2;
+                d.One.XCm += m1;
+                d.Two.XCm += m2;
                 foreach (var h in d.Step(one, two)) log.Add(h.ToString());
                 log.Add($"{d.One} | {d.Two}");
             }

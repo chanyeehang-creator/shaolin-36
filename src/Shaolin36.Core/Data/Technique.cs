@@ -42,9 +42,13 @@ namespace Shaolin36.Core.Data
             int empowerQi = 0,
             int empowerDamagePct = 100,
             bool empowerArmor = false,
-            int knockbackCm = 0)
+            int knockbackCm = 0,
+            int hitAngle = FullCircle)
         {
             KnockbackCm = knockbackCm;
+            HitAngle = hitAngle;
+            // Worked out once from whole degrees and rounded to 1/1,000,000, so the arc is the same on every machine.
+            _cosHalfAngle = System.Math.Round(System.Math.Cos(hitAngle * System.Math.PI / 360.0), 6);
             EmpowerQi = empowerQi;
             EmpowerDamagePct = empowerDamagePct;
             EmpowerArmor = empowerArmor;
@@ -112,6 +116,29 @@ namespace Shaolin36.Core.Data
 
         /// <summary>How far a landed hit pushes the defender back, in whole centimetres (slid over knockback_frames).</summary>
         public int KnockbackCm { get; }
+
+        /// <summary>A hit angle this wide covers every direction: no angle check.</summary>
+        public const int FullCircle = 360;
+
+        private readonly double _cosHalfAngle;
+
+        /// <summary>
+        /// How wide the hit is, in degrees, centred on where the move is aimed (90 = 45 degrees to either side).
+        /// A target outside it is missed even inside the reach, so a step to the side can slip a strike.
+        /// <see cref="FullCircle"/> (360) hits all round.
+        /// </summary>
+        public int HitAngle { get; }
+
+        /// <summary>
+        /// True if a target at <paramref name="offset"/> from the attacker is inside the hit angle of a move
+        /// aimed along <paramref name="facing"/>. Reach is checked separately. A target on the very same spot is covered.
+        /// </summary>
+        public bool Covers(FloorPoint facing, FloorPoint offset)
+        {
+            if (HitAngle >= FullCircle || offset.IsZero || facing.IsZero) return true;
+            double dot = FloorPoint.Dot(facing, offset);
+            return dot >= _cosHalfAngle * facing.Length * offset.Length;
+        }
 
         public bool CanEmpower => EmpowerQi > 0;
 

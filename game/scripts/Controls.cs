@@ -176,23 +176,41 @@ public static class Controls
         }
     }
 
+    /// <summary>How far the left stick must move before it walks (a little play so a resting stick stands still).</summary>
+    private const float StickDeadzone = 0.2f;
+
     /// <summary>
-    /// Which way the player is holding to walk right now: -1 left, +1 right, 0 neither.
-    /// A / D, the arrow keys, the D-pad or the left stick, on any pad.
+    /// Which way the player is holding to walk right now, relative to the lock-on camera: forward is
+    /// toward the opponent, right is to the right of the screen. W/A/S/D, the arrow keys, the D-pad
+    /// or the left stick, on any pad. Keys and the D-pad walk at full speed; the stick walks as fast
+    /// as it is pushed.
     /// </summary>
-    public static int WalkDirection()
+    public static MoveInput WalkInput()
     {
-        int dir = 0;
-        if (Input.IsPhysicalKeyPressed(Key.A) || Input.IsPhysicalKeyPressed(Key.Left)) dir -= 1;
-        if (Input.IsPhysicalKeyPressed(Key.D) || Input.IsPhysicalKeyPressed(Key.Right)) dir += 1;
+        float forward = 0, right = 0;
+        if (Input.IsPhysicalKeyPressed(Key.W) || Input.IsPhysicalKeyPressed(Key.Up)) forward += 1;
+        if (Input.IsPhysicalKeyPressed(Key.S) || Input.IsPhysicalKeyPressed(Key.Down)) forward -= 1;
+        if (Input.IsPhysicalKeyPressed(Key.D) || Input.IsPhysicalKeyPressed(Key.Right)) right += 1;
+        if (Input.IsPhysicalKeyPressed(Key.A) || Input.IsPhysicalKeyPressed(Key.Left)) right -= 1;
 
         foreach (int pad in Input.GetConnectedJoypads())
         {
-            float x = Input.GetJoyAxis(pad, JoyAxis.LeftX);
-            if (Input.IsJoyButtonPressed(pad, JoyButton.DpadLeft) || x <= -Deadzone) dir -= 1;
-            if (Input.IsJoyButtonPressed(pad, JoyButton.DpadRight) || x >= Deadzone) dir += 1;
+            if (Input.IsJoyButtonPressed(pad, JoyButton.DpadUp)) forward += 1;
+            if (Input.IsJoyButtonPressed(pad, JoyButton.DpadDown)) forward -= 1;
+            if (Input.IsJoyButtonPressed(pad, JoyButton.DpadRight)) right += 1;
+            if (Input.IsJoyButtonPressed(pad, JoyButton.DpadLeft)) right -= 1;
+            var stick = new Vector2(Input.GetJoyAxis(pad, JoyAxis.LeftX), -Input.GetJoyAxis(pad, JoyAxis.LeftY));
+            if (stick.Length() >= StickDeadzone)
+            {
+                // Rescale so the deadzone's edge is 0 and full tilt is 1.
+                var scaled = stick.Normalized() * Mathf.Min(1f, (stick.Length() - StickDeadzone) / (1f - StickDeadzone));
+                forward += scaled.Y;
+                right += scaled.X;
+            }
         }
-        return System.Math.Sign(dir);
+        // Keys held together make a diagonal; the core caps the total at full speed.
+        return new MoveInput(Mathf.RoundToInt(Mathf.Clamp(forward, -1, 1) * MoveInput.Full),
+            Mathf.RoundToInt(Mathf.Clamp(right, -1, 1) * MoveInput.Full));
     }
 
     /// <summary>One line naming the connected pads, for the HUD and for setting up a pad.</summary>
