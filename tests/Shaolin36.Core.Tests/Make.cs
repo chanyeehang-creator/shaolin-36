@@ -52,8 +52,9 @@ internal static class Make
 
     public static Rules TestRules()
     {
-        // exhausted_until must not exceed stamina_max, and qi_start must not exceed qi_max.
-        var r = RulesCsv.Parse(RulesText(("exhausted_until", "50"), ("qi_start", "0")));
+        // exhausted_until must not exceed stamina_max, qi_start must not exceed qi_max,
+        // and input_buffer is at most 30.
+        var r = RulesCsv.Parse(RulesText(("exhausted_until", "50"), ("qi_start", "0"), ("input_buffer", "6")));
         if (!r.Ok) throw new System.InvalidOperationException(string.Join("\n", r.Errors));
         return r.Rules!;
     }

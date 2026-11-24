@@ -16,16 +16,30 @@ namespace Shaolin36.Core.Fighters
     /// <item>A stun of N frames applied on tick t (the hit frame) ends on tick t + N, when the
     /// fighter is idle again and may act.</item>
     /// </list>
-    /// Presses made while busy are ignored for now; the input buffer comes with strings.
+    ///
+    /// Strings: during the first <see cref="Data.Technique.ChainWindowFrames"/> recovery frames of
+    /// a technique that has a next hit, pressing the slot the string started from starts the
+    /// next hit on that tick, cutting the rest of the recovery. The next hit comes from
+    /// <see cref="Fighters.Loadout.Book"/>. Chaining doesn't need the hit to have landed: a
+    /// whiffed string still plays out. Once the window passes, the string is over.
+    ///
+    /// Input buffer: a press that can't be used on its tick (busy, or a different slot
+    /// during a chain window) is kept and tried again on each of the next
+    /// <see cref="InputBufferFrames"/> ticks, so mashing a little early still chains on the
+    /// first chain frame. Only the newest unused press is kept. A new press on a tick is tried
+    /// before the buffered one. With a buffer of 0, presses made while busy are dropped.
     /// </summary>
     public sealed class Fighter
     {
         /// <param name="loadout">What sits on the 8 slots; empty if null.</param>
         /// <param name="maxHp">Starting and max HP. A <see cref="Combat.Duel"/> passes the rules sheet's hp_max.</param>
         /// <param name="positionCm">Where the fighter stands on the line, in whole centimetres.</param>
-        public Fighter(Loadout? loadout = null, int maxHp = 1, int positionCm = 0)
+        /// <param name="inputBufferFrames">How long an unused press is kept. A <see cref="Combat.Duel"/> passes the rules sheet's input_buffer.</param>
+        public Fighter(Loadout? loadout = null, int maxHp = 1, int positionCm = 0, int inputBufferFrames = 0)
         {
             if (maxHp < 1) throw new ArgumentOutOfRangeException(nameof(maxHp), maxHp, "a fighter has at least 1 HP");
+            if (inputBufferFrames < 0) throw new ArgumentOutOfRangeException(nameof(inputBufferFrames), inputBufferFrames, "the input buffer cannot be negative");
+            InputBufferFrames = inputBufferFrames;
             Loadout = loadout ?? new Loadout();
             MaxHp = maxHp;
             Hp = maxHp;
@@ -67,20 +81,79 @@ namespace Shaolin36.Core.Fighters
 
         public bool CanAct => State == FighterState.Idle;
 
-        /// <summary>Advance one frame, then act on this tick's slot presses if free to.</summary>
+        /// <summary>How many ticks an unused press is kept for.</summary>
+        public int InputBufferFrames { get; }
+
+        /// <summary>The newest press not used yet, or <see cref="SlotInput.None"/>.</summary>
+        public SlotInput Buffered { get; private set; } = SlotInput.None;
+
+        /// <summary>Ticks the buffered press has left. 0 when nothing is buffered.</summary>
+        public int BufferedTicksLeft { get; private set; }
+
+        /// <summary>Which hit of the current string this is: 1 for a fresh start, 2 after one chain, and so on. 0 when not in a move.</summary>
+        public int StringHit { get; private set; }
+
+        /// <summary>
+        /// True on recovery frames where pressing <see cref="Slot"/> starts the next hit of the string.
+        /// </summary>
+        public bool InChainWindow =>
+            State == FighterState.Recovery
+            && Technique!.HasNext
+            && MoveFrame - Technique.StartupFrames - Technique.ActiveFrames < Technique.ChainWindowFrames;
+
+        /// <summary>Advance one frame, then act on this tick's slot presses (or a buffered one) if free to.</summary>
         public void Tick(SlotInput input)
         {
             Advance();
-            if (!CanAct || !input.Any) return;
 
+            if (TryAct(input) || TryAct(Buffered))
+            {
+                ClearBuffer();
+                return;
+            }
+
+            if (input.Any && InputBufferFrames > 0)
+            {
+                Buffered = input;
+                BufferedTicksLeft = InputBufferFrames;
+            }
+            else if (BufferedTicksLeft > 0 && --BufferedTicksLeft == 0)
+            {
+                Buffered = SlotInput.None;
+            }
+        }
+
+        /// <summary>Use <paramref name="input"/> if it can start something this tick.</summary>
+        private bool TryAct(SlotInput input)
+        {
+            if (!input.Any) return false;
+
+            if (InChainWindow && input.IsPressed(Slot!.Value))
+            {
+                var book = Loadout.Book
+                    ?? throw new InvalidOperationException($"{Technique!.Id} chains into '{Technique.Next}', but the loadout has no technique book to find it in");
+                int hit = StringHit + 1;
+                Start(Slot.Value, book.NextOf(Technique!)!);
+                StringHit = hit;
+                return true;
+            }
+
+            if (!CanAct) return false;
             foreach (var slot in Slots.All)
             {
                 if (!input.IsPressed(slot)) continue;
                 var technique = Loadout[slot];
                 if (technique == null) continue;
                 Start(slot, technique);
-                return;
+                return true;
             }
+            return false;
+        }
+
+        private void ClearBuffer()
+        {
+            Buffered = SlotInput.None;
+            BufferedTicksLeft = 0;
         }
 
         /// <summary>
@@ -122,6 +195,7 @@ namespace Shaolin36.Core.Fighters
             Slot = slot;
             MoveFrame = 0;
             HitLanded = false;
+            StringHit = 1;
             State = PhaseAt(technique, 0);
         }
 
@@ -157,6 +231,7 @@ namespace Shaolin36.Core.Fighters
             Slot = null;
             MoveFrame = -1;
             HitLanded = false;
+            StringHit = 0;
         }
 
         /// <summary>Which phase frame <paramref name="frame"/> of a technique is in.</summary>
