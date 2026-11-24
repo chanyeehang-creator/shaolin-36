@@ -1,0 +1,3 @@
+<Project>
+  <!-- Stops the repo-root Directory.Build.props (warnings as errors) from applying to Godot's generated code. -->
+</Project>

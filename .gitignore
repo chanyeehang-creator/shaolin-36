@@ -1,0 +1,24 @@
+# Godot
+.godot/
+.import/
+export_presets.cfg.bak
+*.translation
+mono_crash.*.json
+
+# .NET build output
+bin/
+obj/
+TestResults/
+*.user
+*.suo
+
+# Editors / OS
+.vs/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Exported builds
+builds/

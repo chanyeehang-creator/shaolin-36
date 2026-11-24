@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  GODOT_VERSION: 4.7.2
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  core:
+    name: Data check and core tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Check data sheets
+        run: dotnet run --project tools/DataCheck -- game/data/techniques.csv
+      - name: Core rule tests
+        run: dotnet test Shaolin36.sln
+
+  godot:
+    name: Headless Godot boot
+    runs-on: ubuntu-latest
+    needs: core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Download Godot ${{ env.GODOT_VERSION }} (.NET)
+        run: |
+          name="Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64"
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${name}.zip"
+          unzip -q godot.zip -d "$RUNNER_TEMP"
+          echo "GODOT=$RUNNER_TEMP/${name}/Godot_v${GODOT_VERSION}-stable_mono_linux.x86_64" >> "$GITHUB_ENV"
+      - name: Boot the game headless
+        run: scripts/smoke.sh

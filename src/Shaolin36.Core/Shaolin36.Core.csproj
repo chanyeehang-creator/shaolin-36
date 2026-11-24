@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    The combat rules. No Godot (or Unity) code may be referenced here.
+    netstandard2.1 + C# 9 is what Unity supports, so this library can move
+    to Unity unchanged if the Stage 5 checkpoint says so.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <RootNamespace>Shaolin36.Core</RootNamespace>
+  </PropertyGroup>
+</Project>
