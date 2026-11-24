@@ -319,21 +319,22 @@ public class StringTests
     [Fact]
     public void The_string_has_the_playtested_rhythm()
     {
-        // From Chan's second playtest: a 0.32 s wind-up, then 0.5 s, 0.2 s and 0.5 s between hits.
+        // Chan's second playtest rhythm (0.32 s wind-up, then 0.5 s, 0.2 s and 0.5 s between hits),
+        // made 30% faster once hit-stop arrived: 0.22 s, then 0.37 s, 0.15 s and 0.37 s.
         var (d, gaps) = RunLuohanQuan(chainFrame: 0);
         var ticks = d.Hits.Select(h => h.Tick).ToArray();
-        Assert.Equal(new[] { 19, 49, 61, 91 }, ticks);
-        Assert.Equal(0.32, Sim.FramesToSeconds(ticks[0]), 2);
-        Assert.Equal(0.5, Sim.FramesToSeconds(ticks[1] - ticks[0]), 2);
-        Assert.Equal(0.2, Sim.FramesToSeconds(ticks[2] - ticks[1]), 2);
-        Assert.Equal(0.5, Sim.FramesToSeconds(ticks[3] - ticks[2]), 2);
+        Assert.Equal(new[] { 13, 35, 44, 66 }, ticks);
+        Assert.Equal(0.22, Sim.FramesToSeconds(ticks[0]), 2);
+        Assert.Equal(0.37, Sim.FramesToSeconds(ticks[1] - ticks[0]), 2);
+        Assert.Equal(0.15, Sim.FramesToSeconds(ticks[2] - ticks[1]), 2);
+        Assert.Equal(0.37, Sim.FramesToSeconds(ticks[3] - ticks[2]), 2);
         Assert.Equal(new[] { false, false, false }, gaps); // still a true combo
     }
 
     [Fact]
     public void Chaining_late_leaves_a_gap()
     {
-        var (d, gaps) = RunLuohanQuan(chainFrame: 7); // last frame of each 8-frame window
+        var (d, gaps) = RunLuohanQuan(chainFrame: 5); // last frame of each 6-frame window
         Assert.Equal(4, d.Hits.Count);
         Assert.All(gaps, g => Assert.True(g)); // Two is free before every follow-up: room to parry or clash
     }
@@ -345,8 +346,6 @@ public class StringTests
     [InlineData(3)]
     [InlineData(4)]
     [InlineData(5)]
-    [InlineData(6)]
-    [InlineData(7)]
     public void Each_chain_frame_links_exactly_when_the_link_numbers_say_so(int chainFrame)
     {
         var sheet = Sheet();
