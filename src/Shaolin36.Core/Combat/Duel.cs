@@ -24,8 +24,11 @@ namespace Shaolin36.Core.Combat
         public HitEvent(int tick, Side attacker, Technique technique, int damage, int hitstunFrames, int defenderHpAfter,
             Technique? defenderTechnique = null, int defenderMoveFrame = -1,
             ParryOutcome parry = ParryOutcome.NotParried, ParryEffect? parryEffect = null,
-            ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null, bool defenderExhausted = false)
+            ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null, bool defenderExhausted = false,
+            int attackerQiGained = 0, int defenderQiGained = 0)
         {
+            AttackerQiGained = attackerQiGained;
+            DefenderQiGained = defenderQiGained;
             DefenderExhausted = defenderExhausted;
             DefenderTechnique = defenderTechnique;
             DefenderMoveFrame = defenderTechnique == null ? -1 : defenderMoveFrame;
@@ -62,17 +65,23 @@ namespace Shaolin36.Core.Combat
         /// <summary>How a 化绵掌 parry dealt with the strike; <see cref="ParryOutcome.NotParried"/> if it didn't.</summary>
         public ParryOutcome Parry { get; }
 
-        /// <summary>The parry's numbers (its stamina is applied; Qi comes later); null if not parried.</summary>
+        /// <summary>The parry's numbers (stamina and Qi already applied); null if not parried.</summary>
         public ParryEffect? ParryEffect { get; }
 
         /// <summary>The clash the strike caused against the defender's wind-up; <see cref="ClashOutcome.NoClash"/> if none.</summary>
         public ClashOutcome Clash { get; }
 
-        /// <summary>The clash's numbers (its stamina is applied; Qi comes later); null if no clash.</summary>
+        /// <summary>The clash's numbers (stamina and Qi already applied); null if no clash.</summary>
         public ClashEffect? ClashEffect { get; }
 
         /// <summary>True when the defender was exhausted as the strike landed, so a landed hit dealt extra damage.</summary>
         public bool DefenderExhausted { get; }
+
+        /// <summary>Qi the attacker gained from this strike (qi_per_hit if it landed, clash_perfect_qi for a perfect clash), after the cap.</summary>
+        public int AttackerQiGained { get; }
+
+        /// <summary>Qi the defender gained from this strike (parry_perfect_qi for a perfect parry), after the cap.</summary>
+        public int DefenderQiGained { get; }
 
         /// <summary>True when the strike dealt its damage and hitstun.</summary>
         public bool Landed => Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
@@ -122,8 +131,13 @@ namespace Shaolin36.Core.Combat
     /// when it starts, so each 化绵掌 tap costs its stamina whether it blocks, misses or is perfect.
     /// A perfect parry refunds the defender that cost and drains the attacker parry_perfect_drain.
     /// Clashes take each side's clash stamina. A landed hit on an exhausted fighter deals
-    /// exhausted_damage_pct of its damage. Qi from parries and clashes is carried on the
-    /// <see cref="HitEvent"/> and applied once Qi exists.
+    /// exhausted_damage_pct of its damage.
+    ///
+    /// Qi (both fighters start a duel on qi_start, or on what they carried in; never above qi_max):
+    /// a strike that deals damage (a normal hit, or a heavier move winning its clash) gives the
+    /// attacker qi_per_hit; a perfect parry gives the defender parry_perfect_qi; a perfect clash gives
+    /// the striker clash_perfect_qi. Blocks, lost clashes and same-weight recoils give nothing.
+    /// What was gained is on the <see cref="HitEvent"/>.
     ///
     /// Walking: each tick, after acting, a fighter who is idle walks one step in the
     /// direction given (-1 left, +1 right, 0 stand) at the rules sheet's walk_speed. Speeds
@@ -140,25 +154,31 @@ namespace Shaolin36.Core.Combat
         private readonly List<HitEvent> _hits = new List<HitEvent>();
         private readonly int[] _walkRemainder = new int[2];
 
-        public Duel(Rules rules, Loadout one, Loadout two, int onePositionCm, int twoPositionCm)
+        /// <param name="oneQi">Qi fighter One starts with; null for the rules sheet's qi_start. A run passes what it carried over.</param>
+        /// <param name="twoQi">Qi fighter Two starts with; null for qi_start.</param>
+        public Duel(Rules rules, Loadout one, Loadout two, int onePositionCm, int twoPositionCm, int? oneQi = null, int? twoQi = null)
         {
             if (rules == null) throw new ArgumentNullException(nameof(rules));
             Rules = rules;
             _fighters = new[]
             {
-                new Fighter(one, rules.HpMax, onePositionCm, rules.InputBuffer, StaminaRules.FromRules(rules)),
-                new Fighter(two, rules.HpMax, twoPositionCm, rules.InputBuffer, StaminaRules.FromRules(rules)),
+                new Fighter(one, rules.HpMax, onePositionCm, rules.InputBuffer, StaminaRules.FromRules(rules),
+                    rules.QiMax, oneQi ?? rules.QiStart),
+                new Fighter(two, rules.HpMax, twoPositionCm, rules.InputBuffer, StaminaRules.FromRules(rules),
+                    rules.QiMax, twoQi ?? rules.QiStart),
             };
         }
 
         public Rules Rules { get; }
 
         /// <summary>A duel with the fighters start_distance apart, centred on 0, One on the left.</summary>
-        public static Duel Start(Rules rules, Loadout one, Loadout two)
+        /// <param name="oneQi">Qi fighter One starts with; null for qi_start.</param>
+        /// <param name="twoQi">Qi fighter Two starts with; null for qi_start.</param>
+        public static Duel Start(Rules rules, Loadout one, Loadout two, int? oneQi = null, int? twoQi = null)
         {
             if (rules == null) throw new ArgumentNullException(nameof(rules));
             int left = -(rules.StartDistance / 2);
-            return new Duel(rules, one, two, left, left + rules.StartDistance);
+            return new Duel(rules, one, two, left, left + rules.StartDistance, oneQi, twoQi);
         }
 
         /// <summary>Ticks run so far. The next tick is numbered this.</summary>
@@ -230,7 +250,9 @@ namespace Shaolin36.Core.Combat
                     if (e.AttackerStaggerFrames > 0) striker.Stun(FighterState.Stagger, e.AttackerStaggerFrames);
                     defender.GainStamina(e.DefenderStaminaRefund);
                     striker.LoseStamina(e.AttackerStaminaLoss);
-                    return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame, parry, e);
+                    int parryQi = defender.GainQi(e.DefenderQiGain);
+                    return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame, parry, e,
+                        defenderQiGained: parryQi);
                 }
 
                 var clash = Combat.Clash.Resolve(move, defenderMove, defenderFrame);
@@ -248,22 +270,26 @@ namespace Shaolin36.Core.Combat
                         defender.LoseStamina(e.Target.StaminaLoss);
                         int frames = Math.Max(move.HitstunFrames, e.Target.StunFrames);
                         if (frames > 0 && !defender.IsDown) defender.Stun(FighterState.Stagger, frames);
+                        int breakQi = striker.GainQi(Rules.QiPerHit);
                         return new HitEvent(Tick, attacker, move, damage, frames, defender.Hp, defenderMove, defenderFrame,
-                            clash: clash, clashEffect: e, defenderExhausted: tired);
+                            clash: clash, clashEffect: e, defenderExhausted: tired, attackerQiGained: breakQi);
                     }
                     defender.LoseStamina(e.Target.StaminaLoss);
                     ApplyClashSide(striker, e.Striker, clash == ClashOutcome.TargetWins ? FighterState.Stagger : FighterState.Recoil);
                     ApplyClashSide(defender, e.Target, clash == ClashOutcome.PerfectClash ? FighterState.Stagger : FighterState.Recoil);
+                    int strikerQi = striker.GainQi(e.Striker.QiGain);
+                    int targetQi = defender.GainQi(e.Target.QiGain);
                     return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame,
-                        clash: clash, clashEffect: e);
+                        clash: clash, clashEffect: e, attackerQiGained: strikerQi, defenderQiGained: targetQi);
                 }
             }
 
             bool exhausted = defender.IsExhausted;
             int dealt = defender.DamageTaken(move.Damage);
             defender.TakeHit(dealt, move.HitstunFrames);
+            int hitQi = striker.GainQi(Rules.QiPerHit);
             return new HitEvent(Tick, attacker, move, dealt, move.HitstunFrames, defender.Hp, defenderMove, defenderFrame,
-                defenderExhausted: exhausted);
+                defenderExhausted: exhausted, attackerQiGained: hitQi);
         }
 
         private static void ApplyClashSide(Fighter f, ClashSide side, FighterState state)

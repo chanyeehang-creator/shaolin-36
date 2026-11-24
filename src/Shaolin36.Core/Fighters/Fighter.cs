@@ -40,6 +40,11 @@ namespace Shaolin36.Core.Fighters
     /// ticks with no move and no stamina lost, stamina comes back at the still rate while idle and not
     /// walking, else (walking, hitstun, stagger, recoil) at the normal rate.</item>
     /// </list>
+    ///
+    /// Qi (only when the fighter is given a max Qi above 0; a <see cref="Combat.Duel"/> always does):
+    /// Qi is earned in the fight (<see cref="GainQi"/>, never above <see cref="MaxQi"/>) and spent by
+    /// techniques with a Qi cost: such a technique only starts with at least its cost in Qi, and pays it
+    /// on the tick it starts. Qi does not regenerate.
     /// </summary>
     public sealed class Fighter
     {
@@ -48,8 +53,15 @@ namespace Shaolin36.Core.Fighters
         /// <param name="positionCm">Where the fighter stands on the line, in whole centimetres.</param>
         /// <param name="inputBufferFrames">How long an unused press is kept. A <see cref="Combat.Duel"/> passes the rules sheet's input_buffer.</param>
         /// <param name="stamina">The stamina numbers. Null turns stamina off: moves are free and the fighter is never exhausted.</param>
-        public Fighter(Loadout? loadout = null, int maxHp = 1, int positionCm = 0, int inputBufferFrames = 0, StaminaRules? stamina = null)
+        /// <param name="maxQi">Max Qi. 0 turns Qi off: nothing is gained and techniques that cost Qi can't start.</param>
+        /// <param name="qi">Qi to start with (a <see cref="Combat.Duel"/> passes qi_start, or what a run carried over).</param>
+        public Fighter(Loadout? loadout = null, int maxHp = 1, int positionCm = 0, int inputBufferFrames = 0, StaminaRules? stamina = null,
+            int maxQi = 0, int qi = 0)
         {
+            if (maxQi < 0) throw new ArgumentOutOfRangeException(nameof(maxQi), maxQi, "max Qi cannot be negative");
+            if (qi < 0 || qi > maxQi) throw new ArgumentOutOfRangeException(nameof(qi), qi, $"starting Qi must be between 0 and max Qi ({maxQi})");
+            MaxQi = maxQi;
+            Qi = qi;
             StaminaRules = stamina;
             Stamina = stamina?.Max ?? 0;
             if (maxHp < 1) throw new ArgumentOutOfRangeException(nameof(maxHp), maxHp, "a fighter has at least 1 HP");
@@ -85,6 +97,12 @@ namespace Shaolin36.Core.Fighters
 
         /// <summary>Regen owed but not yet paid, in sixtieths of a point.</summary>
         private int _regenSixtieths;
+
+        /// <summary>Max Qi; 0 when Qi is off.</summary>
+        public int MaxQi { get; }
+
+        /// <summary>Current Qi, from 0 up to <see cref="MaxQi"/>.</summary>
+        public int Qi { get; private set; }
 
         public int MaxHp { get; }
 
@@ -211,8 +229,21 @@ namespace Shaolin36.Core.Fighters
             return false;
         }
 
-        /// <summary>True if <paramref name="technique"/> can be started as far as stamina goes.</summary>
-        public bool CanAfford(Technique technique) => !IsExhausted || technique.StaminaCost == 0;
+        /// <summary>True if <paramref name="technique"/> can be started as far as stamina and Qi go.</summary>
+        public bool CanAfford(Technique technique) =>
+            (!IsExhausted || technique.StaminaCost == 0) && Qi >= technique.QiCost;
+
+        /// <summary>
+        /// Gain <paramref name="amount"/> Qi, never above <see cref="MaxQi"/>. Returns how much was
+        /// actually gained (less than asked when the bar fills; 0 when Qi is off).
+        /// </summary>
+        public int GainQi(int amount)
+        {
+            if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), amount, "Qi gains cannot be negative");
+            int gained = Math.Min(amount, MaxQi - Qi);
+            Qi += gained;
+            return gained;
+        }
 
         private bool CanAfford(string nextId)
         {
@@ -313,6 +344,7 @@ namespace Shaolin36.Core.Fighters
         private void Start(Slot slot, Technique technique)
         {
             LoseStamina(technique.StaminaCost);
+            Qi -= technique.QiCost;
             Technique = technique;
             Slot = slot;
             MoveFrame = 0;

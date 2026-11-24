@@ -491,6 +491,7 @@ public partial class Arena : Node3D
     private static readonly Color DamageOnDummyColor = new(1.00f, 0.80f, 0.30f);
     private static readonly Color StaminaColor = new(0.40f, 0.85f, 1.00f);
     private static readonly Color ExhaustedColor = new(1.00f, 0.55f, 0.10f);
+    private static readonly Color QiColor = new(1.00f, 0.84f, 0.25f);
 
     /// <summary>Text over the fighters for one strike: who took what.</summary>
     private void FloatsFor(HitEvent hit)
@@ -505,6 +506,7 @@ public partial class Arena : Node3D
                 Float(defender, $"+{hit.ParryEffect!.DefenderStaminaRefund} stamina", StaminaColor);
                 Float(attacker, "Stagger!", StaggerColor);
                 Float(attacker, $"-{hit.ParryEffect.AttackerStaminaLoss} stamina", StaminaColor);
+                if (hit.DefenderQiGained > 0) Float(defender, $"+{hit.DefenderQiGained} Qi", QiColor);
                 return;
             case ParryOutcome.Parried:
                 Float(defender, "Blocked!", ParryColor);
@@ -520,6 +522,7 @@ public partial class Arena : Node3D
             case ClashOutcome.PerfectClash:
                 Float(attacker, "Perfect clash!", ParryPerfectColor);
                 Float(defender, "Stagger!", StaggerColor);
+                if (hit.AttackerQiGained > 0) Float(attacker, $"+{hit.AttackerQiGained} Qi", QiColor);
                 return;
             case ClashOutcome.TargetWins:
                 Float(defender, "CLASH!", StartupColor);
@@ -595,8 +598,8 @@ public partial class Arena : Node3D
         Place(_opponent, _opponentReach, _duel.Two, DummyColor, -1);
 
         _status.Text =
-            $"[b]You[/b]    HP {Bar(_duel.One)}  stamina {StaminaBar(_duel.One)}  {Doing(_duel.One)}\n" +
-            $"[b]Dummy[/b] HP {Bar(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
+            $"[b]You[/b]    HP {Bar(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
+            $"[b]Dummy[/b] HP {Bar(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
             $"Distance {_duel.DistanceCm} cm   ·   dummy {(_dummy.Attacks ? "attacking" : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
@@ -655,6 +658,14 @@ public partial class Arena : Node3D
         var color = f.IsExhausted ? "#ff8c1a" : "#66d9ff";
         var text = $"[color={color}]{new string('█', filled)}[/color][color=#444444]{new string('█', width - filled)}[/color] {f.Stamina}/{f.MaxStamina}";
         return f.IsExhausted ? text + $" [color=#ff8c1a][b]EXHAUSTED[/b] until {_rules.ExhaustedUntil}[/color]" : text;
+    }
+
+    /// <summary>Qi in gold. Nothing spends it yet: later 点穴 and 气功 techniques will.</summary>
+    private static string QiBar(Fighter f)
+    {
+        const int width = 10;
+        int filled = f.MaxQi == 0 ? 0 : (int)System.Math.Round(width * (double)f.Qi / f.MaxQi);
+        return $"[color=#ffd640]{new string('█', filled)}[/color][color=#444444]{new string('█', width - filled)}[/color] {f.Qi}/{f.MaxQi}";
     }
 
     private static string Doing(Fighter f)
