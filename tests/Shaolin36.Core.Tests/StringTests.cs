@@ -317,6 +317,17 @@ public class StringTests
     }
 
     [Fact]
+    public void The_string_has_the_playtested_rhythm_1_pause_2_3_pause_4()
+    {
+        // From Chan's first playtest: a pause after hit 1, hits 2 and 3 quick, a longer pause before the finisher.
+        var (d, _) = RunLuohanQuan(chainFrame: 0);
+        var ticks = d.Hits.Select(h => h.Tick).ToArray();
+        Assert.Equal(new[] { 11, 30, 41, 64 }, ticks);
+        int pause1 = ticks[1] - ticks[0], quick = ticks[2] - ticks[1], pause2 = ticks[3] - ticks[2];
+        Assert.True(pause1 > quick && pause2 > quick && pause2 > pause1, $"gaps {pause1}, {quick}, {pause2}");
+    }
+
+    [Fact]
     public void Chaining_late_leaves_a_gap()
     {
         var (d, gaps) = RunLuohanQuan(chainFrame: 7); // last frame of each 8-frame window
