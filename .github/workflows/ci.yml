@@ -19,7 +19,7 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - name: Check data sheets
-        run: dotnet run --project tools/DataCheck -- game/data/techniques.csv
+        run: dotnet run --project tools/DataCheck -- game/data
       - name: Core rule tests
         run: dotnet test Shaolin36.sln
 

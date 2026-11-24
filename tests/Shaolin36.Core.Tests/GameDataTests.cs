@@ -21,4 +21,35 @@ public class GameDataTests
         Assert.True(r.Ok, string.Join("\n", r.Errors));
         Assert.NotEmpty(r.Techniques);
     }
+
+    [Fact]
+    public void Rules_sheet_passes_the_check()
+    {
+        var path = Path.Combine(RepoRoot(), "game", "data", "rules.csv");
+        var r = RulesCsv.Parse(File.ReadAllText(path));
+        Assert.True(r.Ok, string.Join("\n", r.Errors));
+    }
+
+    [Fact]
+    public void Luohan_quan_is_a_four_hit_string()
+    {
+        var path = Path.Combine(RepoRoot(), "game", "data", "techniques.csv");
+        var byId = TechniqueCsv.Parse(File.ReadAllText(path)).Techniques.ToDictionary(t => t.Id);
+        var hits = new List<string>();
+        for (var t = byId["luohan_quan_1"]; ; t = byId[t.Next])
+        {
+            hits.Add(t.Id);
+            if (!t.HasNext || hits.Count > 10) break;
+        }
+        Assert.Equal(new[] { "luohan_quan_1", "luohan_quan_2", "luohan_quan_3", "luohan_quan_4" }, hits);
+    }
+
+    [Fact]
+    public void Timed_parry_has_a_perfect_window()
+    {
+        var path = Path.Combine(RepoRoot(), "game", "data", "techniques.csv");
+        var parry = TechniqueCsv.Parse(File.ReadAllText(path)).Techniques.Single(t => t.Id == "timed_parry");
+        Assert.Equal(Category.Huajin, parry.Category);
+        Assert.True(parry.PerfectParryFrames > 0);
+    }
 }

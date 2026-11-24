@@ -2,7 +2,7 @@
 rem Runs every check Claude Code runs: data check and the core rule tests.
 setlocal
 cd /d "%~dp0.."
-dotnet run --project tools\DataCheck -- game\data\techniques.csv || goto :fail
+dotnet run --project tools\DataCheck -- game\data || goto :fail
 dotnet test Shaolin36.sln -nologo || goto :fail
 echo.
 echo All checks passed.
