@@ -33,7 +33,8 @@ internal static class Make
 
     /// <summary>
     /// Every rules key with a distinct value (its position in <see cref="Rules.Keys"/> plus 101),
-    /// so a test can tell which key a number came from. Pass overrides to change some.
+    /// so a test can tell which key a number came from (exhausted_walk_pct, capped at 100, is 99).
+    /// Pass overrides to change some.
     /// </summary>
     public static string RulesText(params (string key, string value)[] overrides)
     {
@@ -41,7 +42,8 @@ internal static class Make
         for (int i = 0; i < Rules.Keys.Length; i++)
         {
             var key = Rules.Keys[i];
-            var value = (101 + i).ToString();
+            // A percentage capped at 100 gets a valid value of its own.
+            var value = key == "exhausted_walk_pct" ? "99" : (101 + i).ToString();
             foreach (var (k, v) in overrides) if (k == key) value = v;
             sb.Append(key).Append(',').Append(value).Append(",test\n");
         }

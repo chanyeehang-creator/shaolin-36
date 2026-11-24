@@ -28,6 +28,18 @@ namespace Shaolin36.Core.Fighters
     /// <see cref="InputBufferFrames"/> ticks, so mashing a little early still chains on the
     /// first chain frame. Only the newest unused press is kept. A new press on a tick is tried
     /// before the buffered one. With a buffer of 0, presses made while busy are dropped.
+    ///
+    /// Stamina (only when the fighter is given <see cref="StaminaRules"/>; a <see cref="Combat.Duel"/> always does):
+    /// <list type="bullet">
+    /// <item>Starting a technique, or chaining to the next hit, pays its stamina cost on that tick.
+    /// Any amount left is enough: a move that costs more than you have still comes out and leaves you at 0.</item>
+    /// <item>Reaching 0 makes the fighter <see cref="IsExhausted"/> until stamina is back up to
+    /// <see cref="Fighters.StaminaRules.ExhaustedUntil"/>. While exhausted, techniques that cost stamina
+    /// can't be started (so no parry: the guard is broken); presses wait in the buffer as usual.</item>
+    /// <item>Regen: none on ticks spent in a move. After <see cref="Fighters.StaminaRules.RegenDelayFrames"/>
+    /// ticks with no move and no stamina lost, stamina comes back at the still rate while idle and not
+    /// walking, else (walking, hitstun, stagger, recoil) at the normal rate.</item>
+    /// </list>
     /// </summary>
     public sealed class Fighter
     {
@@ -35,8 +47,11 @@ namespace Shaolin36.Core.Fighters
         /// <param name="maxHp">Starting and max HP. A <see cref="Combat.Duel"/> passes the rules sheet's hp_max.</param>
         /// <param name="positionCm">Where the fighter stands on the line, in whole centimetres.</param>
         /// <param name="inputBufferFrames">How long an unused press is kept. A <see cref="Combat.Duel"/> passes the rules sheet's input_buffer.</param>
-        public Fighter(Loadout? loadout = null, int maxHp = 1, int positionCm = 0, int inputBufferFrames = 0)
+        /// <param name="stamina">The stamina numbers. Null turns stamina off: moves are free and the fighter is never exhausted.</param>
+        public Fighter(Loadout? loadout = null, int maxHp = 1, int positionCm = 0, int inputBufferFrames = 0, StaminaRules? stamina = null)
         {
+            StaminaRules = stamina;
+            Stamina = stamina?.Max ?? 0;
             if (maxHp < 1) throw new ArgumentOutOfRangeException(nameof(maxHp), maxHp, "a fighter has at least 1 HP");
             if (inputBufferFrames < 0) throw new ArgumentOutOfRangeException(nameof(inputBufferFrames), inputBufferFrames, "the input buffer cannot be negative");
             InputBufferFrames = inputBufferFrames;
@@ -47,6 +62,29 @@ namespace Shaolin36.Core.Fighters
         }
 
         public Loadout Loadout { get; }
+
+        /// <summary>The stamina numbers, or null when this fighter doesn't use stamina.</summary>
+        public StaminaRules? StaminaRules { get; }
+
+        public bool UsesStamina => StaminaRules != null;
+
+        /// <summary>Max stamina; 0 when stamina is off.</summary>
+        public int MaxStamina => StaminaRules?.Max ?? 0;
+
+        /// <summary>Current stamina, from <see cref="MaxStamina"/> down to 0.</summary>
+        public int Stamina { get; private set; }
+
+        /// <summary>
+        /// True from the tick stamina reaches 0 until it is back up to exhausted_until. An exhausted
+        /// fighter can't start moves that cost stamina, walks slower and takes extra damage.
+        /// </summary>
+        public bool IsExhausted { get; private set; }
+
+        /// <summary>Ticks in a row with no move and no stamina lost (counts up to the regen delay).</summary>
+        private int _restTicks;
+
+        /// <summary>Regen owed but not yet paid, in sixtieths of a point.</summary>
+        private int _regenSixtieths;
 
         public int MaxHp { get; }
 
@@ -115,17 +153,25 @@ namespace Shaolin36.Core.Fighters
             return State;
         }
 
-        /// <summary>Advance one frame, then act on this tick's slot presses (or a buffered one) if free to.</summary>
-        public void Tick(SlotInput input)
+        /// <summary>
+        /// Advance one frame, then act on this tick's slot presses (or a buffered one) if free to,
+        /// then regain stamina. <paramref name="walking"/> says the fighter is being told to walk this
+        /// tick, which only matters for the regen rate.
+        /// </summary>
+        public void Tick(SlotInput input, bool walking = false)
         {
             Advance();
 
             if (TryAct(input) || TryAct(Buffered))
-            {
                 ClearBuffer();
-                return;
-            }
+            else
+                KeepBuffered(input);
 
+            Regen(walking);
+        }
+
+        private void KeepBuffered(SlotInput input)
+        {
             if (input.Any && InputBufferFrames > 0)
             {
                 Buffered = input;
@@ -144,6 +190,7 @@ namespace Shaolin36.Core.Fighters
 
             if (InChainWindow && input.IsPressed(Slot!.Value))
             {
+                if (!CanAfford(Technique!.Next)) return false;
                 var book = Loadout.Book
                     ?? throw new InvalidOperationException($"{Technique!.Id} chains into '{Technique.Next}', but the loadout has no technique book to find it in");
                 int hit = StringHit + 1;
@@ -157,11 +204,71 @@ namespace Shaolin36.Core.Fighters
             {
                 if (!input.IsPressed(slot)) continue;
                 var technique = Loadout[slot];
-                if (technique == null) continue;
+                if (technique == null || !CanAfford(technique)) continue;
                 Start(slot, technique);
                 return true;
             }
             return false;
+        }
+
+        /// <summary>True if <paramref name="technique"/> can be started as far as stamina goes.</summary>
+        public bool CanAfford(Technique technique) => !IsExhausted || technique.StaminaCost == 0;
+
+        private bool CanAfford(string nextId)
+        {
+            var next = Loadout.Book?.Find(nextId);
+            return next == null || CanAfford(next);
+        }
+
+        /// <summary>
+        /// Lose <paramref name="amount"/> stamina (never below 0). Reaching 0 exhausts the fighter.
+        /// Losing any stamina restarts the regen delay. Does nothing when stamina is off.
+        /// </summary>
+        public void LoseStamina(int amount)
+        {
+            if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), amount, "use GainStamina to add stamina");
+            if (!UsesStamina || amount == 0) return;
+            Stamina = amount >= Stamina ? 0 : Stamina - amount;
+            if (Stamina == 0) IsExhausted = true;
+            _restTicks = 0;
+            _regenSixtieths = 0;
+        }
+
+        /// <summary>
+        /// Gain <paramref name="amount"/> stamina (never above max). An exhausted fighter recovers
+        /// once stamina is back up to exhausted_until. Does nothing when stamina is off.
+        /// </summary>
+        public void GainStamina(int amount)
+        {
+            if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount), amount, "use LoseStamina to take stamina");
+            if (!UsesStamina || amount == 0) return;
+            Stamina = Math.Min(MaxStamina, Stamina + amount);
+            if (IsExhausted && Stamina >= StaminaRules!.ExhaustedUntil) IsExhausted = false;
+        }
+
+        /// <summary>The damage this fighter takes from a hit of <paramref name="damage"/>: more while exhausted (rounded half up).</summary>
+        public int DamageTaken(int damage) =>
+            IsExhausted ? (damage * StaminaRules!.ExhaustedDamagePct + 50) / 100 : damage;
+
+        private void Regen(bool walking)
+        {
+            if (!UsesStamina) return;
+            if (State.IsInMove())
+            {
+                _restTicks = 0;
+                _regenSixtieths = 0;
+                return;
+            }
+            if (_restTicks < StaminaRules!.RegenDelayFrames)
+            {
+                _restTicks++;
+                return;
+            }
+            bool still = State == FighterState.Idle && !walking;
+            _regenSixtieths += still ? StaminaRules.RegenStillPerSecond : StaminaRules.RegenPerSecond;
+            int points = _regenSixtieths / Sim.TicksPerSecond;
+            _regenSixtieths %= Sim.TicksPerSecond;
+            GainStamina(points);
         }
 
         private void ClearBuffer()
@@ -205,6 +312,7 @@ namespace Shaolin36.Core.Fighters
 
         private void Start(Slot slot, Technique technique)
         {
+            LoseStamina(technique.StaminaCost);
             Technique = technique;
             Slot = slot;
             MoveFrame = 0;
