@@ -29,7 +29,7 @@ setx GODOT "C:\path\to\Godot_v4.7.2-stable_mono_win64.exe"
 
 ## Play
 
-Double-click `scripts\play.bat` (Windows) or run `scripts/play.sh`. It builds the C# code and opens the first playable test: you against a training dummy that repeats the 罗汉拳 string, with 罗汉拳 and 化绵掌 on buttons you can swap. Step-by-step instructions, the full control table and gamepad setup are in [docs/playtest.md](docs/playtest.md).
+Double-click `scripts\play.bat` (Windows) or run `scripts/play.sh`. It builds the C# code and opens the playable test: you against a training dummy that repeats the 罗汉拳 string, on a square floor with the camera behind you, and 罗汉拳, 铁砂掌 and 化绵掌 on buttons you can swap. Step-by-step instructions, the full control table and gamepad setup are in [docs/playtest.md](docs/playtest.md).
 
 To work in the editor instead, open `game/project.godot` in Godot .NET and press F5.
 
@@ -49,13 +49,20 @@ CI runs all three on every push.
 
 A fighter has 8 slots: □ △ ○ ✕ L1 L2 R1 R2. Each holds any technique or nothing, and the rules only ever see "slot N pressed", never "parry pressed". So 化绵掌 can sit on L1, ○ or ✕, and a later 化劲 technique such as 金钟罩 drops into the same slot the same way. A gamepad (including DirectInput pads like the Logitech Dual Action) and keyboard + mouse both map their buttons onto these 8 slots, at the same time (`game/scripts/Controls.cs`). In the game, the loadout screen (Tab, Esc or the pad's Start button) puts any technique on any button.
 
-## Hits and reach
+## The floor, facing and reach (full 3D)
 
-Two fighters stand on a line, positions in whole centimetres. A hit connects when the other fighter is within the technique's `reach` (distance ≤ reach) on any of its active frames; each move hits at most once. The hit deals its `damage` and freezes the defender for `hitstun` frames counted from the hit frame. Hits on the same tick trade. A technique with reach 0, like 化绵掌, never hits. Clash and parry join the fight in a later step.
+Two fighters stand anywhere on a square floor, `arena_width` cm each way. Positions are whole numbers in 1/60 cm (`FloorPoint`), so a speed of N cm per second is exactly N units per tick and the same inputs always give the same positions. The fighters face each other automatically (lock-on). A move takes its aim on the tick it starts and keeps it to the end; each hit of a string aims afresh.
 
-## Walking and the training dummy
+A hit connects when, on any of its active frames, the other fighter is within the technique's `reach` across the floor (centre to centre) **and** inside its `hit_angle`, a wedge centred on the aim (60 = 30° either side; empty or 360 = all round). So stepping to the side during a wind-up can make a strike miss. Each move hits at most once. The hit deals its `damage` and freezes the defender for `hitstun` frames counted from the hit frame. Hits on the same tick trade. A technique with reach 0, like 化绵掌, never hits.
 
-Each tick, an idle fighter can walk left or right at `walk_speed` cm per second, in whole centimetres with the fraction carried, so the same inputs always give the same positions. Fighters stop `min_distance` apart and at the ends of the `arena_width` line. The playtest dummy (`TrainingDummy`) waits `dummy_pause` frames, then throws its string, chaining on chain-window frame `dummy_chain_frame`. All of these are in `rules.csv`.
+## Walking, stepping in, quick step and the training dummy
+
+- **Walking:** an idle fighter walks the way the stick or WASD says, relative to the lock-on (forward is straight at the opponent, right goes round their side), at `walk_speed` cm per second scaled by how far the stick is pushed. Diagonals are no faster. Fighters stop `min_distance` apart (walking round someone up close slides you round them) and at the floor's edges.
+- **Stepping in:** a technique's `advance` (cm) steps the attacker forward along its aim, slid over its startup frames. 罗汉拳 steps 10, 8, 8 and 15 cm; 铁砂掌 20 cm. It stops at `min_distance`, and being hit out of the move stops it.
+- **Quick step:** double-tap forward, back, left or right (within `quick_step_tap_window` frames) for a short, fast step that way: `quick_step_distance` cm over `quick_step_frames`, then `quick_step_recovery` frames before you can act. It costs `quick_step_stamina` and can't start while exhausted. It is not a dodge roll: no invincible frames, no perfect-timing bonus. Side steps curve round the opponent. Anyone can use it at any time they're free; it isn't on a slot.
+- **The playtest dummy** (`TrainingDummy`) stands where it is, turns to face you, waits `dummy_pause` frames, then throws its string, chaining on chain-window frame `dummy_chain_frame`.
+
+All of these numbers are in `rules.csv` and `techniques.csv`.
 
 ## Hit feel
 
@@ -63,7 +70,7 @@ Every strike is sorted into one row of `feel.csv` (hit, heavy hit, block, perfec
 
 ## Knockback
 
-A landed hit pushes the defender straight back by the technique's `knockback` (cm), slid over `knockback_frames` ticks starting the tick after the hit; a same-weight clash pushes both apart by `clash_recoil_push`. Hyper armor holds its ground, parries and lost clashes push nobody, and the arena ends stop a push. The data check prints how close each string must start so every hit stays in reach.
+A landed hit pushes the defender straight away from the attacker by the technique's `knockback` (cm), slid over `knockback_frames` ticks starting the tick after the hit; a same-weight clash pushes both apart by `clash_recoil_push`. Hyper armor holds its ground, parries and lost clashes push nobody, and the floor's edges stop a push. The data check prints how close each string must start (counting its step-in and knockback) so every hit stays in reach.
 
 ## Editing data
 

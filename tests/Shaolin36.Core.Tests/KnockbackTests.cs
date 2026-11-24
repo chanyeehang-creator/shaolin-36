@@ -52,19 +52,19 @@ public class KnockbackTests
         for (int t = 0; t <= 5; t++) d.Step(t == 0 ? Square : None, None);
         var hit = Assert.Single(d.Hits);
         Assert.Equal(60, hit.KnockbackCm);
-        Assert.Equal(100, d.Two.PositionCm); // nothing moves on the hit tick itself
+        Assert.Equal(100, d.Two.XCm); // nothing moves on the hit tick itself
 
         var steps = new List<int>();
         for (int i = 0; i < 10; i++)
         {
-            int before = d.Two.PositionCm;
+            int before = d.Two.XCm;
             d.Step(None, None);
-            steps.Add(d.Two.PositionCm - before);
+            steps.Add(d.Two.XCm - before);
         }
         // 60 cm over 8 ticks, whole centimetres, larger steps first; then it stops.
         Assert.Equal(new[] { 8, 8, 8, 8, 7, 7, 7, 7, 0, 0 }, steps);
-        Assert.Equal(160, d.Two.PositionCm);
-        Assert.Equal(0, d.One.PositionCm);
+        Assert.Equal(160, d.Two.XCm);
+        Assert.Equal(0, d.One.XCm);
     }
 
     [Fact]
@@ -72,8 +72,8 @@ public class KnockbackTests
     {
         var d = new Duel(RulesWith(), Holding(Shove), Holding(Shove), 0, 100);
         for (int t = 0; t <= 20; t++) d.Step(None, t == 0 ? Square : None);
-        Assert.Equal(-60, d.One.PositionCm);
-        Assert.Equal(100, d.Two.PositionCm);
+        Assert.Equal(-60, d.One.XCm);
+        Assert.Equal(100, d.Two.XCm);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public class KnockbackTests
         // Arena 400 wide: the ends are at -200 and 200. Two stands at 170 and can only go 30 cm.
         var d = new Duel(RulesWith(arena: 400), Holding(Shove), Holding(Shove), 70, 170);
         for (int t = 0; t <= 20; t++) d.Step(t == 0 ? Square : None, None);
-        Assert.Equal(200, d.Two.PositionCm);
+        Assert.Equal(200, d.Two.XCm);
     }
 
     [Fact]
@@ -94,10 +94,10 @@ public class KnockbackTests
         for (int t = 0; t <= 25; t++) d.Step(t == 0 || t == 20 ? Square : None, None);
         Assert.Equal(2, d.Hits.Count);
         Assert.Equal(25, d.Hits[1].Tick);
-        Assert.Equal(140, d.Two.PositionCm); // 40 of the first 60 cm slid in 20 ticks (larger steps first)
+        Assert.Equal(140, d.Two.XCm); // 40 of the first 60 cm slid in 20 ticks (larger steps first)
         Assert.Equal(20 + 60, d.PushLeftCm(Side.Two));
         for (int i = 0; i < 40; i++) d.Step(None, None);
-        Assert.Equal(220, d.Two.PositionCm);
+        Assert.Equal(220, d.Two.XCm);
         Assert.Equal(0, d.PushLeftCm(Side.Two));
     }
 
@@ -112,7 +112,7 @@ public class KnockbackTests
         var hit = Assert.Single(d.Hits);
         Assert.True(hit.DefenderArmored);
         Assert.Equal(0, hit.KnockbackCm);
-        Assert.Equal(100, d.Two.PositionCm);
+        Assert.Equal(100, d.Two.XCm);
     }
 
     [Fact]
@@ -124,8 +124,8 @@ public class KnockbackTests
         var hit = Assert.Single(d.Hits);
         Assert.Equal(ParryOutcome.PerfectParry, hit.Parry);
         Assert.Equal(0, hit.KnockbackCm);
-        Assert.Equal(0, d.One.PositionCm);
-        Assert.Equal(100, d.Two.PositionCm);
+        Assert.Equal(0, d.One.XCm);
+        Assert.Equal(100, d.Two.XCm);
     }
 
     [Fact]
@@ -139,8 +139,8 @@ public class KnockbackTests
         var hit = d.Hits[0];
         Assert.Equal(ClashOutcome.BothRecoil, hit.Clash);
         Assert.Equal(25, hit.KnockbackCm);
-        Assert.Equal(-25, d.One.PositionCm);
-        Assert.Equal(125, d.Two.PositionCm);
+        Assert.Equal(-25, d.One.XCm);
+        Assert.Equal(125, d.Two.XCm);
     }
 
     [Fact]
@@ -154,10 +154,10 @@ public class KnockbackTests
         {
             Assert.True(clock.IsFrozen);
             clock.Step(None, None);
-            Assert.Equal(100, clock.Duel.Two.PositionCm);
+            Assert.Equal(100, clock.Duel.Two.XCm);
         }
         clock.Step(None, None);
-        Assert.Equal(108, clock.Duel.Two.PositionCm);
+        Assert.Equal(108, clock.Duel.Two.XCm);
     }
 
     // ---------- The real sheets ----------
@@ -175,8 +175,13 @@ public class KnockbackTests
         var one = new Loadout(book);
         one.Assign(Slot.Square, sheet["luohan_quan_1"]);
         var d = new Duel(SheetRules(), one, new Loadout(book), 0, distance);
-        // Mash every other tick: the buffer chains each hit as early as it can.
-        for (int t = 0; t < 200; t++) d.Step(t % 2 == 0 ? Square : None, None);
+        // Mash every other tick until the finisher starts: the buffer chains each hit as early as it can.
+        bool finisher = false;
+        for (int t = 0; t < 200; t++)
+        {
+            d.Step(t % 2 == 0 && !finisher ? Square : None, None);
+            finisher |= d.One.Technique?.Id == "luohan_quan_4";
+        }
         return d;
     }
 
@@ -185,8 +190,9 @@ public class KnockbackTests
     {
         var d = RunString(SheetRules().StartDistance);
         Assert.Equal(new[] { "luohan_quan_1", "luohan_quan_2", "luohan_quan_3", "luohan_quan_4" }, d.Hits.Select(h => h.Technique.Id));
-        int pushed = Sheet().Values.Where(t => t.Id.StartsWith("luohan_quan_")).Sum(t => t.KnockbackCm);
-        Assert.Equal(SheetRules().StartDistance + pushed, d.DistanceCm);
+        var hits = Sheet().Values.Where(t => t.Id.StartsWith("luohan_quan_")).ToList();
+        int pushed = hits.Sum(t => t.KnockbackCm), stepped = hits.Sum(t => t.AdvanceCm);
+        Assert.Equal(SheetRules().StartDistance + pushed - stepped, d.DistanceCm);
     }
 
     [Fact]
@@ -194,7 +200,7 @@ public class KnockbackTests
     {
         var sheet = Sheet();
         int limit = sheet["luohan_quan_1"].StringReachFrom(id => sheet.TryGetValue(id, out var t) ? t : null);
-        Assert.Equal(116, limit);
+        Assert.Equal(130, limit); // hit 1's 120 cm reach plus its 10 cm step in
         Assert.Equal(4, RunString(limit).Hits.Count);
         Assert.True(RunString(limit + 1).Hits.Count < 4);
     }
@@ -204,7 +210,8 @@ public class KnockbackTests
     {
         // After the finisher's knockback, hit 1 can't reach: the string has a clear end.
         var d = RunString(SheetRules().StartDistance);
-        Assert.True(d.DistanceCm > Sheet()["luohan_quan_1"].ReachCm);
+        var first = Sheet()["luohan_quan_1"];
+        Assert.True(d.DistanceCm > first.ReachCm + first.AdvanceCm);
     }
 
     // ---------- The sheet column ----------

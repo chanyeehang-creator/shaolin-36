@@ -23,9 +23,10 @@ internal static class Make
         int perfectParry = 0,
         int stamina = 5,
         int damage = 5,
-        int qi = 0) =>
+        int qi = 0,
+        int hitAngle = Technique.FullCircle) =>
         new(id, id, category, weight, weapon, startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
-            hitstun, reach, next, chain, perfectParry);
+            hitstun, reach, next, chain, perfectParry, hitAngle: hitAngle);
 
     /// <summary>A parry like the sheet's: startup 3, a 10-frame window (frames 3-12), perfect on frames 3-6.</summary>
     public static Technique ParryMove(int stamina = 10) =>
@@ -45,7 +46,9 @@ internal static class Make
             var key = Rules.Keys[i];
             // A percentage capped at 100 gets a valid value of its own.
             // A push in centimetres would move fighters out of reach in tests that don't expect it: 0.
-            var value = key == "exhausted_walk_pct" ? "99" : key == "clash_recoil_push" ? "0" : (101 + i).ToString();
+            // The quick-step tap window is capped at 30 frames.
+            var value = key == "exhausted_walk_pct" ? "99" : key == "clash_recoil_push" ? "0" : key == "quick_step_tap_window" ? "12"
+                : (101 + i).ToString();
             foreach (var (k, v) in overrides) if (k == key) value = v;
             sb.Append(key).Append(',').Append(value).Append(",test\n");
         }

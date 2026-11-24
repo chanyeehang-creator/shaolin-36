@@ -22,6 +22,7 @@ namespace Shaolin36.Core.Data
             "input_buffer", "knockback_frames",
             "walk_speed", "min_distance", "start_distance", "arena_width",
             "dummy_pause", "dummy_chain_frame",
+            "quick_step_distance", "quick_step_frames", "quick_step_recovery", "quick_step_stamina", "quick_step_tap_window",
         };
 
         private readonly Dictionary<string, int> _values;
@@ -93,6 +94,21 @@ namespace Shaolin36.Core.Data
         /// a true combo). At or past a technique's chain window it never chains.
         /// </summary>
         public int DummyChainFrame => V("dummy_chain_frame");
+
+        /// <summary>How far a quick step goes, in centimetres.</summary>
+        public int QuickStepDistance => V("quick_step_distance");
+
+        /// <summary>Frames a quick step slides over.</summary>
+        public int QuickStepFrames => V("quick_step_frames");
+
+        /// <summary>Frames after a quick step's slide before the fighter is free again.</summary>
+        public int QuickStepRecovery => V("quick_step_recovery");
+
+        /// <summary>Stamina a quick step costs.</summary>
+        public int QuickStepStamina => V("quick_step_stamina");
+
+        /// <summary>The most frames from the first tap of a direction to the second that still makes a quick step.</summary>
+        public int QuickStepTapWindow => V("quick_step_tap_window");
     }
 
     /// <summary>Reads and checks the rules sheet: columns key,value,note. Bad rows are reported, never loaded.</summary>
@@ -185,6 +201,10 @@ namespace Shaolin36.Core.Data
                     $"({values["start_distance"]}) cannot be more than 'arena_width' ({values["arena_width"]})");
                 Check(values["exhausted_walk_pct"] <= 100, "exhausted_walk_pct", "must be 100 or less (100 = normal speed)");
                 Check(values["exhausted_damage_pct"] >= 100, "exhausted_damage_pct", "must be 100 or more (100 = normal damage)");
+                Check(values["quick_step_distance"] <= 300, "quick_step_distance", "must be 300 cm or less: it's a step, not a dash");
+                Check(values["quick_step_frames"] >= 1, "quick_step_frames", "must be at least 1 frame");
+                Check(values["quick_step_tap_window"] >= 1 && values["quick_step_tap_window"] <= 30, "quick_step_tap_window",
+                    "must be between 1 and 30 frames (half a second)");
             }
 
             return new Result(errors.Count == 0 ? new Rules(values) : null, errors);
