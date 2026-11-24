@@ -6,6 +6,9 @@ namespace Shaolin36.Core.Tests;
 /// <summary>The real sheets shipped with the game must always pass the check.</summary>
 public class GameDataTests
 {
+    /// <summary>Path to a sheet in game/data.</summary>
+    internal static string SheetPath(string file) => Path.Combine(RepoRoot(), "game", "data", file);
+
     private static string RepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
