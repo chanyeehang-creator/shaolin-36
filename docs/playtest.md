@@ -52,11 +52,12 @@ Every fight button is a **slot**. Slots don't mean anything on their own: whatev
 | Other | Gamepad | Keyboard |
 | --- | --- | --- |
 | Walk left / right | Left stick or D-pad | A / D or ← / → |
-| Loadout screen (pauses) | 9 (Back / Select) | Tab or Esc |
-| Restart the duel | 10 (Start) | Enter |
+| Dummy stands still / attacks again | 9 (Back / Select) | T |
+| Loadout screen (pauses) | 10 (Start) | Tab or Esc |
+| Restart the duel | Start after a KO, or the loadout screen's last row | Enter |
 | Half speed on/off | | F1 |
 
-On the **loadout screen**: move up and down to pick a technique (W/S, ↑/↓ or the D-pad), then press the button you want it on. Want 化绵掌 on ✕ instead of L1? Highlight 化绵掌 and press ✕. If something was already on that button, the two swap. The last row turns the dummy's attacks on and off, which is handy for practising your own string on it.
+On the **loadout screen**: move up and down to pick a technique (W/S, ↑/↓ or the D-pad), then press the button you want it on. Want 化绵掌 on ✕ instead of L1? Highlight 化绵掌 and press ✕. If something was already on that button, the two swap. Below the techniques, one row turns the dummy's attacks on and off (Select or T does the same from the fight), and the last row restarts the duel.
 
 ## 5. Reading the screen
 

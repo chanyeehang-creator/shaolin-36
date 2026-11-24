@@ -2,12 +2,12 @@
 # category: waigong/外功 neigong/内功 qinggong/轻功 dianxue/点穴 huajin/化劲 qinna/擒拿 qigong/气功
 # weight: light/medium/heavy. clash_window = last N frames of startup; perfect_clash = first N frames of that window.
 # hitstun = frames the defender is frozen after the hit. reach = centimetres.
-# 罗汉拳 rhythm (Chan's playtest): 1, pause, 2-3 quick, pause, 4. Chained on the first frame the hits land 19, 11 and 23 frames apart.
+# 罗汉拳 rhythm (Chan's 2nd playtest): 0.32 s wind-up, hit 1, 0.5 s, hit 2, 0.2 s, hit 3, 0.5 s, hit 4. Chained on the first frame the hits land on frames 19, 49, 61, 91.
 # next = id of the next hit in the string; chain_window = first N recovery frames where pressing again starts it.
 # perfect_parry (化劲 only) = first N active frames that count as a perfect parry; the active frames are the parry window.
 id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry
-luohan_quan_1,罗汉拳 1 冲拳,waigong,medium,false,11,3,16,5,2,8,0,6,true,26,120,luohan_quan_2,8,0
-luohan_quan_2,罗汉拳 2 连拳,waigong,medium,false,16,3,16,4,2,8,0,6,true,18,120,luohan_quan_3,8,0
-luohan_quan_3,罗汉拳 3 挑掌,waigong,medium,false,8,3,18,4,2,9,0,7,true,30,125,luohan_quan_4,8,0
-luohan_quan_4,罗汉拳 4 收势重拳,waigong,heavy,false,20,4,28,6,2,14,0,12,true,34,140,,0,0
+luohan_quan_1,罗汉拳 1 冲拳,waigong,medium,false,19,3,30,5,2,8,0,6,true,37,120,luohan_quan_2,8,0
+luohan_quan_2,罗汉拳 2 连拳,waigong,medium,false,27,3,16,4,2,8,0,6,true,19,120,luohan_quan_3,8,0
+luohan_quan_3,罗汉拳 3 挑掌,waigong,medium,false,9,3,30,4,2,9,0,7,true,37,125,luohan_quan_4,8,0
+luohan_quan_4,罗汉拳 4 收势重拳,waigong,heavy,false,27,4,28,6,2,14,0,12,true,34,140,,0,0
 timed_parry,化绵掌 (timed parry),huajin,light,false,3,10,20,0,0,10,0,0,false,0,0,,0,5

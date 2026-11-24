@@ -47,7 +47,7 @@ CI runs all three on every push.
 
 ## Buttons are slots
 
-A fighter has 8 slots: □ △ ○ ✕ L1 L2 R1 R2. Each holds any technique or nothing, and the rules only ever see "slot N pressed", never "parry pressed". So 化绵掌 can sit on L1, ○ or ✕, and a later 化劲 technique such as 金钟罩 drops into the same slot the same way. A gamepad (including DirectInput pads like the Logitech Dual Action) and keyboard + mouse both map their buttons onto these 8 slots, at the same time (`game/scripts/Controls.cs`). In the game, the loadout screen (Tab, Esc or the pad's Back button) puts any technique on any button.
+A fighter has 8 slots: □ △ ○ ✕ L1 L2 R1 R2. Each holds any technique or nothing, and the rules only ever see "slot N pressed", never "parry pressed". So 化绵掌 can sit on L1, ○ or ✕, and a later 化劲 technique such as 金钟罩 drops into the same slot the same way. A gamepad (including DirectInput pads like the Logitech Dual Action) and keyboard + mouse both map their buttons onto these 8 slots, at the same time (`game/scripts/Controls.cs`). In the game, the loadout screen (Tab, Esc or the pad's Start button) puts any technique on any button.
 
 ## Hits and reach
 

@@ -162,7 +162,7 @@ public partial class Arena : Node3D
         _menuBack = new ColorRect { Color = new Color(0, 0, 0, 0.8f), Position = new Vector2(100, 120), Size = new Vector2(940, 500), Visible = false };
         foreach (var c in new Control[] { _status, _event, _pad, _help, legend, _menuBack, _menu }) hud.AddChild(c);
 
-        _event.Text = "Walk with A/D or the left stick. Fight with your slot buttons. Tab / Back opens the loadout.";
+        _event.Text = "Walk with A/D or the left stick. Fight with your slot buttons. Tab / Start opens the loadout. T / Select makes the dummy stand still.";
         RefreshMenu();
     }
 
@@ -215,6 +215,15 @@ public partial class Arena : Node3D
         var command = Controls.CommandOf(e);
         var slot = Controls.SlotPressed(e);
 
+        if (command == Command.DummyToggle)
+        {
+            _dummy.Attacks = !_dummy.Attacks;
+            _event.Text = _dummy.Attacks ? "The dummy attacks again." : "The dummy stands still. Hit it as much as you like.";
+            RefreshMenu();
+            return;
+        }
+        // On a pad, Start after a KO starts the next duel instead of opening the loadout.
+        if (command == Command.Menu && e is InputEventJoypadButton && _duel.IsOver && !_menuOpen) command = Command.Restart;
         if (command == Command.Menu)
         {
             _menuOpen = !_menuOpen;
@@ -237,7 +246,7 @@ public partial class Arena : Node3D
 
         if (_menuOpen)
         {
-            int rows = _starters.Count + 1;
+            int rows = _starters.Count + 2; // techniques, the dummy row, the restart row
             if (command == Command.MenuUp) _menuRow = (_menuRow + rows - 1) % rows;
             else if (command == Command.MenuDown) _menuRow = (_menuRow + 1) % rows;
             else if (slot != null) PutOnSlot(slot.Value);
@@ -256,6 +265,13 @@ public partial class Arena : Node3D
         if (_menuRow == _starters.Count)
         {
             _dummy.Attacks = !_dummy.Attacks;
+            return;
+        }
+        if (_menuRow == _starters.Count + 1)
+        {
+            NewDuel();
+            _menuOpen = false;
+            _event.Text = "New duel.";
             return;
         }
         var technique = _starters[_menuRow];
@@ -284,8 +300,10 @@ public partial class Arena : Node3D
             var line = $"{t.Name}  ·  {t.Category}  ·  {where}";
             sb.Append(i == _menuRow ? $"[color=#ffd11a]▶ {line}[/color]\n" : $"   {line}\n");
         }
-        var dummyLine = $"Dummy: {(_dummy.Attacks ? "attacks with 罗汉拳" : "stands still")}  (press any button or ←/→ to change)";
+        var dummyLine = $"Dummy: {(_dummy.Attacks ? "attacks with 罗汉拳" : "stands still")}  (any button, ←/→, Select or T to change)";
         sb.Append(_menuRow == _starters.Count ? $"[color=#ffd11a]▶ {dummyLine}[/color]\n" : $"   {dummyLine}\n");
+        var restartLine = "Restart the duel  (press any button)";
+        sb.Append(_menuRow == _starters.Count + 1 ? $"[color=#ffd11a]▶ {restartLine}[/color]\n" : $"   {restartLine}\n");
 
         sb.Append("\n[b]Your buttons[/b]\n");
         foreach (var s in Slots.All)
@@ -293,7 +311,7 @@ public partial class Arena : Node3D
             var t = _playerLoadout[s];
             sb.Append($"{Slots.Label(s),-3}  {(t == null ? "—" : t.Name),-22}  [color=#aaaaaa]{Controls.LabelOf(s)}[/color]\n");
         }
-        sb.Append("\nTab, Esc or the pad's Back button closes this screen.");
+        sb.Append("\nTab, Esc or the pad's Start button closes this screen.");
         _menu.Text = sb.ToString();
     }
 
@@ -331,7 +349,7 @@ public partial class Arena : Node3D
         if (_duel.IsOver)
         {
             var winner = _duel.Two.IsDown ? "You win" : "The dummy wins";
-            _event.Text += $"\n[font_size=28][b]{winner}![/b][/font_size]  Press Enter or Start to fight again.";
+            _event.Text += $"\n[font_size=28][b]{winner}![/b][/font_size]  Press Enter, or Start on the pad, to fight again.";
         }
     }
 
@@ -378,11 +396,11 @@ public partial class Arena : Node3D
         _status.Text =
             $"[b]You[/b] {Bar(_duel.One)}  {Doing(_duel.One)}\n" +
             $"[b]Dummy[/b] {Bar(_duel.Two)}  {Doing(_duel.Two)}\n" +
-            $"Distance {_duel.DistanceCm} cm   ·   tick {_duel.Tick}{(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
+            $"Distance {_duel.DistanceCm} cm   ·   dummy {(_dummy.Attacks ? "attacking" : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk: A/D, ←/→, D-pad or left stick  ·  Loadout: Tab / Esc / pad Back  ·  Restart: Enter / pad Start  ·  Half speed: F1\n" +
+            "Walk: A/D, ←/→, D-pad or left stick  ·  Loadout: Tab / Esc / pad Start  ·  Dummy still/attack: T / pad Select  ·  Restart: Enter  ·  Half speed: F1\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
