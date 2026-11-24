@@ -24,3 +24,9 @@ parry_perfect_stagger,30,Perfect parry: the attacker is staggered this long
 parry_perfect_drain,15,Perfect parry: the attacker loses this much stamina (the defender's parry cost is refunded)
 parry_perfect_qi,10,Perfect parry: the defender gains this much Qi
 input_buffer,6,A press made while busy is kept this many frames and used as soon as it can be (chain window or idle)
+walk_speed,200,Walking speed in cm per second (only while idle)
+min_distance,80,Fighters can't walk closer than this many cm (the capsules touch at 80)
+start_distance,110,How far apart a duel starts in cm (罗汉拳 hit 1 reaches 120)
+arena_width,1400,Width of the fight line in cm; fighters stop at the ends
+dummy_pause,40,Playtest dummy: idle frames between its 罗汉拳 strings
+dummy_chain_frame,0,Playtest dummy: chain-window frame it chains on (0 = first frame and a true combo; 6 or more leaves gaps you can parry)

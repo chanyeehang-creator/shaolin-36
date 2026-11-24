@@ -29,7 +29,7 @@ setx GODOT "C:\path\to\Godot_v4.7.2-stable_mono_win64.exe"
 
 ## Play
 
-Double-click `scripts\play.bat` (Windows) or run `scripts/play.sh`. It builds the C# code and opens the game: an arena with two capsules and a line saying how many techniques loaded.
+Double-click `scripts\play.bat` (Windows) or run `scripts/play.sh`. It builds the C# code and opens the first playable test: you against a training dummy that repeats the 罗汉拳 string, with 罗汉拳 and 化绵掌 on buttons you can swap. Step-by-step instructions, the full control table and gamepad setup are in [docs/playtest.md](docs/playtest.md).
 
 To work in the editor instead, open `game/project.godot` in Godot .NET and press F5.
 
@@ -47,11 +47,15 @@ CI runs all three on every push.
 
 ## Buttons are slots
 
-A fighter has 8 slots: □ △ ○ ✕ L1 L2 R1 R2. Each holds any technique or nothing, and the rules only ever see "slot N pressed", never "parry pressed". So 化绵掌 can sit on L1, ○ or ✕, and a later 化劲 technique such as 金钟罩 drops into the same slot the same way. A gamepad (including DirectInput pads like the Logitech Dual Action) and keyboard + mouse will each map their buttons onto these 8 slots; that binding is set up in the first playable test.
+A fighter has 8 slots: □ △ ○ ✕ L1 L2 R1 R2. Each holds any technique or nothing, and the rules only ever see "slot N pressed", never "parry pressed". So 化绵掌 can sit on L1, ○ or ✕, and a later 化劲 technique such as 金钟罩 drops into the same slot the same way. A gamepad (including DirectInput pads like the Logitech Dual Action) and keyboard + mouse both map their buttons onto these 8 slots, at the same time (`game/scripts/Controls.cs`). In the game, the loadout screen (Tab, Esc or the pad's Back button) puts any technique on any button.
 
 ## Hits and reach
 
 Two fighters stand on a line, positions in whole centimetres. A hit connects when the other fighter is within the technique's `reach` (distance ≤ reach) on any of its active frames; each move hits at most once. The hit deals its `damage` and freezes the defender for `hitstun` frames counted from the hit frame. Hits on the same tick trade. A technique with reach 0, like 化绵掌, never hits. Clash and parry join the fight in a later step.
+
+## Walking and the training dummy
+
+Each tick, an idle fighter can walk left or right at `walk_speed` cm per second, in whole centimetres with the fraction carried, so the same inputs always give the same positions. Fighters stop `min_distance` apart and at the ends of the `arena_width` line. The playtest dummy (`TrainingDummy`) waits `dummy_pause` frames, then throws its string, chaining on chain-window frame `dummy_chain_frame`. All of these are in `rules.csv`.
 
 ## Editing data
 

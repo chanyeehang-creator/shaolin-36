@@ -5,9 +5,9 @@ using Shaolin36.Core.Data;
 namespace Shaolin36.Game;
 
 /// <summary>
-/// Stage 0 boot scene: loads the technique sheet through the core library and
-/// shows an arena with two capsule fighters. Run with "-- --smoke" to load,
-/// report and quit (used by CI and the headless boot check).
+/// Boot scene: loads the data sheets through the core library and opens the
+/// playtest <see cref="Arena"/>. Run with "-- --smoke" to load the data, run a short
+/// fight with no screen, report and quit (used by CI and the headless boot check).
 /// </summary>
 public partial class Main : Node3D
 {
@@ -30,49 +30,38 @@ public partial class Main : Node3D
             : $"Data check failed: {problems} problem(s), see the Output panel";
         GD.Print(summary);
 
-        if (smoke)
+        if (!ok)
         {
-            GD.Print(ok ? "SMOKE OK" : "SMOKE FAIL");
-            GetTree().Quit(ok ? 0 : 1);
+            if (smoke)
+            {
+                GD.Print("SMOKE FAIL");
+                GetTree().Quit(1);
+                return;
+            }
+            ShowError(summary);
             return;
         }
 
-        BuildArena(summary);
+        var arena = new Arena(rules.Rules!, result.Techniques);
+        if (smoke)
+        {
+            // Run a short fight with no screen: the dummy against a copy of itself.
+            int hits = arena.Simulate(Sim.TicksPerSecond * 20);
+            GD.Print($"Playtest arena: {hits} hits in 20 simulated seconds");
+            bool fought = hits > 0;
+            arena.Free();
+            GD.Print(fought ? "SMOKE OK" : "SMOKE FAIL");
+            GetTree().Quit(fought ? 0 : 1);
+            return;
+        }
+
+        AddChild(arena);
     }
 
-    private void BuildArena(string summary)
+    private void ShowError(string summary)
     {
-        AddChild(new DirectionalLight3D
-        {
-            RotationDegrees = new Vector3(-50, -30, 0),
-            ShadowEnabled = true,
-        });
-
-        AddChild(new Camera3D
-        {
-            Position = new Vector3(0, 3.2f, 7f),
-            RotationDegrees = new Vector3(-18, 0, 0),
-        });
-
-        AddChild(new MeshInstance3D
-        {
-            Mesh = new PlaneMesh { Size = new Vector2(16, 16) },
-            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.45f, 0.38f, 0.30f) },
-        });
-
-        AddChild(Capsule("Player", new Vector3(-1.5f, 1f, 0), new Color(0.95f, 0.65f, 0.15f)));
-        AddChild(Capsule("Opponent", new Vector3(1.5f, 1f, 0), new Color(0.55f, 0.15f, 0.15f)));
-
         var hud = new CanvasLayer();
         hud.AddChild(new Label { Text = summary, Position = new Vector2(16, 16) });
         AddChild(hud);
     }
-
-    private static MeshInstance3D Capsule(string name, Vector3 position, Color color) => new()
-    {
-        Name = name,
-        Position = position,
-        Mesh = new CapsuleMesh { Radius = 0.4f, Height = 2f },
-        MaterialOverride = new StandardMaterial3D { AlbedoColor = color },
-    };
 }
