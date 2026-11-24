@@ -111,6 +111,7 @@ public partial class Arena : Node3D
 
     private void NewDuel()
     {
+        _lean[0] = _lean[1] = 0;
         _duel = Duel.Start(_rules, _playerLoadout, _dummyLoadout);
         _clock = new FeelClock(_duel, _feel) { HitStopOn = _feelOn };
         _combo = 0;
@@ -292,8 +293,8 @@ public partial class Arena : Node3D
             _feelOn = !_feelOn;
             _clock.HitStopOn = _feelOn;
             _event.Text = _feelOn
-                ? "Feel kit [b]on[/b]: hit-stop, sparks, sound and camera shake. F3 turns it off to compare."
-                : "Feel kit [b]off[/b]: no hit-stop, sparks, sound or camera moves. F3 turns it back on.";
+                ? "Feel kit [b]on[/b]: hit-stop, sparks, sound, camera shake and hit reactions. F3 turns it off to compare."
+                : "Feel kit [b]off[/b]: no hit-stop, sparks, sound, camera moves or hit reactions. Knockback still happens (it's a rule). F3 turns it back on.";
             return;
         }
         if (command == Command.FloatingText)
@@ -652,8 +653,8 @@ public partial class Arena : Node3D
 
     private void Draw()
     {
-        Place(_player, _playerReach, _duel.One, PlayerColor, +1);
-        Place(_opponent, _opponentReach, _duel.Two, DummyColor, -1);
+        Place(_player, _playerReach, Side.One, PlayerColor, +1);
+        Place(_opponent, _opponentReach, Side.Two, DummyColor, -1);
 
         _status.Text =
             $"[b]You[/b]    HP {Bar(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
@@ -667,10 +668,15 @@ public partial class Arena : Node3D
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
 
-    private void Place(MeshInstance3D body, MeshInstance3D reach, Fighter f, Color idle, int facing)
+    private void Place(MeshInstance3D body, MeshInstance3D reach, Side side, Color idle, int facing)
     {
+        var f = _duel[side];
         float x = f.PositionCm / 100f;
-        body.Position = new Vector3(x, 1f, 0);
+        // Hit reaction: lean back from the feet, away from the other fighter (see ArenaFeel.cs).
+        float lean = Mathf.DegToRad(LeanDegrees(side));
+        float away = -facing;
+        body.Rotation = new Vector3(0, 0, -away * lean);
+        body.Position = new Vector3(x + away * Mathf.Sin(lean), Mathf.Cos(lean), 0);
         ((StandardMaterial3D)body.MaterialOverride).AlbedoColor = ColorOf(f, idle);
 
         var t = f.Technique;

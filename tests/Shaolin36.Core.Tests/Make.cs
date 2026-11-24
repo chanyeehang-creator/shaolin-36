@@ -44,7 +44,8 @@ internal static class Make
         {
             var key = Rules.Keys[i];
             // A percentage capped at 100 gets a valid value of its own.
-            var value = key == "exhausted_walk_pct" ? "99" : (101 + i).ToString();
+            // A push in centimetres would move fighters out of reach in tests that don't expect it: 0.
+            var value = key == "exhausted_walk_pct" ? "99" : key == "clash_recoil_push" ? "0" : (101 + i).ToString();
             foreach (var (k, v) in overrides) if (k == key) value = v;
             sb.Append(key).Append(',').Append(value).Append(",test\n");
         }

@@ -39,6 +39,44 @@ public partial class Arena
     }
 
     private readonly List<Spark> _sparks = new();
+
+    // ---- hit reactions: how far each capsule leans back (degrees), decaying back to upright.
+    private readonly float[] _lean = new float[2];
+    private const float LeanRecoverPerSecond = 7f; // exponential: about half gone in 0.1 s
+    private const float KoLean = 80f;              // the loser tips over and stays down
+
+    /// <summary>Lean kicks for each kind of strike: (defender, attacker) in degrees.</summary>
+    private static (float defender, float attacker) LeanKick(FeelEvent e) => e switch
+    {
+        FeelEvent.Hit => (10f, 0f),
+        FeelEvent.HeavyHit => (18f, 0f),
+        FeelEvent.EmpoweredHit => (26f, 0f),
+        FeelEvent.ArmorHit => (3f, 0f),
+        FeelEvent.Block => (5f, 0f),
+        FeelEvent.PerfectParry => (0f, 14f),
+        FeelEvent.ClashRecoil => (10f, 10f),
+        FeelEvent.ClashBreak => (18f, 0f),
+        FeelEvent.ClashLost => (0f, 14f),
+        FeelEvent.PerfectClash => (20f, 4f),
+        FeelEvent.Ko => (35f, 0f),
+        _ => (0f, 0f),
+    };
+
+    private void Kick(Side side, float degrees)
+    {
+        if (degrees > _lean[(int)side]) _lean[(int)side] = degrees;
+    }
+
+    /// <summary>How far the fighter on <paramref name="side"/> leans back now, with a wobble while staggered.</summary>
+    private float LeanDegrees(Side side)
+    {
+        var f = _duel[side];
+        if (f.IsDown) return KoLean;
+        float wobble = f.State == Shaolin36.Core.Fighters.FighterState.Stagger && _feelOn
+            ? 4f * Mathf.Sin(Time.GetTicksMsec() / 1000f * 14f)
+            : 0f;
+        return _lean[(int)side] + wobble;
+    }
     private readonly Dictionary<FeelSound, AudioStreamWav> _sounds = new();
     private readonly List<AudioStreamPlayer> _voices = new();
     private int _nextVoice;
@@ -65,6 +103,10 @@ public partial class Arena
         float freezeSeconds = row.HitStopFrames / 60f;
 
         if (row.SparkCm > 0) SpawnSpark(at, row.SparkCm / 100f, SparkColor(cue.Event));
+
+        var (defenderLean, attackerLean) = LeanKick(cue.Event);
+        Kick(cue.Hit.Defender, defenderLean);
+        Kick(cue.Hit.Attacker, attackerLean);
 
         if (row.ShakeCm > 0 && row.ShakeCm >= _shakeCm * Remaining(_shakeAge, _shakeLength))
         {
@@ -170,6 +212,14 @@ public partial class Arena
         offset += _pushDir * (_pushCm / 100f * push);
 
         _camera.Position = CameraHome + offset;
+
+        // Leans hold while the fight is frozen in hit-stop, then spring back upright.
+        if (!_clock.IsFrozen)
+        {
+            float keep = Mathf.Exp(-LeanRecoverPerSecond * delta);
+            _lean[0] *= keep;
+            _lean[1] *= keep;
+        }
 
         for (int i = _sparks.Count - 1; i >= 0; i--)
         {
