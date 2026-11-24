@@ -1,6 +1,7 @@
 using Godot;
 using Shaolin36.Core;
 using Shaolin36.Core.Data;
+using Shaolin36.Core.Feel;
 
 namespace Shaolin36.Game;
 
@@ -13,6 +14,7 @@ public partial class Main : Node3D
 {
     private const string TechniquesPath = "res://data/techniques.csv";
     private const string RulesPath = "res://data/rules.csv";
+    private const string FeelPath = "res://data/feel.csv";
 
     public override void _Ready()
     {
@@ -22,11 +24,13 @@ public partial class Main : Node3D
         foreach (var error in result.Errors) GD.PushError($"{TechniquesPath}: {error}");
         var rules = RulesCsv.Parse(FileAccess.GetFileAsString(RulesPath) ?? string.Empty);
         foreach (var error in rules.Errors) GD.PushError($"{RulesPath}: {error}");
+        var feel = FeelCsv.Parse(FileAccess.GetFileAsString(FeelPath) ?? string.Empty);
+        foreach (var error in feel.Errors) GD.PushError($"{FeelPath}: {error}");
 
-        bool ok = result.Ok && rules.Ok;
-        int problems = result.Errors.Count + rules.Errors.Count;
+        bool ok = result.Ok && rules.Ok && feel.Ok;
+        int problems = result.Errors.Count + rules.Errors.Count + feel.Errors.Count;
         var summary = ok
-            ? $"Shaolin 36 · {result.Techniques.Count} techniques and {Rules.Keys.Length} rules loaded · sim {Sim.TicksPerSecond} Hz"
+            ? $"Shaolin 36 · {result.Techniques.Count} techniques, {Rules.Keys.Length} rules and {FeelSheet.EventNames.Count} feel events loaded · sim {Sim.TicksPerSecond} Hz"
             : $"Data check failed: {problems} problem(s), see the Output panel";
         GD.Print(summary);
 
@@ -42,12 +46,12 @@ public partial class Main : Node3D
             return;
         }
 
-        var arena = new Arena(rules.Rules!, result.Techniques);
+        var arena = new Arena(rules.Rules!, result.Techniques, feel.Sheet!);
         if (smoke)
         {
             // Run a short fight with no screen: the dummy against a copy of itself.
-            int hits = arena.Simulate(Sim.TicksPerSecond * 20);
-            GD.Print($"Playtest arena: {hits} hits in 20 simulated seconds");
+            int hits = arena.Simulate(Sim.TicksPerSecond * 20, out int frozen);
+            GD.Print($"Playtest arena: {hits} hits in 20 simulated seconds, {frozen} hit-stop ticks");
             bool fought = hits > 0;
             arena.Free();
             GD.Print(fought ? "SMOKE OK" : "SMOKE FAIL");
