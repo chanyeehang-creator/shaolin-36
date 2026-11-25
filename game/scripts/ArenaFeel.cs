@@ -52,6 +52,7 @@ public partial class Arena
     private readonly float[] _lean = new float[2];
     private const float LeanRecoverPerSecond = 7f; // exponential: about half gone in 0.1 s
     private const float KoLean = 80f;              // the loser tips over and stays down
+    private const float DownLean = 90f;            // knocked down: flat on the floor
 
     /// <summary>Lean kicks for each kind of strike: (defender, attacker) in degrees.</summary>
     private static (float defender, float attacker) LeanKick(FeelEvent e) => e switch
@@ -67,6 +68,8 @@ public partial class Arena
         FeelEvent.ClashLost => (0f, 14f),
         FeelEvent.PerfectClash => (20f, 4f),
         FeelEvent.Ko => (35f, 0f),
+        FeelEvent.Grab => (6f, 0f),
+        FeelEvent.Throw => (30f, 0f),
         _ => (0f, 0f),
     };
 
@@ -80,6 +83,15 @@ public partial class Arena
     {
         var f = _duel[side];
         if (f.IsDown) return KoLean;
+        // Placeholder knockdown animations: flat on the floor, then the quick rise tips back up to standing.
+        switch (f.State)
+        {
+            case Shaolin36.Core.Fighters.FighterState.KnockedDown:
+            case Shaolin36.Core.Fighters.FighterState.Rolling:
+                return DownLean;
+            case Shaolin36.Core.Fighters.FighterState.Rising:
+                return DownLean * (1f - (f.GetUpFrame + 1) / (float)f.GetUpTotalFrames);
+        }
         float wobble = f.State == Shaolin36.Core.Fighters.FighterState.Stagger && _feelOn
             ? 4f * Mathf.Sin(Time.GetTicksMsec() / 1000f * 14f)
             : 0f;
@@ -101,6 +113,7 @@ public partial class Arena
         FeelEvent.ClashRecoil or FeelEvent.ClashBreak or FeelEvent.ClashLost => new Color(1.00f, 0.95f, 0.60f),
         FeelEvent.PerfectClash => new Color(1.00f, 1.00f, 0.90f),
         FeelEvent.Ko => new Color(1.00f, 0.30f, 0.20f),
+        FeelEvent.Throw => new Color(0.95f, 0.55f, 0.25f),
         _ => new Color(1, 1, 1),
     };
 

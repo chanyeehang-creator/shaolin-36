@@ -49,6 +49,10 @@ namespace Shaolin36.Core.Brains
         Escaping,
         /// <summary>Out of reach and hurt: channelling a 气功 heal.</summary>
         Healing,
+        /// <summary>Close in: going for a 擒拿 grab.</summary>
+        Grabbing,
+        /// <summary>Knocked down: getting up (a quick rise or a roll away).</summary>
+        GettingUp,
     }
 
     /// <summary>
@@ -60,7 +64,7 @@ namespace Shaolin36.Core.Brains
     /// reacting. Each tick it:
     /// <list type="number">
     /// <item>carries on its own string when a chain window opens (<see cref="BrainStyle.Chain"/>);</item>
-    /// <item>answers a strike it sees coming: a 化劲 parry timed for the strike's hit frame (<see cref="BrainStyle.Parry"/>,
+    /// <item>answers a strike it sees coming (never with a parry against a 擒拿 grab, which a parry can't stop): a 化劲 parry timed for the strike's hit frame (<see cref="BrainStyle.Parry"/>,
     /// aiming at the perfect part with <see cref="BrainStyle.Perfect"/>), or else a step aside (<see cref="BrainStyle.Step"/>): with a 轻功 dash
     /// on a slot it dashes to the side timed so the strike's hit frame falls in its invincible frames, otherwise it quick-steps;</item>
     /// <item>caught in a combo, once it has been in hitstun for its reaction time, dashes back out of it with its 轻功 dash
@@ -71,7 +75,7 @@ namespace Shaolin36.Core.Brains
     /// <item>punishes when it sees the other fighter recovering, staggered, recoiling or winding up / channelling a 气功 heal in reach (<see cref="BrainStyle.Punish"/>);</item>
     /// <item>otherwise walks in until its attacks reach (with <see cref="BrainStyle.Step"/> chance per choice it dashes in from far
     /// off, or quick-steps in), then every <see cref="BrainStyle.ThinkEvery"/> frames
-    /// attacks (<see cref="BrainStyle.Aggression"/>), parries on a guess (<see cref="BrainStyle.Guess"/>),
+    /// grabs with a 擒拿 grab in reach (<see cref="BrainStyle.Grab"/>), attacks (<see cref="BrainStyle.Aggression"/>), parries on a guess (<see cref="BrainStyle.Guess"/>),
     /// circles (<see cref="BrainStyle.Circle"/>) or waits.</item>
     /// </list>
     /// It does nothing for the first opponent_ready ticks of a duel (rules.csv), so a new duel never opens with a hit.
@@ -168,6 +172,14 @@ namespace Shaolin36.Core.Brains
             _hitstunTicks = 0;
             _escapeDecided = false;
 
+            // 0b. Knocked down: as soon as it can, roll back away (step chance) or rise.
+            if (me.State == FighterState.KnockedDown)
+            {
+                Intent = BrainIntent.GettingUp;
+                if (!me.CanGetUp) return BrainInput.None;
+                return _dice.Chance(Style.Step) ? Walk(MoveInput.WalkBack) : new BrainInput(SlotInput.Press(Slot.Square), MoveInput.None);
+            }
+
             // 1. In its own string: carry on when the chain window opens.
             if (next.IsInMove())
             {
@@ -237,7 +249,8 @@ namespace Shaolin36.Core.Brains
                 {
                     _decidedAttack = seen.StartTick;
                     var parrySlot = ParrySlot(me);
-                    if (parrySlot != null && me.CanUse(me.Loadout[parrySlot.Value]!) && _dice.Chance(Style.Parry))
+                    // A parry can't stop a 擒拿 grab: get out of the way instead.
+                    if (!t.IsGrab && parrySlot != null && me.CanUse(me.Loadout[parrySlot.Value]!) && _dice.Chance(Style.Parry))
                     {
                         var parry = me.Loadout[parrySlot.Value]!;
                         int aim = AimFrame(parry);
@@ -300,9 +313,11 @@ namespace Shaolin36.Core.Brains
 
             // 5. The other fighter is open (recovering, staggered or recoiling): punish.
             // A 气功 heal in its wind-up or channel is open too: hit it before the heal lands.
+            // Nothing it has can hit a fighter on the floor or getting up (invincible): wait for them to stand.
+            bool foeDown = foe.State.IsGroundState();
             bool healing = seen.Technique != null && seen.Technique.IsHeal && seen.State != FighterState.Recovery;
             bool open = healing || seen.State == FighterState.Recovery || seen.State.IsStunned() && seen.State != FighterState.Hitstun;
-            if (open && seen.StartTick != _decidedOpening)
+            if (open && !foeDown && seen.StartTick != _decidedOpening)
             {
                 var punisher = PickAttack(me, foe, distance);
                 if (punisher != null)
@@ -337,10 +352,19 @@ namespace Shaolin36.Core.Brains
             }
             if (Intent == BrainIntent.Closing || Intent == BrainIntent.Still) _choiceTicksLeft = 0;
 
+            if (foeDown)
+            {
+                Intent = BrainIntent.Waiting;
+                _circle = 0;
+                return BrainInput.None;
+            }
+
             if (--_choiceTicksLeft <= 0)
             {
                 _choiceTicksLeft = Style.ThinkEvery;
                 _circle = 0;
+                var grab = GrabSlot(me, foe, distance);
+                if (grab != null && _dice.Chance(Style.Grab)) return Press(grab.Value, BrainIntent.Grabbing);
                 var attack = PickAttack(me, foe, distance);
                 if (attack != null && _dice.Chance(Style.Aggression)) return Press(attack.Value, BrainIntent.Attacking);
                 var guessSlot = ParrySlot(me);
@@ -382,6 +406,18 @@ namespace Shaolin36.Core.Brains
             {
                 var t = me.Loadout[s];
                 if (t != null && t.CanEscape) return s;
+            }
+            return null;
+        }
+
+        /// <summary>The first slot holding a 擒拿 grab that reaches from <paramref name="distance"/>, can be paid for and can catch <paramref name="foe"/> now; or null.</summary>
+        private static Slot? GrabSlot(Fighter me, Fighter foe, int distance)
+        {
+            if (!Duel.CanBeGrabbed(foe)) return null;
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (t != null && t.IsGrab && t.FullReachCm >= distance && me.CanUse(t)) return s;
             }
             return null;
         }
@@ -501,7 +537,7 @@ namespace Shaolin36.Core.Brains
             foreach (var s in Slots.All)
             {
                 var t = me.Loadout[s];
-                if (!IsAttack(t) || !me.CanUse(t!) || t!.FullReachCm < distance) continue;
+                if (!IsAttack(t) || t!.IsGrab || !me.CanUse(t) || t.FullReachCm < distance) continue;
                 if (t.SealFrames > 0 && foe.IsSealed) continue;
                 if (empowered == null && t.CanEmpower && me.Qi - t.QiCost >= t.EmpowerQi) empowered = s;
                 if (t.Weight == Weight.Heavy) heavy[heavyCount++] = s;

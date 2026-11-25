@@ -41,3 +41,8 @@ quick_step_tap_window,14,Quick step: the second tap must come within this many f
 opponent_ready,30,Frames the opponent brain waits at the start of a duel before it does anything (30 = 0.5 s)
 quick_step_side_distance,90,Quick step: how far a left or right step goes in cm (Chan's playtest: a bit farther than forward/back, was 70)
 just_dodge_qi,5,Qi for a just dodge: a strike passing through your 轻功 dash's invincible frames. Not from a dash out of hitstun (a combo escape)
+down_min,20,Knocked down (the 擒拿手 throw): frames on the floor before you can get up (0.33 s). Nothing can hit you while you're down
+down_max,90,Knocked down: after this many frames you rise by yourself (1.5 s). Exhausted you stay down until stamina is back to exhausted_until
+rise_frames,20,Quick rise (any button once you can get up): frames to stand (0.33 s); invincible
+roll_frames,24,Roll away (hold a direction once you can get up): frames the roll takes (0.4 s); invincible
+roll_distance,150,Roll away: how far it goes in cm (the way the stick is held: back rolls away from your opponent)

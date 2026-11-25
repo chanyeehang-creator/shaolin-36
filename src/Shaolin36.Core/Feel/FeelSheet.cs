@@ -32,6 +32,10 @@ namespace Shaolin36.Core.Feel
         Ko,
         /// <summary>A strike passes through a 轻功 dash's invincible frames (a just dodge).</summary>
         JustDodge,
+        /// <summary>A 擒拿 grab catches (the hold starts).</summary>
+        Grab,
+        /// <summary>A 擒拿 grab's throw lands.</summary>
+        Throw,
     }
 
     /// <summary>The sounds the game can make for a strike (synthesised in game until there are real sound files).</summary>
@@ -110,6 +114,8 @@ namespace Shaolin36.Core.Feel
             ["perfect_clash"] = FeelEvent.PerfectClash,
             ["ko"] = FeelEvent.Ko,
             ["just_dodge"] = FeelEvent.JustDodge,
+            ["grab"] = FeelEvent.Grab,
+            ["throw"] = FeelEvent.Throw,
         };
 
         public static readonly string[] Columns = { "event", "hitstop", "shake", "push", "spark", "sound" };

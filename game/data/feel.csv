@@ -20,3 +20,5 @@ clash_lost,6,4,10,50,clang,0,Lighter move is knocked aside in a clash
 perfect_clash,14,8,35,110,clang,0,Perfect clash: the showpiece film beat
 ko,20,10,40,90,gong,0,The finishing hit (HP reaches 0)
 just_dodge,0,0,0,0,whoosh,30,A strike passes through your 轻功 dash's invincible frames: 0.5 s of half speed and a light whoosh (+just_dodge_qi Qi)
+grab,4,2,0,0,smack,0,A 擒拿 grab catches: a short grip beat while the hold starts
+throw,10,7,20,50,thud,0,The 擒拿 throw lands (the hold ran out)
