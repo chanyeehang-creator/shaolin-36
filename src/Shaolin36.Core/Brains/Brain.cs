@@ -298,7 +298,7 @@ namespace Shaolin36.Core.Brains
             bool open = healing || seen.State == FighterState.Recovery || seen.State.IsStunned() && seen.State != FighterState.Hitstun;
             if (open && seen.StartTick != _decidedOpening)
             {
-                var punisher = PickAttack(me, distance);
+                var punisher = PickAttack(me, foe, distance);
                 if (punisher != null)
                 {
                     _decidedOpening = seen.StartTick;
@@ -335,7 +335,7 @@ namespace Shaolin36.Core.Brains
             {
                 _choiceTicksLeft = Style.ThinkEvery;
                 _circle = 0;
-                var attack = PickAttack(me, distance);
+                var attack = PickAttack(me, foe, distance);
                 if (attack != null && _dice.Chance(Style.Aggression)) return Press(attack.Value, BrainIntent.Attacking);
                 var guessSlot = ParrySlot(me);
                 int foeReach = EngageDistance(foe);
@@ -483,9 +483,10 @@ namespace Shaolin36.Core.Brains
 
         /// <summary>
         /// An attack that reaches from <paramref name="distance"/> and it can pay for: a Qi-empowered one first,
-        /// otherwise a heavy one with <see cref="BrainStyle.Heavy"/> chance, otherwise a lighter one.
+        /// otherwise a heavy one with <see cref="BrainStyle.Heavy"/> chance, otherwise a lighter one. It doesn't throw a 点穴 seal
+        /// at a fighter who is already sealed (the seal shows by their HP bar, so a person wouldn't either).
         /// </summary>
-        private Slot? PickAttack(Fighter me, int distance)
+        private Slot? PickAttack(Fighter me, Fighter foe, int distance)
         {
             Slot? empowered = null;
             int heavyCount = 0, lightCount = 0;
@@ -495,6 +496,7 @@ namespace Shaolin36.Core.Brains
             {
                 var t = me.Loadout[s];
                 if (!IsAttack(t) || !me.CanUse(t!) || t!.ReachCm + t.AdvanceCm < distance) continue;
+                if (t.SealFrames > 0 && foe.IsSealed) continue;
                 if (empowered == null && t.CanEmpower && me.Qi - t.QiCost >= t.EmpowerQi) empowered = s;
                 if (t.Weight == Weight.Heavy) heavy[heavyCount++] = s;
                 else light[lightCount++] = s;

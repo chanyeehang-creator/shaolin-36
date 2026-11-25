@@ -16,7 +16,7 @@
 # heavy       = when it attacks, the chance it picks a heavy technique (such as 铁砂掌) over a lighter one. With enough Qi it always uses the empowered one.
 # heal        = rolled every think_every frames while it is hurt by at least a heal's worth and 80 cm beyond your longest reach (you not mid-move):
 #               the chance it channels its 气功 heal (仙辽术, 10 Qi for 10 HP). Hit it in the 1.5 s before the heal lands to cancel it.
-# It uses 点穴 like its other light attacks (when off cooldown), and while you have it sealed it can't use 外功 either.
+# It uses 点穴 封穴 like its other light attacks (but not on you while you're already sealed), and while you have it sealed it can't use 外功 either.
 id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,heal,note
 novice,弟子 (novice),24,30,35,30,60,15,20,10,40,20,15,5,20,Slow to react and rarely parries: for learning the duel
 monk,武僧 (monk),18,20,50,60,80,40,35,20,50,25,25,15,40,The baseline opponent: reacts like a person and parries about 2 strikes in 5

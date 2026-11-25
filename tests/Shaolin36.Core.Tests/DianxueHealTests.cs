@@ -7,7 +7,7 @@ using Xunit;
 namespace Shaolin36.Core.Tests;
 
 /// <summary>
-/// 点穴 封脉指 (a slow, costly finger strike that seals the target's 外功 for a while, with a cooldown) and
+/// 点穴 封穴 (a slow, costly finger strike with a long recovery that seals the target's 外功 for a while) and
 /// 仙辽术 (spend 10 Qi, channel, heal 10 HP; a hit before the heal lands cancels it). Played on the real sheets.
 /// </summary>
 public class DianxueHealTests
@@ -18,7 +18,7 @@ public class DianxueHealTests
         new(TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques);
 
     private static Technique T(string id) => Book.Find(id)!;
-    private static Technique Finger => T("dianxue_zhi");
+    private static Technique Finger => T("fengxue");
     private static Technique Heal => T("xianliao_shu");
     private static Technique Jab => T("luohan_quan_1");
 
@@ -41,12 +41,12 @@ public class DianxueHealTests
     // ---------- The sheet ----------
 
     [Fact]
-    public void Dianxue_is_slower_dearer_and_on_a_cooldown_compared_with_a_luohan_quan_hit()
+    public void Fengxue_is_slower_dearer_and_slower_to_recover_than_a_luohan_quan_hit()
     {
         Assert.Equal(Category.Dianxue, Finger.Category);
         Assert.True(Finger.StartupFrames > Jab.StartupFrames, "longer wind-up");
         Assert.True(Finger.StaminaCost > Jab.StaminaCost, "more stamina");
-        Assert.True(Finger.CooldownFrames > Finger.TotalFrames, "a cooldown longer than the move, so it can't be spammed");
+        Assert.Equal(Sim.TicksPerSecond, Finger.RecoveryFrames); // Chan: about 1 s to recover, no skill cooldown
         Assert.True(Finger.SealFrames > 0);
         Assert.True(Finger.Damage > 0 && Finger.Damage < Jab.Damage + 1, "small damage");
         Assert.False(Finger.Clashable);
@@ -62,16 +62,16 @@ public class DianxueHealTests
         Assert.True(Heal.StartupFrames >= 20 && Heal.ActiveFrames >= 30 && Heal.RecoveryFrames > 0, "a wind-up, a channel and a finish");
     }
 
-    private const string Header = "id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,cooldown,seal,heal\n";
+    private const string Header = "id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,seal,heal\n";
 
     [Theory]
-    [InlineData("x,x,waigong,light,false,10,3,10,0,0,5,0,4,false,10,100,,0,0,0,60,0", "only 点穴")]
-    [InlineData("x,x,dianxue,light,false,10,3,10,0,0,5,0,4,false,10,0,,0,0,0,60,0", "never hits")]
-    [InlineData("x,x,waigong,light,false,10,3,10,0,0,5,0,0,false,0,0,,0,0,0,0,10", "only 气功")]
-    [InlineData("x,x,qigong,light,false,10,3,10,0,0,5,0,0,false,0,100,,0,0,0,0,10", "can't also be a strike")]
-    [InlineData("x,x,qigong,light,false,10,3,0,0,0,5,0,0,false,0,0,,0,0,0,0,10", "needs 'recovery'")]
-    [InlineData("x,x,waigong,light,false,10,3,10,0,0,5,0,4,false,10,100,,0,0,99999,0,0", "'cooldown'")]
-    public void Bad_seal_heal_and_cooldown_cells_are_reported(string row, string expected)
+    [InlineData("x,x,waigong,light,false,10,3,10,0,0,5,0,4,false,10,100,,0,0,60,0", "only 点穴")]
+    [InlineData("x,x,dianxue,light,false,10,3,10,0,0,5,0,4,false,10,0,,0,0,60,0", "never hits")]
+    [InlineData("x,x,waigong,light,false,10,3,10,0,0,5,0,0,false,0,0,,0,0,0,10", "only 气功")]
+    [InlineData("x,x,qigong,light,false,10,3,10,0,0,5,0,0,false,0,100,,0,0,0,10", "can't also be a strike")]
+    [InlineData("x,x,qigong,light,false,10,3,0,0,0,5,0,0,false,0,0,,0,0,0,10", "needs 'recovery'")]
+    [InlineData("x,x,waigong,light,false,10,3,10,0,0,5,0,4,false,10,100,,0,0,99999,0", "'seal'")]
+    public void Bad_seal_and_heal_cells_are_reported(string row, string expected)
     {
         var r = TechniqueCsv.Parse(Header + row + "\n");
         Assert.False(r.Ok);
@@ -79,48 +79,44 @@ public class DianxueHealTests
     }
 
     [Fact]
-    public void Seal_heal_and_cooldown_columns_may_be_left_out()
+    public void Seal_and_heal_columns_may_be_left_out()
     {
-        var r = TechniqueCsv.Parse(Header.Replace(",cooldown,seal,heal", "") + "x,x,waigong,light,false,10,3,10,0,0,5,0,4,false,10,100,,0,0\n");
+        var r = TechniqueCsv.Parse(Header.Replace(",seal,heal", "") + "x,x,waigong,light,false,10,3,10,0,0,5,0,4,false,10,100,,0,0\n");
         Assert.True(r.Ok, string.Join("\n", r.Errors));
         var t = r.Techniques.Single();
-        Assert.Equal(0, t.CooldownFrames);
         Assert.Equal(0, t.SealFrames);
         Assert.Equal(0, t.Heal);
     }
 
-    // ---------- Cooldown ----------
+    // ---------- Recovery, no cooldown ----------
 
     [Fact]
-    public void Dianxue_can_be_used_again_only_once_its_cooldown_is_over()
+    public void Fengxue_can_be_used_again_as_soon_as_its_recovery_ends()
     {
         var l = new Loadout(Book);
         l.Assign(Slot.Circle, Finger);
         var f = new Fighter(l, 120);
         f.Tick(SlotInput.Press(Slot.Circle));
+        for (int i = 1; i < Finger.TotalFrames; i++) f.Tick(None);
+        f.Tick(SlotInput.Press(Slot.Circle));
         Assert.Same(Finger, f.Technique);
-        int startedAgain = -1;
-        for (int tick = 1; tick <= Finger.CooldownFrames + 5 && startedAgain < 0; tick++)
-        {
-            f.Tick(SlotInput.Press(Slot.Circle));
-            if (f.State.IsInMove() && f.MoveFrame == 0) startedAgain = tick;
-            else if (f.CanAct) Assert.True(f.CooldownLeft(Finger) > 0);
-        }
-        Assert.Equal(Finger.CooldownFrames, startedAgain);
+        Assert.Equal(0, f.MoveFrame);
     }
 
     [Fact]
-    public void A_cooldown_is_shared_by_every_slot_holding_the_technique()
+    public void A_hit_during_fengxue_recovery_interrupts_it()
     {
-        var l = new Loadout(Book);
-        l.Assign(Slot.Circle, Finger);
-        l.Assign(Slot.R2, Finger);
-        var f = new Fighter(l, 120);
-        f.Tick(SlotInput.Press(Slot.Circle));
-        for (int i = 0; i < Finger.TotalFrames; i++) f.Tick(None);
-        Assert.True(f.CanAct);
-        f.Tick(SlotInput.Press(Slot.R2));
-        Assert.False(f.State.IsInMove());
+        // One's 封穴 whiffs from 300 cm away; Two walks in and jabs One during the 1 s recovery.
+        var d = DuelAt(300);
+        int recoveryStart = Finger.StartupFrames + Finger.ActiveFrames;
+        for (int t = 0; t < recoveryStart + 5; t++) d.Step(t == 0 ? SlotInput.Press(Slot.Circle) : None, None);
+        Assert.Equal(FighterState.Recovery, d.One.State);
+        // Two walks in and throws 罗汉拳 hit 1 while One is still recovering.
+        int walked = 0;
+        while (d.DistanceCm > 110 && walked++ < 60) d.Step(None, None, MoveInput.None, MoveInput.WalkForward);
+        Assert.Equal(FighterState.Recovery, d.One.State);
+        for (int t = 0; t <= Jab.StartupFrames; t++) d.Step(None, t == 0 ? SlotInput.Press(Slot.Square) : None);
+        Assert.Equal(FighterState.Hitstun, d.One.State);
     }
 
     // ---------- Seal ----------
@@ -332,6 +328,17 @@ public class DianxueHealTests
         bool used = false;
         Run(d, brain, 60, each: _ => used |= d.Two.Technique == Finger);
         Assert.True(used);
+    }
+
+    [Fact]
+    public void The_brain_does_not_throw_fengxue_at_a_fighter_already_sealed()
+    {
+        var l = new Loadout(Book);
+        l.Assign(Slot.Circle, Finger);
+        var d = new Duel(Rules, Full(), l, 0, 120);
+        d.One.Seal(600);
+        var brain = new Brain(Style(aggression: 100), 1);
+        Run(d, brain, 300, each: _ => Assert.NotSame(Finger, d.Two.Technique));
     }
 
     [Fact]

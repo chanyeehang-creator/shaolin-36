@@ -42,7 +42,7 @@ Every fight button is a **slot**. Slots don't mean anything on their own: whatev
 | --- | --- | --- | --- |
 | □ | 1 (left face button) | J or left click | 罗汉拳 |
 | △ | 4 (top) | I | 铁砂掌 |
-| ○ | 3 (right) | L | 点穴 封脉指 |
+| ○ | 3 (right) | L | 点穴 封穴 |
 | ✕ | 2 (bottom) | K or Space | |
 | L1 | 5 | Q or right click | 化绵掌 |
 | L2 | 7 | Left Shift | |
@@ -109,19 +109,18 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 - Armor doesn't beat 化绵掌: a perfect parry still staggers it. Clashes still work the normal way.
 - Under 30 Qi it's the plain palm and your Qi is kept.
 
-**点穴 封脉指 (sealing finger), on ○:** one finger strike that seals your opponent's 外功.
+**点穴 封穴 (seal), on ○:** one finger strike that seals your opponent's 外功.
 
-- Wind-up 30 frames (0.5 s, more than double 罗汉拳 hit 1's 13), hit 3 frames, recovery 24 frames: 57 frames in all. Long enough to parry or step on reaction.
+- Wind-up 30 frames (0.5 s, more than double 罗汉拳 hit 1's 13), hit 3 frames, recovery 60 frames (1 s): 93 frames in all. The wind-up is long enough to parry or step on reaction, and a miss leaves you open for a second (a hit during the recovery interrupts it like any move).
 - Costs 25 stamina (a 罗汉拳 hit costs 8), deals only 4 damage, freezes for 30 frames, reaches 115 cm (+15 cm step-in), and can't clash.
 - **On a landed hit the target can't use 外功 (罗汉拳, 铁砂掌) for 5 s.** A purple **【封】** icon and the seconds left show by their HP bar. Parry, 轻功, quick step, 点穴 and 仙辽术 still work. A blocked, parried or dodged 点穴 seals nothing.
-- **6 s cooldown** from the press: the seconds left show in grey next to the Qi bar, and pressing it early floats the time left.
 
 **仙辽术 (healing qigong), on R1:** spend 10 Qi to heal 10 HP.
 
 - Wind-up 30 frames (0.5 s), channel 60 frames (1 s, the capsule glows green), then the heal lands ("+10 HP"), then 20 frames (0.33 s) to finish. 1.8 s in all.
 - No armor: **any hit in the first 1.5 s breaks it** ("Heal broken!"), no HP back, and the 10 Qi is gone. Use it when you've made space. Costs 5 stamina.
 
-**The opponent uses both:** it throws 点穴 like its other light attacks when it's off cooldown (and can't use 外功 while you have it sealed). It heals when it's hurt, has the Qi, and is well out of your reach (the brain sheet's `heal` chance: novice 20, monk 40, master 60). It also counts your heal as an opening and runs in to punish it.
+**The opponent uses both:** it throws 封穴 like its other light attacks, but not while you're already sealed (and it can't use 外功 while you have it sealed). It heals when it's hurt, has the Qi, and is well out of your reach (the brain sheet's `heal` chance: novice 20, monk 40, master 60). It also counts your heal as an opening and runs in to punish it.
 
 **Clashes (拼招):** if your hit lands in the last frames of the dummy's wind-up, the moves clash. Same weight: both bounce off (grey). Heavier move: it breaks through. Lighter move: it gets knocked aside. Hit the very first frames of that window and it's a **PERFECT CLASH**: the dummy is staggered whatever the weights. The 罗汉拳 finisher (hit 4) is heavy, so it wins normal clashes against hits 1 to 3.
 

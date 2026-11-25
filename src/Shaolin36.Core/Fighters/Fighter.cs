@@ -66,9 +66,6 @@ namespace Shaolin36.Core.Fighters
     /// while in hitstun, which ends the hitstun on that tick (<see cref="EscapedHitstun"/>). Nothing else can. Presses of
     /// other slots during hitstun wait in the buffer as before.
     ///
-    /// Cooldown: a technique with <see cref="Data.Technique.CooldownFrames"/> can't be started again until that many
-    /// frames after it was started (<see cref="CooldownLeft"/>), whichever slot it sits on.
-    ///
     /// 点穴 seal: while <see cref="SealedFrames"/> is above 0 (set by <see cref="Seal"/> when a 点穴 hit lands), no 外功
     /// (waigong) technique can be started or chained. Other categories still work. A 外功 move already under way carries on.
     ///
@@ -115,17 +112,6 @@ namespace Shaolin36.Core.Fighters
         /// <summary>HP a 气功 heal restored on the latest tick (0 on every other tick).</summary>
         public int HealedThisTick { get; private set; }
 
-        // Cooldowns by technique id. A list, not a dictionary, so the order never depends on hashing.
-        private readonly System.Collections.Generic.List<string> _cooldownIds = new System.Collections.Generic.List<string>();
-        private readonly System.Collections.Generic.List<int> _cooldownLeft = new System.Collections.Generic.List<int>();
-
-        /// <summary>Frames before <paramref name="technique"/> can be started again. 0 when ready.</summary>
-        public int CooldownLeft(Technique technique)
-        {
-            int i = _cooldownIds.IndexOf(technique.Id);
-            return i < 0 ? 0 : _cooldownLeft[i];
-        }
-
         /// <summary>
         /// Seal this fighter's 外功 for <paramref name="frames"/> frames from this tick. A seal already running for longer
         /// is kept (seals don't stack, they refresh).
@@ -140,11 +126,11 @@ namespace Shaolin36.Core.Fighters
         public bool IsSealedFrom(Technique technique) => IsSealed && technique.Category == Category.Waigong;
 
         /// <summary>
-        /// True if <paramref name="technique"/> could start now as far as stamina, Qi, its cooldown and a 点穴 seal go
+        /// True if <paramref name="technique"/> could start now as far as stamina, Qi and a 点穴 seal go
         /// (not whether the fighter is free).
         /// </summary>
         public bool CanUse(Technique technique) =>
-            CanAfford(technique) && CooldownLeft(technique) == 0 && !IsSealedFrom(technique);
+            CanAfford(technique) && !IsSealedFrom(technique);
 
         /// <summary>The quick step's numbers, or null when this fighter can't quick-step.</summary>
         public QuickStepRules? QuickStepRules { get; }
@@ -324,8 +310,6 @@ namespace Shaolin36.Core.Fighters
             _stick = stick;
             HealedThisTick = 0;
             if (SealedFrames > 0) SealedFrames--;
-            for (int i = 0; i < _cooldownLeft.Count; i++)
-                if (_cooldownLeft[i] > 0) _cooldownLeft[i]--;
             Advance();
 
             if (TryAct(input) || TryAct(Buffered))
@@ -548,12 +532,6 @@ namespace Shaolin36.Core.Fighters
             HitLanded = false;
             StringHit = 1;
             State = PhaseAt(technique, 0);
-            if (technique.HasCooldown)
-            {
-                int i = _cooldownIds.IndexOf(technique.Id);
-                if (i < 0) { _cooldownIds.Add(technique.Id); _cooldownLeft.Add(technique.CooldownFrames); }
-                else _cooldownLeft[i] = technique.CooldownFrames;
-            }
             if (technique.IsDash)
             {
                 // No direction held: straight at the other fighter.

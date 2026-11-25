@@ -115,7 +115,7 @@ public partial class Arena : Node3D
         _playerLoadout.Assign(Slot.L1, Find("timed_parry"));
         _playerLoadout.Assign(Slot.Triangle, Find("tiesha_zhang"));
         _playerLoadout.Assign(Slot.Cross, Find("qinggong_dash"));
-        _playerLoadout.Assign(Slot.Circle, Find("dianxue_zhi"));
+        _playerLoadout.Assign(Slot.Circle, Find("fengxue"));
         _playerLoadout.Assign(Slot.R1, Find("xianliao_shu"));
 
         // The opponent gets the same starting techniques as you: 罗汉拳 on □, 铁砂掌 on △, 点穴 on ○, 轻功 dash on ✕, 化绵掌 on L1, 仙辽术 on R1.
@@ -125,7 +125,7 @@ public partial class Arena : Node3D
         _dummyLoadout.Assign(Slot.L1, Find("timed_parry"));
         _dummyLoadout.Assign(Slot.Triangle, Find("tiesha_zhang"));
         _dummyLoadout.Assign(Slot.Cross, Find("qinggong_dash"));
-        _dummyLoadout.Assign(Slot.Circle, Find("dianxue_zhi"));
+        _dummyLoadout.Assign(Slot.Circle, Find("fengxue"));
         _dummyLoadout.Assign(Slot.R1, Find("xianliao_shu"));
         _dummy = TrainingDummy.FromRules(rules, Slot.Square);
         _doubleTap = new DoubleTap(rules.QuickStepTapWindow);
@@ -591,7 +591,7 @@ public partial class Arena : Node3D
         if (_floatingText) Float(side, "Escape!", InvincibleColor);
     }
 
-    /// <summary>Say why a pressed move won't come out: sealed by 点穴, on cooldown, or short of Qi.</summary>
+    /// <summary>Say why a pressed move won't come out: sealed by 点穴, or short of Qi.</summary>
     private void PressedBlocked(SlotInput input)
     {
         var f = _duel.One;
@@ -600,7 +600,6 @@ public partial class Arena : Node3D
             var t = _playerLoadout[s];
             if (!input.IsPressed(s) || t == null) continue;
             if (f.IsSealedFrom(t)) Float(Side.One, "外功 sealed!", SealColor);
-            else if (f.CooldownLeft(t) > 0) Float(Side.One, $"{t.Name}: {Seconds(f.CooldownLeft(t))}", RecoilColor);
             else if (f.Qi < t.QiCost) Float(Side.One, $"Need {t.QiCost} Qi", QiColor);
             else continue;
             return;
@@ -879,13 +878,13 @@ public partial class Arena : Node3D
         Place(_opponent, _opponentReach, Side.Two, DummyColor);
 
         _status.Text =
-            $"[b]You[/b]    HP {Bar(_duel.One)}{SealIcon(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}{Cooldowns(_duel.One)}  {Doing(_duel.One)}\n" +
-            $"[b]Foe[/b]   HP {Bar(_duel.Two)}{SealIcon(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}{Cooldowns(_duel.Two)}  {Doing(_duel.Two)}\n" +
+            $"[b]You[/b]    HP {Bar(_duel.One)}{SealIcon(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
+            $"[b]Foe[/b]   HP {Bar(_duel.Two)}{SealIcon(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
             $"Distance {_duel.DistanceCm} cm   ·   {OpponentName}: {(_opponentActive ? Thinking() : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_clock.IsFrozen ? " [color=#ffd11a](hit-stop)[/color]" : "")}   ·   feel kit {(_feelOn ? "on" : "[color=#ffd11a]off[/color]")} (F3){(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  轻功 dash: ✕ (hold a direction to aim it; none = straight in; also breaks out of a combo)  ·  点穴: ○ (seals 外功)  ·  仙辽术: R1 (10 Qi → 10 HP)  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  轻功 dash: ✕ (hold a direction to aim it; none = straight in; also breaks out of a combo)  ·  封穴: ○ (seals 外功)  ·  仙辽术: R1 (10 Qi → 10 HP)  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
@@ -960,14 +959,6 @@ public partial class Arena : Node3D
     /// <summary>The 点穴 debuff icon by the HP bar: 【封】 and the seconds left while 外功 is sealed.</summary>
     private static string SealIcon(Fighter f) =>
         f.IsSealed ? $" [bgcolor=#3a2352][color=#c58cff][b]【封】[/b][/color][/bgcolor][color=#c58cff]{Seconds(f.SealedFrames)}[/color]" : "";
-
-    /// <summary>Moves on cooldown, with the seconds left (such as 点穴 after you use it).</summary>
-    private static string Cooldowns(Fighter f)
-    {
-        var waiting = Slots.All.Select(s => f.Loadout[s]).Where(t => t != null && f.CooldownLeft(t) > 0).Distinct()
-            .Select(t => $"{t!.Name} {Seconds(f.CooldownLeft(t))}").ToList();
-        return waiting.Count == 0 ? "" : "  [color=#8c8c99]" + string.Join("  ", waiting) + "[/color]";
-    }
 
     /// <summary>Qi in gold, spent by 铁砂掌's empowered version and by 仙辽术.</summary>
     private static string QiBar(Fighter f)

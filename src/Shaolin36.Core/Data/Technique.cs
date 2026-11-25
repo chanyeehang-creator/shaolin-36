@@ -48,11 +48,9 @@ namespace Shaolin36.Core.Data
             int dashCm = 0,
             int invincibleFrames = 0,
             bool canEscape = false,
-            int cooldownFrames = 0,
             int sealFrames = 0,
             int heal = 0)
         {
-            CooldownFrames = cooldownFrames;
             SealFrames = sealFrames;
             Heal = heal;
             CanEscape = canEscape;
@@ -156,12 +154,6 @@ namespace Shaolin36.Core.Data
         public bool CanEscape { get; }
 
         /// <summary>
-        /// Cooldown: frames from the press before this technique can be started again (0 = none). It counts the move
-        /// itself, so it only matters when it is longer than the move. Every slot holding the technique shares it.
-        /// </summary>
-        public int CooldownFrames { get; }
-
-        /// <summary>
         /// 点穴: when this hit lands, the defender can't start 外功 (waigong) techniques for this many frames, counted
         /// from the hit frame (0 = no seal). A blocked, parried or dodged hit seals nothing.
         /// </summary>
@@ -172,8 +164,6 @@ namespace Shaolin36.Core.Data
         /// Interrupted before then, it heals nothing and the Qi it cost is gone.
         /// </summary>
         public int Heal { get; }
-
-        public bool HasCooldown => CooldownFrames > 0;
 
         public bool IsHeal => Heal > 0;
 
