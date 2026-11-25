@@ -38,7 +38,7 @@ public partial class Arena : Node3D
     private const string Legend =
         "[color=#ffd11a]■ startup[/color]   [color=#f2261a]■ active (hit)[/color]   [color=#33ff59]■ perfect parry[/color]   " +
         "[color=#33bfff]■ parry[/color]   [color=#4059f2]■ recovery[/color]   [color=#ffffff]■ hit[/color]   " +
-        "[color=#d94df2]■ staggered (open!)[/color]   [color=#8c8c99]■ recoil / recovering from a parry[/color]   [color=#b3ffd9]■ quick step[/color]";
+        "[color=#d94df2]■ staggered (open!)[/color]   [color=#8c8c99]■ recoil / recovering from a parry[/color]   [color=#b3ffd9]■ quick step[/color]   [color=#7dffb0]■ healing[/color]";
 
     /// <summary>
     /// Debug floating text over the capsules ("-6", "Blocked!", "Parried!"). A playtest aid,
@@ -93,6 +93,8 @@ public partial class Arena : Node3D
     private Label _help = null!, _pad = null!;
     private ColorRect _menuBack = null!;
     private string _lastPadInput = "";
+    /// <summary>The HUD font (with Chinese), also used for the floating text.</summary>
+    private Font? _font;
 
     /// <param name="techniques">Every technique from the sheet.</param>
     /// <param name="feel">The feel sheet: hit-stop, sparks, sound and camera for each kind of strike.</param>
@@ -113,14 +115,18 @@ public partial class Arena : Node3D
         _playerLoadout.Assign(Slot.L1, Find("timed_parry"));
         _playerLoadout.Assign(Slot.Triangle, Find("tiesha_zhang"));
         _playerLoadout.Assign(Slot.Cross, Find("qinggong_dash"));
+        _playerLoadout.Assign(Slot.Circle, Find("fengxue"));
+        _playerLoadout.Assign(Slot.R1, Find("xianliao_shu"));
 
-        // The opponent gets the same starting techniques as you: 罗汉拳 on □, 铁砂掌 on △, 轻功 dash on ✕, 化绵掌 on L1.
+        // The opponent gets the same starting techniques as you: 罗汉拳 on □, 铁砂掌 on △, 点穴 on ○, 轻功 dash on ✕, 化绵掌 on L1, 仙辽术 on R1.
         // (The training dummy only ever presses □.)
         _dummyLoadout = new Loadout(_book);
         _dummyLoadout.Assign(Slot.Square, Find("luohan_quan_1"));
         _dummyLoadout.Assign(Slot.L1, Find("timed_parry"));
         _dummyLoadout.Assign(Slot.Triangle, Find("tiesha_zhang"));
         _dummyLoadout.Assign(Slot.Cross, Find("qinggong_dash"));
+        _dummyLoadout.Assign(Slot.Circle, Find("fengxue"));
+        _dummyLoadout.Assign(Slot.R1, Find("xianliao_shu"));
         _dummy = TrainingDummy.FromRules(rules, Slot.Square);
         _doubleTap = new DoubleTap(rules.QuickStepTapWindow);
 
@@ -234,7 +240,7 @@ public partial class Arena : Node3D
         var layer = new CanvasLayer();
         AddChild(layer);
         // A font with Chinese and the □△○✕ symbols: Windows' Microsoft YaHei, with fallbacks for other systems.
-        var font = new SystemFont
+        var font = _font = new SystemFont
         {
             FontNames = new[] { "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe UI Symbol", "sans-serif" },
             AllowSystemFallback = true,
@@ -528,6 +534,7 @@ public partial class Arena : Node3D
         _pending = 0;
         if (_floatingText && _duel.One.IsExhausted && PressedUnaffordable(input))
             Float(Side.One, "No stamina!", ExhaustedColor);
+        if (_floatingText && _duel.One.CanAct) PressedBlocked(input);
 
         // The opponent doesn't think during hit-stop, so its own timers stay in step with the fight.
         var opponent = _clock.IsFrozen ? BrainInput.None : OpponentInput();
@@ -559,6 +566,8 @@ public partial class Arena : Node3D
             if (_floatingText) FloatsFor(hit);
         }
 
+        HealsThisTick(Side.One, oneMoveBefore, hits);
+        HealsThisTick(Side.Two, twoMoveBefore, hits);
         EmpoweredStarted(Side.One, oneMoveBefore);
         EmpoweredStarted(Side.Two, twoMoveBefore);
         ExhaustionChanged(Side.One, oneWasExhausted);
@@ -580,6 +589,46 @@ public partial class Arena : Node3D
             ? $"[color=#ccffff][b]Escaped![/b][/color] You dashed out of the combo ({f.Technique!.StaminaCost} stamina). No just dodge from an escape."
             : "[color=#ccffff][b]Your opponent escaped[/b][/color] your combo with its 轻功 dash.";
         if (_floatingText) Float(side, "Escape!", InvincibleColor);
+    }
+
+    /// <summary>Say why a pressed move won't come out: sealed by 点穴, or short of Qi.</summary>
+    private void PressedBlocked(SlotInput input)
+    {
+        var f = _duel.One;
+        foreach (var s in Slots.All)
+        {
+            var t = _playerLoadout[s];
+            if (!input.IsPressed(s) || t == null) continue;
+            if (f.IsSealedFrom(t)) Float(Side.One, "外功 sealed!", SealColor);
+            else if (f.Qi < t.QiCost) Float(Side.One, $"Need {t.QiCost} Qi", QiColor);
+            else continue;
+            return;
+        }
+    }
+
+    private static string Seconds(int frames) => $"{frames / (double)Sim.TicksPerSecond:0.0}s";
+
+    /// <summary>Say so when a 气功 heal lands, or when a hit cancels one before it does.</summary>
+    private void HealsThisTick(Side side, Technique? before, IReadOnlyList<HitEvent> hits)
+    {
+        var f = _duel[side];
+        bool you = side == Side.One;
+        if (f.HealedThisTick > 0)
+        {
+            _event.Text = $"[color=#7dffb0][b]{f.Technique!.Name}[/b][/color] {(you ? "You heal" : "Your opponent heals")} {f.HealedThisTick} HP.";
+            if (_floatingText) Float(side, $"+{f.HealedThisTick} HP", HealColor);
+            return;
+        }
+        if (before == null || !before.IsHeal || f.Technique == before) return;
+        foreach (var hit in hits)
+        {
+            if (hit.Defender != side || !hit.Landed) continue;
+            _event.Text += you
+                ? $"\n[color=#ff6666][b]{before.Name} broken![/b][/color] The hit stopped your heal; the {before.QiCost} Qi is gone."
+                : $"\n[color=#7dffb0][b]You broke its {before.Name}![/b][/color] No heal, and its {before.QiCost} Qi is gone.";
+            if (_floatingText) Float(side, "Heal broken!", DamageOnYouColor);
+            return;
+        }
     }
 
     /// <summary>True if a slot pressed this tick holds a move the player can't pay for.</summary>
@@ -671,10 +720,15 @@ public partial class Arena : Node3D
         var combo = (_combo > 1 ? $"   [b]{_combo} hit combo[/b]" : "") +
                     (hit.DefenderExhausted ? $"   [color=#ff8c1a]exhausted: +{_rules.ExhaustedDamagePct - 100}% damage[/color]" : "");
         var clash = hit.Clash == ClashOutcome.StrikerWins ? "[b]Clash won, breaking through![/b] " : "";
+        var seal = hit.SealFrames > 0
+            ? mine
+                ? $"\n[color=#c58cff][b]封 Sealed![/b][/color] Your opponent can't use 外功 (罗汉拳, 铁砂掌) for {Seconds(hit.SealFrames)}."
+                : $"\n[color=#c58cff][b]封 Sealed![/b][/color] You can't use 外功 (罗汉拳, 铁砂掌) for {Seconds(hit.SealFrames)}. Parry, dash, or 点穴 back."
+            : "";
         if (mine)
-            return $"[color=#ffb347]{clash}You hit with {name}: {hit.Damage} damage.[/color]{combo}";
+            return $"[color=#ffb347]{clash}You hit with {name}: {hit.Damage} damage.[/color]{combo}{seal}";
 
-        var line = $"[color=#ff6666]{(clash.Length > 0 ? "[b]Clash lost.[/b] " : "")}{name} hit you: {hit.Damage} damage.[/color]{combo}";
+        var line = $"[color=#ff6666]{(clash.Length > 0 ? "[b]Clash lost.[/b] " : "")}{name} hit you: {hit.Damage} damage.[/color]{combo}{seal}";
         return hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Huajin
             ? line + "\n" + MissedParry(hit.DefenderTechnique, hit.DefenderMoveFrame)
             : line;
@@ -699,6 +753,10 @@ public partial class Arena : Node3D
     private static readonly Color StaminaColor = new(0.40f, 0.85f, 1.00f);
     private static readonly Color ExhaustedColor = new(1.00f, 0.55f, 0.10f);
     private static readonly Color QiColor = new(1.00f, 0.84f, 0.25f);
+    /// <summary>The 点穴 seal: its icon by the HP bar and its floating text.</summary>
+    private static readonly Color SealColor = new(0.77f, 0.55f, 1.00f);
+    /// <summary>A 气功 heal: its channel colour and its "+10 HP".</summary>
+    private static readonly Color HealColor = new(0.49f, 1.00f, 0.69f);
     /// <summary>Wind-up of a Qi-empowered move with hyper armor: deep gold instead of yellow.</summary>
     private static readonly Color ArmorColor = new(0.85f, 0.55f, 0.05f);
 
@@ -754,6 +812,7 @@ public partial class Arena : Node3D
             Float(defender, $"-{hit.Damage}{(hit.Empowered ? $" (x{hit.Technique.EmpowerDamagePct / 100.0:0.#})" : "")}{(hit.DefenderExhausted ? " (exhausted)" : "")}",
                 defender == Side.One ? DamageOnYouColor : DamageOnDummyColor);
             if (hit.DefenderArmored) Float(defender, "Armor!", QiColor);
+            if (hit.SealFrames > 0) Float(defender, "封 外功 sealed!", SealColor);
             if (hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Huajin)
                 Float(defender, hit.DefenderMoveFrame < hit.DefenderTechnique.StartupFrames ? "Too late!" : "Too early!",
                     new Color(1, 1, 1));
@@ -773,6 +832,7 @@ public partial class Arena : Node3D
             OutlineModulate = new Color(0, 0, 0),
             OutlineSize = 10,
             FontSize = 64,
+            Font = _font,
             PixelSize = 0.006f,
             Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
             NoDepthTest = true,
@@ -818,13 +878,13 @@ public partial class Arena : Node3D
         Place(_opponent, _opponentReach, Side.Two, DummyColor);
 
         _status.Text =
-            $"[b]You[/b]    HP {Bar(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
-            $"[b]Foe[/b]   HP {Bar(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
+            $"[b]You[/b]    HP {Bar(_duel.One)}{SealIcon(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
+            $"[b]Foe[/b]   HP {Bar(_duel.Two)}{SealIcon(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
             $"Distance {_duel.DistanceCm} cm   ·   {OpponentName}: {(_opponentActive ? Thinking() : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_clock.IsFrozen ? " [color=#ffd11a](hit-stop)[/color]" : "")}   ·   feel kit {(_feelOn ? "on" : "[color=#ffd11a]off[/color]")} (F3){(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  轻功 dash: ✕ (hold a direction to aim it; none = straight in; also breaks out of a combo)  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  轻功 dash: ✕ (hold a direction to aim it; none = straight in; also breaks out of a combo)  ·  封穴: ○ (seals 外功)  ·  仙辽术: R1 (10 Qi → 10 HP)  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
@@ -868,6 +928,7 @@ public partial class Arena : Node3D
             case FighterState.Active:
                 if (f.Technique!.Category == Category.Huajin)
                     return f.Technique.IsInPerfectParry(f.MoveFrame) ? ParryPerfectColor : ParryColor;
+                if (f.Technique.IsHeal) return HealColor;
                 return ActiveColor;
             case FighterState.Recovery: return RecoveryColor;
             case FighterState.Hitstun: return HitstunColor;
@@ -895,7 +956,11 @@ public partial class Arena : Node3D
         return f.IsExhausted ? text + $" [color=#ff8c1a][b]EXHAUSTED[/b] until {_rules.ExhaustedUntil}[/color]" : text;
     }
 
-    /// <summary>Qi in gold. Nothing spends it yet: later 点穴 and 气功 techniques will.</summary>
+    /// <summary>The 点穴 debuff icon by the HP bar: 【封】 and the seconds left while 外功 is sealed.</summary>
+    private static string SealIcon(Fighter f) =>
+        f.IsSealed ? $" [bgcolor=#3a2352][color=#c58cff][b]【封】[/b][/color][/bgcolor][color=#c58cff]{Seconds(f.SealedFrames)}[/color]" : "";
+
+    /// <summary>Qi in gold, spent by 铁砂掌's empowered version and by 仙辽术.</summary>
     private static string QiBar(Fighter f)
     {
         const int width = 10;
@@ -919,6 +984,7 @@ public partial class Arena : Node3D
             case BrainIntent.Dodging: return "saw your strike, stepping aside";
             case BrainIntent.Resting: return "[color=#ff8c1a]backing off to breathe[/color]";
             case BrainIntent.Escaping: return "[color=#ccffff]dashed out of your combo[/color]";
+            case BrainIntent.Healing: return "[color=#7dffb0]healing with 仙辽术: hit it to break it![/color]";
             default: return "still";
         }
     }

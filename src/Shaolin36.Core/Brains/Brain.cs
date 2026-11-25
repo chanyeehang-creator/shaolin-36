@@ -47,6 +47,8 @@ namespace Shaolin36.Core.Brains
         Resting,
         /// <summary>Caught in a combo: dashed out of the hitstun.</summary>
         Escaping,
+        /// <summary>Out of reach and hurt: channelling a 气功 heal.</summary>
+        Healing,
     }
 
     /// <summary>
@@ -63,8 +65,10 @@ namespace Shaolin36.Core.Brains
     /// on a slot it dashes to the side timed so the strike's hit frame falls in its invincible frames, otherwise it quick-steps;</item>
     /// <item>caught in a combo, once it has been in hitstun for its reaction time, dashes back out of it with its 轻功 dash
     /// (<see cref="BrainStyle.Step"/> chance, once per combo);</item>
+    /// <item>hurt by at least a heal's worth, with a 气功 heal it can pay for, and at least <see cref="HealMarginCm"/> beyond the other
+    /// fighter's longest reach while they aren't in a move, heals (<see cref="BrainStyle.Heal"/> chance, rolled every think_every frames);</item>
     /// <item>backs off to breathe when its stamina is under <see cref="BrainStyle.RestBelow"/>;</item>
-    /// <item>punishes when it sees the other fighter recovering, staggered or recoiling in reach (<see cref="BrainStyle.Punish"/>);</item>
+    /// <item>punishes when it sees the other fighter recovering, staggered, recoiling or winding up / channelling a 气功 heal in reach (<see cref="BrainStyle.Punish"/>);</item>
     /// <item>otherwise walks in until its attacks reach (with <see cref="BrainStyle.Step"/> chance per choice it dashes in from far
     /// off, or quick-steps in), then every <see cref="BrainStyle.ThinkEvery"/> frames
     /// attacks (<see cref="BrainStyle.Aggression"/>), parries on a guess (<see cref="BrainStyle.Guess"/>),
@@ -84,6 +88,9 @@ namespace Shaolin36.Core.Brains
 
         /// <summary>While resting, it backs away until it is this far off.</summary>
         public const int RestDistanceCm = 250;
+
+        /// <summary>It only starts a 气功 heal this far beyond the other fighter's longest reach (reach plus step-in).</summary>
+        public const int HealMarginCm = 80;
 
         private struct Seen
         {
@@ -106,6 +113,7 @@ namespace Shaolin36.Core.Brains
         private int _decidedOpening = int.MinValue;
         private int _decidedLink = -1;
         private int _choiceTicksLeft;
+        private int _healTicksLeft;
         private int _circle; // -1 left, 1 right, 0 none
         private int _lastFoeStateTick;
         private FighterState _lastFoeState = FighterState.Idle;
@@ -152,7 +160,7 @@ namespace Shaolin36.Core.Brains
                 {
                     _escapeDecided = true;
                     var escape = EscapeSlot(me);
-                    if (escape != null && me.CanAfford(me.Loadout[escape.Value]!) && _dice.Chance(Style.Step))
+                    if (escape != null && me.CanUse(me.Loadout[escape.Value]!) && _dice.Chance(Style.Step))
                         return Dash(escape.Value, MoveInput.WalkBack, BrainIntent.Escaping);
                 }
                 return BrainInput.None;
@@ -172,7 +180,7 @@ namespace Shaolin36.Core.Brains
                     {
                         _decidedLink = link;
                         var following = me.Loadout.Book.NextOf(t);
-                        if (following != null && me.CanAfford(following) && _dice.Chance(Style.Chain))
+                        if (following != null && me.CanUse(following) && _dice.Chance(Style.Chain))
                             return Press(me.Slot.Value, BrainIntent.Attacking);
                     }
                 }
@@ -229,7 +237,7 @@ namespace Shaolin36.Core.Brains
                 {
                     _decidedAttack = seen.StartTick;
                     var parrySlot = ParrySlot(me);
-                    if (parrySlot != null && me.CanAfford(me.Loadout[parrySlot.Value]!) && _dice.Chance(Style.Parry))
+                    if (parrySlot != null && me.CanUse(me.Loadout[parrySlot.Value]!) && _dice.Chance(Style.Parry))
                     {
                         var parry = me.Loadout[parrySlot.Value]!;
                         int aim = AimFrame(parry);
@@ -241,7 +249,7 @@ namespace Shaolin36.Core.Brains
                         return BrainInput.None;
                     }
                     var dodgeSlot = DashSlot(me);
-                    if (dodgeSlot != null && me.CanAfford(me.Loadout[dodgeSlot.Value]!) && _dice.Chance(Style.Step))
+                    if (dodgeSlot != null && me.CanUse(me.Loadout[dodgeSlot.Value]!) && _dice.Chance(Style.Step))
                     {
                         // Dash to the side so the hit frame falls in the middle of the invincible frames.
                         var dash = me.Loadout[dodgeSlot.Value]!;
@@ -262,6 +270,20 @@ namespace Shaolin36.Core.Brains
                 }
             }
 
+            // 3b. Hurt, with Qi for a 气功 heal, and well out of the other fighter's reach: maybe heal.
+            if (--_healTicksLeft <= 0)
+            {
+                _healTicksLeft = Style.ThinkEvery;
+                var healSlot = HealSlot(me);
+                if (healSlot != null)
+                {
+                    var heal = me.Loadout[healSlot.Value]!;
+                    bool hurt = me.MaxHp - me.Hp >= heal.Heal;
+                    bool safe = distance >= LongestReach(foe) + HealMarginCm && !foe.State.IsInMove();
+                    if (hurt && safe && me.CanUse(heal) && _dice.Chance(Style.Heal)) return Press(healSlot.Value, BrainIntent.Healing);
+                }
+            }
+
             // 4. Out of breath: back off and let stamina come back. It still parries (above) if it can pay.
             if (me.IsExhausted || me.UsesStamina && me.Stamina < Style.RestBelow)
             {
@@ -271,10 +293,12 @@ namespace Shaolin36.Core.Brains
             }
 
             // 5. The other fighter is open (recovering, staggered or recoiling): punish.
-            bool open = seen.State == FighterState.Recovery || seen.State.IsStunned() && seen.State != FighterState.Hitstun;
+            // A 气功 heal in its wind-up or channel is open too: hit it before the heal lands.
+            bool healing = seen.Technique != null && seen.Technique.IsHeal && seen.State != FighterState.Recovery;
+            bool open = healing || seen.State == FighterState.Recovery || seen.State.IsStunned() && seen.State != FighterState.Hitstun;
             if (open && seen.StartTick != _decidedOpening)
             {
-                var punisher = PickAttack(me, distance);
+                var punisher = PickAttack(me, foe, distance);
                 if (punisher != null)
                 {
                     _decidedOpening = seen.StartTick;
@@ -291,7 +315,7 @@ namespace Shaolin36.Core.Brains
                 {
                     _choiceTicksLeft = Style.ThinkEvery;
                     var dashIn = DashSlot(me);
-                    if (dashIn != null && me.CanAfford(me.Loadout[dashIn.Value]!)
+                    if (dashIn != null && me.CanUse(me.Loadout[dashIn.Value]!)
                         && distance - me.Loadout[dashIn.Value]!.DashCm / 2 >= engage && _dice.Chance(Style.Step))
                         return Dash(dashIn.Value, MoveInput.None, BrainIntent.Closing); // no direction: straight in
                     var steps = me.QuickStepRules;
@@ -311,12 +335,12 @@ namespace Shaolin36.Core.Brains
             {
                 _choiceTicksLeft = Style.ThinkEvery;
                 _circle = 0;
-                var attack = PickAttack(me, distance);
+                var attack = PickAttack(me, foe, distance);
                 if (attack != null && _dice.Chance(Style.Aggression)) return Press(attack.Value, BrainIntent.Attacking);
                 var guessSlot = ParrySlot(me);
                 int foeReach = EngageDistance(foe);
                 if (guessSlot != null && foeReach > 0 && distance <= foeReach + EngageMarginCm && foe.State == FighterState.Idle
-                    && me.CanAfford(me.Loadout[guessSlot.Value]!) && _dice.Chance(Style.Guess))
+                    && me.CanUse(me.Loadout[guessSlot.Value]!) && _dice.Chance(Style.Guess))
                     return Press(guessSlot.Value, BrainIntent.Guessing);
                 if (_dice.Chance(Style.Circle)) _circle = _dice.Chance(50) ? -1 : 1;
             }
@@ -354,6 +378,29 @@ namespace Shaolin36.Core.Brains
                 if (t != null && t.CanEscape) return s;
             }
             return null;
+        }
+
+        /// <summary>The first slot holding a 气功 heal, or null.</summary>
+        private static Slot? HealSlot(Fighter me)
+        {
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (t != null && t.IsHeal) return s;
+            }
+            return null;
+        }
+
+        /// <summary>The farthest any of <paramref name="f"/>'s attacks reaches (reach plus step-in), or 0 with none.</summary>
+        public static int LongestReach(Fighter f)
+        {
+            int best = 0;
+            foreach (var s in Slots.All)
+            {
+                var t = f.Loadout[s];
+                if (IsAttack(t)) best = Math.Max(best, t!.ReachCm + t.AdvanceCm);
+            }
+            return best;
         }
 
         /// <summary>The first slot holding a 轻功 dash, or null.</summary>
@@ -436,9 +483,10 @@ namespace Shaolin36.Core.Brains
 
         /// <summary>
         /// An attack that reaches from <paramref name="distance"/> and it can pay for: a Qi-empowered one first,
-        /// otherwise a heavy one with <see cref="BrainStyle.Heavy"/> chance, otherwise a lighter one.
+        /// otherwise a heavy one with <see cref="BrainStyle.Heavy"/> chance, otherwise a lighter one. It doesn't throw a 点穴 seal
+        /// at a fighter who is already sealed (the seal shows by their HP bar, so a person wouldn't either).
         /// </summary>
-        private Slot? PickAttack(Fighter me, int distance)
+        private Slot? PickAttack(Fighter me, Fighter foe, int distance)
         {
             Slot? empowered = null;
             int heavyCount = 0, lightCount = 0;
@@ -447,7 +495,8 @@ namespace Shaolin36.Core.Brains
             foreach (var s in Slots.All)
             {
                 var t = me.Loadout[s];
-                if (!IsAttack(t) || !me.CanAfford(t!) || t!.ReachCm + t.AdvanceCm < distance) continue;
+                if (!IsAttack(t) || !me.CanUse(t!) || t!.ReachCm + t.AdvanceCm < distance) continue;
+                if (t.SealFrames > 0 && foe.IsSealed) continue;
                 if (empowered == null && t.CanEmpower && me.Qi - t.QiCost >= t.EmpowerQi) empowered = s;
                 if (t.Weight == Weight.Heavy) heavy[heavyCount++] = s;
                 else light[lightCount++] = s;

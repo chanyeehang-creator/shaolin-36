@@ -47,8 +47,12 @@ namespace Shaolin36.Core.Data
             int advanceCm = 0,
             int dashCm = 0,
             int invincibleFrames = 0,
-            bool canEscape = false)
+            bool canEscape = false,
+            int sealFrames = 0,
+            int heal = 0)
         {
+            SealFrames = sealFrames;
+            Heal = heal;
             CanEscape = canEscape;
             DashCm = dashCm;
             InvincibleFrames = invincibleFrames;
@@ -148,6 +152,20 @@ namespace Shaolin36.Core.Data
         /// only kind of move that can: everything else waits for the hitstun to end.
         /// </summary>
         public bool CanEscape { get; }
+
+        /// <summary>
+        /// 点穴: when this hit lands, the defender can't start 外功 (waigong) techniques for this many frames, counted
+        /// from the hit frame (0 = no seal). A blocked, parried or dodged hit seals nothing.
+        /// </summary>
+        public int SealFrames { get; }
+
+        /// <summary>
+        /// 气功: HP restored when the move finishes its active frames (the channel), never above max HP (0 = no heal).
+        /// Interrupted before then, it heals nothing and the Qi it cost is gone.
+        /// </summary>
+        public int Heal { get; }
+
+        public bool IsHeal => Heal > 0;
 
         /// <summary>Frames a dash slides over: its startup and active frames.</summary>
         public int DashFrames => StartupFrames + ActiveFrames;

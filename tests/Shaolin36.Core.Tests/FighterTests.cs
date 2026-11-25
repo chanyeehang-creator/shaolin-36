@@ -254,7 +254,9 @@ public class FighterTests
         {
             foreach (var slot in Slots.All)
             {
-                var f = With(slot, t);
+                // Enough Qi for moves that cost it (仙辽术).
+                var f = new Fighter(maxQi: 100, qi: 100);
+                f.Loadout.Assign(slot, t);
                 f.Tick(SlotInput.Press(slot));
                 Assert.Equal(t.TotalFrames, TicksUntilIdle(f));
             }

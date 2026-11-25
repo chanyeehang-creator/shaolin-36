@@ -15,8 +15,9 @@ namespace Shaolin36.Core.Brains
         public const int MaxThinkEvery = 120;
 
         public BrainStyle(string id, string name, int reaction, int thinkEvery, int aggression, int punish, int chain,
-            int parry, int perfect, int step, int circle, int restBelow, int heavy, int guess = 0)
+            int parry, int perfect, int step, int circle, int restBelow, int heavy, int guess = 0, int heal = 0)
         {
+            Heal = heal;
             Id = id;
             Name = name;
             Reaction = reaction;
@@ -76,6 +77,12 @@ namespace Shaolin36.Core.Brains
         /// </summary>
         public int Guess { get; }
 
+        /// <summary>
+        /// Chance, rolled every think_every frames while it is hurt by at least a heal's worth and well out of your reach,
+        /// that it channels its 气功 heal (仙辽术). Hit it during the wind-up or channel to cancel the heal.
+        /// </summary>
+        public int Heal { get; }
+
         public override string ToString() => $"{Id} ({Name})";
     }
 
@@ -87,6 +94,9 @@ namespace Shaolin36.Core.Brains
             "id", "name", "reaction", "think_every", "aggression", "punish", "chain", "parry", "perfect", "step", "circle",
             "rest_below", "heavy", "guess",
         };
+
+        /// <summary>Columns a sheet may leave out (an empty or missing cell is 0).</summary>
+        public static readonly string[] OptionalColumns = { "heal" };
 
         private readonly List<BrainStyle> _styles;
 
@@ -147,7 +157,7 @@ namespace Shaolin36.Core.Brains
                 if (CsvText.IsBlankOrComment(lines[i])) continue;
                 int lineNo = i + 1;
                 var cells = CsvText.SplitRow(lines[i]);
-                string Cell(string name) => col[name] < cells.Count ? cells[col[name]].Trim() : string.Empty;
+                string Cell(string name) => col.ContainsKey(name) && col[name] < cells.Count ? cells[col[name]].Trim() : string.Empty;
 
                 var id = Cell("id");
                 if (id.Length == 0)
@@ -185,11 +195,12 @@ namespace Shaolin36.Core.Brains
                 int restBelow = Number("rest_below", 0, 1000, " stamina");
                 int heavy = Pct("heavy");
                 int guess = Pct("guess");
+                int heal = Cell("heal").Length == 0 ? 0 : Pct("heal");
                 var name = Cell("name");
 
                 if (ok)
                     styles.Add(new BrainStyle(id, name.Length > 0 ? name : id, reaction, thinkEvery, aggression, punish, chain,
-                        parry, perfect, step, circle, restBelow, heavy, guess));
+                        parry, perfect, step, circle, restBelow, heavy, guess, heal));
             }
 
             if (errors.Count == 0 && styles.Count == 0) errors.Add($"line {lines.Count}: no brain rows, expected at least one");
