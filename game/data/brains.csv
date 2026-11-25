@@ -14,7 +14,7 @@
 # guess       = at each choice in your reach where it doesn't attack, the chance it throws its parry on a guess, the way a person predicts a strike
 #               too fast to react to (罗汉拳 hit 1 lands in 13 frames, quicker than anyone reacts). A wrong guess costs it 10 stamina and leaves it open: bait it and punish.
 # heavy       = when it attacks, the chance it picks a heavy technique (such as 铁砂掌) over a lighter one. With enough Qi it always uses the empowered one.
-# heal        = rolled every think_every frames while it is hurt by at least a heal's worth and 80 cm beyond your longest reach (you not mid-move):
+# heal        = rolled every think_every frames while it is hurt by at least a heal's worth and 60 cm beyond your longest reach (封穴's lunge reaches 255 cm, so that's 315 cm; resting, it backs off that far to heal) (you not mid-move):
 #               the chance it channels its 气功 heal (仙辽术, 10 Qi for 10 HP). Hit it in the 1.5 s before the heal lands to cancel it.
 # It uses 点穴 封穴 like its other light attacks (but not on you while you're already sealed), and while you have it sealed it can't use 外功 either.
 id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,heal,note

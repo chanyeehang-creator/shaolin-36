@@ -50,6 +50,8 @@ public class DianxueHealTests
         Assert.True(Finger.SealFrames > 0);
         Assert.True(Finger.Damage > 0 && Finger.Damage < Jab.Damage + 1, "small damage");
         Assert.False(Finger.Clashable);
+        Assert.Equal(0, Finger.AdvanceCm); // stands still through the wind-up
+        Assert.InRange(Finger.LungeCm, 91, 199); // Chan: between the quick step (70 / 90 cm) and the 轻功 dash (200 cm)
     }
 
     [Fact]
@@ -88,6 +90,61 @@ public class DianxueHealTests
         Assert.Equal(0, t.Heal);
     }
 
+    // ---------- Lunge ----------
+
+    [Fact]
+    public void Fengxue_stands_still_in_its_wind_up_then_lunges_on_its_first_active_frame()
+    {
+        var d = DuelAt(400);
+        for (int t = 0; t < Finger.StartupFrames; t++)
+        {
+            d.Step(t == 0 ? SlotInput.Press(Slot.Circle) : None, None);
+            Assert.Equal(0, d.One.XCm);
+        }
+        for (int t = 0; t < Finger.ActiveFrames; t++) d.Step(None, None);
+        Assert.Equal(Finger.LungeCm, d.One.XCm); // the whole lunge is done by the last active frame
+        d.Step(None, None);
+        Assert.Equal(FighterState.Recovery, d.One.State);
+        Assert.Equal(Finger.LungeCm, d.One.XCm);
+    }
+
+    [Fact]
+    public void The_lunge_carries_the_hit_so_fengxue_connects_from_well_past_its_reach()
+    {
+        int far = Finger.FullReachCm - 5; // 250 cm: more than double the 115 cm hitbox
+        var d = DuelAt(far);
+        for (int t = 0; t < Finger.StartupFrames + Finger.ActiveFrames; t++) d.Step(t == 0 ? SlotInput.Press(Slot.Circle) : None, None);
+        var hit = Assert.Single(d.Hits);
+        Assert.True(hit.Landed);
+        Assert.True(d.Two.IsSealed);
+    }
+
+    [Fact]
+    public void Out_of_lunge_range_fengxue_whiffs()
+    {
+        var d = DuelAt(Finger.FullReachCm + 10);
+        for (int t = 0; t < Finger.TotalFrames; t++) d.Step(t == 0 ? SlotInput.Press(Slot.Circle) : None, None);
+        Assert.Empty(d.Hits);
+    }
+
+    [Fact]
+    public void The_lunge_stops_at_min_distance()
+    {
+        var d = DuelAt(120);
+        for (int t = 0; t < Finger.StartupFrames + Finger.ActiveFrames; t++) d.Step(t == 0 ? SlotInput.Press(Slot.Circle) : None, None);
+        Assert.Equal(Rules.MinDistance, d.DistanceCm);
+    }
+
+    [Theory]
+    [InlineData("x,x,dianxue,light,false,10,3,10,0,0,5,0,4,false,10,0,,0,0,0,0,140", "'reach' is 0")]
+    [InlineData("x,x,dianxue,light,false,10,3,10,0,0,5,0,4,false,10,100,,0,0,0,0,999", "'lunge' (999)")]
+    public void Bad_lunge_cells_are_reported(string row, string expected)
+    {
+        var r = TechniqueCsv.Parse(Header.Replace(",heal\n", ",heal,lunge\n") + row + "\n");
+        Assert.False(r.Ok);
+        Assert.Contains(r.Errors, e => e.Contains(expected));
+    }
+
     // ---------- Recovery, no cooldown ----------
 
     [Fact]
@@ -122,7 +179,7 @@ public class DianxueHealTests
     // ---------- Seal ----------
 
     [Fact]
-    public void A_sealed_fighter_cannot_start_waigong_but_can_still_parry()
+    public void A_sealed_fighter_cannot_start_luohan_quan_but_can_still_use_tiesha_zhang_and_parry()
     {
         var f = new Fighter(Full(), 120);
         f.Seal(100);
@@ -134,12 +191,17 @@ public class DianxueHealTests
         f.Tick(SlotInput.Press(Slot.Square));
         Assert.Same(Jab, f.Technique);
 
+        // 铁砂掌 is 内功 (Chan: a heavy strike), so the seal doesn't stop it.
         var g = new Fighter(Full(), 120);
         g.Seal(100);
         g.Tick(SlotInput.Press(Slot.Triangle));
-        Assert.False(g.State.IsInMove());
-        g.Tick(SlotInput.Press(Slot.L1));
-        Assert.Equal(Category.Huajin, g.Technique!.Category);
+        Assert.Equal("tiesha_zhang", g.Technique!.Id);
+        Assert.Equal(Category.Neigong, g.Technique.Category);
+
+        var h = new Fighter(Full(), 120);
+        h.Seal(100);
+        h.Tick(SlotInput.Press(Slot.L1));
+        Assert.Equal(Category.Huajin, h.Technique!.Category);
     }
 
     [Fact]
