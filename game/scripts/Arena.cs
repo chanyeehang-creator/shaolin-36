@@ -31,6 +31,7 @@ public partial class Arena : Node3D
     private static readonly Color StaggerColor = new(0.85f, 0.30f, 0.95f);
     private static readonly Color RecoilColor = new(0.55f, 0.55f, 0.60f);
     private static readonly Color QuickStepColor = new(0.70f, 1.00f, 0.85f);
+    private static readonly Color InvincibleColor = new(0.85f, 1.00f, 1.00f);
     private static readonly Color PlayerColor = new(0.95f, 0.65f, 0.15f);
     private static readonly Color DummyColor = new(0.55f, 0.15f, 0.15f);
 
@@ -109,13 +110,15 @@ public partial class Arena : Node3D
         _playerLoadout.Assign(Slot.Square, Find("luohan_quan_1"));
         _playerLoadout.Assign(Slot.L1, Find("timed_parry"));
         _playerLoadout.Assign(Slot.Triangle, Find("tiesha_zhang"));
+        _playerLoadout.Assign(Slot.Cross, Find("qinggong_dash"));
 
-        // The opponent gets the same starting techniques as you: 罗汉拳 on □, 铁砂掌 on △, 化绵掌 on L1.
+        // The opponent gets the same starting techniques as you: 罗汉拳 on □, 铁砂掌 on △, 轻功 dash on ✕, 化绵掌 on L1.
         // (The training dummy only ever presses □.)
         _dummyLoadout = new Loadout(_book);
         _dummyLoadout.Assign(Slot.Square, Find("luohan_quan_1"));
         _dummyLoadout.Assign(Slot.L1, Find("timed_parry"));
         _dummyLoadout.Assign(Slot.Triangle, Find("tiesha_zhang"));
+        _dummyLoadout.Assign(Slot.Cross, Find("qinggong_dash"));
         _dummy = TrainingDummy.FromRules(rules, Slot.Square);
         _doubleTap = new DoubleTap(rules.QuickStepTapWindow);
 
@@ -785,7 +788,7 @@ public partial class Arena : Node3D
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  轻功 dash: ✕ (hold a direction to aim it; none = straight in)  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
@@ -821,6 +824,8 @@ public partial class Arena : Node3D
 
     private static Color ColorOf(Fighter f, Color idle)
     {
+        if (f.IsInvincible) return InvincibleColor;
+        if (f.IsDashing) return QuickStepColor;
         switch (f.State)
         {
             case FighterState.Startup: return f.HasArmor ? ArmorColor : StartupColor;
@@ -875,7 +880,7 @@ public partial class Arena : Node3D
             case BrainIntent.Punishing: return "[color=#ff6666]punishing your opening[/color]";
             case BrainIntent.Parrying: return "[color=#33bfff]saw your strike, parrying[/color]";
             case BrainIntent.Guessing: return "[color=#33bfff]parrying on a guess[/color]";
-            case BrainIntent.Dodging: return "saw your strike, quick-stepping aside";
+            case BrainIntent.Dodging: return "saw your strike, stepping aside";
             case BrainIntent.Resting: return "[color=#ff8c1a]backing off to breathe[/color]";
             default: return "still";
         }
@@ -888,7 +893,8 @@ public partial class Arena : Node3D
         if (f.State.IsInMove())
         {
             var t = f.Technique!;
-            var chain = f.InChainWindow ? "  [color=#ffd11a]chain now![/color]" : "";
+            var chain = f.InChainWindow ? "  [color=#ffd11a]chain now![/color]"
+                : f.IsInvincible ? "  [color=#ccffff]invincible[/color]" : "";
             return $"{t.Name} · {f.State} · frame {f.MoveFrame + 1}/{t.TotalFrames}{chain}";
         }
         if (f.State.IsStunned()) return $"{f.State} · {f.StunFramesLeft} frames left";

@@ -44,8 +44,12 @@ namespace Shaolin36.Core.Data
             bool empowerArmor = false,
             int knockbackCm = 0,
             int hitAngle = FullCircle,
-            int advanceCm = 0)
+            int advanceCm = 0,
+            int dashCm = 0,
+            int invincibleFrames = 0)
         {
+            DashCm = dashCm;
+            InvincibleFrames = invincibleFrames;
             KnockbackCm = knockbackCm;
             AdvanceCm = advanceCm;
             HitAngle = hitAngle;
@@ -124,6 +128,23 @@ namespace Shaolin36.Core.Data
         /// startup frames so the step is done as the hit comes out. The step stops at min_distance like walking.
         /// </summary>
         public int AdvanceCm { get; }
+
+        /// <summary>
+        /// 轻功 dash: how far the move carries the fighter, in whole centimetres, slid over its startup and active
+        /// frames. The way it goes is the stick held on the tick it starts (relative to the lock-on), or straight at
+        /// the other fighter when no direction is held. 0 = not a dash.
+        /// </summary>
+        public int DashCm { get; }
+
+        /// <summary>Invincible frames: for the first N frames of the move, strikes pass through the fighter. 0 = none.</summary>
+        public int InvincibleFrames { get; }
+
+        public bool IsDash => DashCm > 0;
+
+        /// <summary>Frames a dash slides over: its startup and active frames.</summary>
+        public int DashFrames => StartupFrames + ActiveFrames;
+
+        public bool IsInvincible(int frame) => frame >= 0 && frame < InvincibleFrames;
 
         /// <summary>A hit angle this wide covers every direction: no angle check.</summary>
         public const int FullCircle = 360;

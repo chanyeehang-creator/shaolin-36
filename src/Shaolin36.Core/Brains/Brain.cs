@@ -57,10 +57,12 @@ namespace Shaolin36.Core.Brains
     /// <list type="number">
     /// <item>carries on its own string when a chain window opens (<see cref="BrainStyle.Chain"/>);</item>
     /// <item>answers a strike it sees coming: a 化劲 parry timed for the strike's hit frame (<see cref="BrainStyle.Parry"/>,
-    /// aiming at the perfect part with <see cref="BrainStyle.Perfect"/>), or else a quick step to the side (<see cref="BrainStyle.Step"/>);</item>
+    /// aiming at the perfect part with <see cref="BrainStyle.Perfect"/>), or else a step aside (<see cref="BrainStyle.Step"/>): with a 轻功 dash
+    /// on a slot it dashes to the side timed so the strike's hit frame falls in its invincible frames, otherwise it quick-steps;</item>
     /// <item>backs off to breathe when its stamina is under <see cref="BrainStyle.RestBelow"/>;</item>
     /// <item>punishes when it sees the other fighter recovering, staggered or recoiling in reach (<see cref="BrainStyle.Punish"/>);</item>
-    /// <item>otherwise walks in until its attacks reach, then every <see cref="BrainStyle.ThinkEvery"/> frames
+    /// <item>otherwise walks in until its attacks reach (with <see cref="BrainStyle.Step"/> chance per choice it dashes in from far
+    /// off, or quick-steps in), then every <see cref="BrainStyle.ThinkEvery"/> frames
     /// attacks (<see cref="BrainStyle.Aggression"/>), parries on a guess (<see cref="BrainStyle.Guess"/>),
     /// circles (<see cref="BrainStyle.Circle"/>) or waits.</item>
     /// </list>
@@ -93,6 +95,8 @@ namespace Shaolin36.Core.Brains
         private int _decidedAttack = int.MinValue; // start tick of the last strike it chose an answer for
         private int _plannedParryTick = -1;        // tick to press the parry on, or -1
         private int _plannedAgainst = int.MinValue;
+        private int _plannedDashTick = -1;         // tick to press the dash on, or -1
+        private int _plannedDashRight;             // -100 left or 100 right
         private int _decidedOpening = int.MinValue;
         private int _decidedLink = -1;
         private int _choiceTicksLeft;
@@ -153,7 +157,24 @@ namespace Shaolin36.Core.Brains
                 return BrainInput.None;
             }
 
-            // 2. A parry already timed for a strike: wait for its frame, then press.
+            // 2. A parry or dash already timed for a strike: wait for its frame, then press.
+            if (_plannedDashTick >= 0)
+            {
+                bool sameStrike = foe.Technique != null && foe.State.IsInMove() && MoveStart(foe, duel.Tick) == _plannedAgainst;
+                var dashSlot = DashSlot(me);
+                if (!sameStrike || dashSlot == null) _plannedDashTick = -1;
+                else if (duel.Tick >= _plannedDashTick)
+                {
+                    _plannedDashTick = -1;
+                    if (next == FighterState.Idle) return Dash(dashSlot.Value, new MoveInput(0, _plannedDashRight), BrainIntent.Dodging);
+                }
+                else
+                {
+                    Intent = BrainIntent.Dodging;
+                    return BrainInput.None;
+                }
+            }
+
             if (_plannedParryTick >= 0)
             {
                 bool sameStrike = foe.Technique != null && foe.State.IsInMove() && MoveStart(foe, duel.Tick) == _plannedAgainst;
@@ -197,7 +218,21 @@ namespace Shaolin36.Core.Brains
                         Intent = BrainIntent.Parrying;
                         return BrainInput.None;
                     }
-                    if (me.CanQuickStep && _dice.Chance(Style.Step))
+                    var dodgeSlot = DashSlot(me);
+                    if (dodgeSlot != null && me.CanAfford(me.Loadout[dodgeSlot.Value]!) && _dice.Chance(Style.Step))
+                    {
+                        // Dash to the side so the hit frame falls in the middle of the invincible frames.
+                        var dash = me.Loadout[dodgeSlot.Value]!;
+                        int right = _dice.Chance(50) ? -MoveInput.Full : MoveInput.Full;
+                        int pressTick = hitTick - dash.InvincibleFrames / 2;
+                        if (pressTick <= duel.Tick) return Dash(dodgeSlot.Value, new MoveInput(0, right), BrainIntent.Dodging);
+                        _plannedDashTick = pressTick;
+                        _plannedDashRight = right;
+                        _plannedAgainst = seen.StartTick;
+                        Intent = BrainIntent.Dodging;
+                        return BrainInput.None;
+                    }
+                    if (dodgeSlot == null && me.CanQuickStep && _dice.Chance(Style.Step))
                     {
                         Intent = BrainIntent.Dodging;
                         return new BrainInput(SlotInput.None, MoveInput.Step(_dice.Chance(50) ? StepDirection.Left : StepDirection.Right));
@@ -233,6 +268,10 @@ namespace Shaolin36.Core.Brains
                 if (--_choiceTicksLeft <= 0)
                 {
                     _choiceTicksLeft = Style.ThinkEvery;
+                    var dashIn = DashSlot(me);
+                    if (dashIn != null && me.CanAfford(me.Loadout[dashIn.Value]!)
+                        && distance - me.Loadout[dashIn.Value]!.DashCm / 2 >= engage && _dice.Chance(Style.Step))
+                        return Dash(dashIn.Value, MoveInput.None, BrainIntent.Closing); // no direction: straight in
                     var steps = me.QuickStepRules;
                     if (steps != null && me.CanQuickStep && distance - steps.DistanceCm >= engage - EngageMarginCm
                         && _dice.Chance(Style.Step))
@@ -274,6 +313,25 @@ namespace Shaolin36.Core.Brains
             Intent = intent;
             _circle = 0;
             return new BrainInput(SlotInput.Press(slot), MoveInput.None);
+        }
+
+        /// <summary>Press the dash slot with the stick held <paramref name="way"/> (none: straight at the other fighter).</summary>
+        private BrainInput Dash(Slot slot, MoveInput way, BrainIntent intent)
+        {
+            Intent = intent;
+            _circle = 0;
+            return new BrainInput(SlotInput.Press(slot), way);
+        }
+
+        /// <summary>The first slot holding a 轻功 dash, or null.</summary>
+        private static Slot? DashSlot(Fighter me)
+        {
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (t != null && t.IsDash) return s;
+            }
+            return null;
         }
 
         private static BrainInput Walk(MoveInput move) => new BrainInput(SlotInput.None, move);

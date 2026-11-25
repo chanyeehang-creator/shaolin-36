@@ -17,10 +17,16 @@
 #             Reach and angle are both checked, so stepping to the side during the wind-up can slip a strike. Each hit of a string aims afresh.
 # advance = cm the attacker steps forward along its aim during the move (slid over the startup frames; stops at min_distance). 0 = stands still.
 #           罗汉拳 steps 10, 8, 8, then 15 cm into the finisher (41 cm over the string), so started 130 cm away or closer every hit stays in reach.
-id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,empower_qi,empower_damage_pct,empower_armor,knockback,hit_angle,advance
+# dash (轻功 only) = cm the move carries you, slid over its startup + active frames. It goes the way the stick is held when you press it
+#           (relative to your opponent), or straight at your opponent with no direction held; it stops at min_distance (touching range).
+# invincible = first N frames of the move where strikes pass through you (counted from the press). 0 = none.
+# 轻功 dash (Stage 3, Chan's brief): longer than the quick step (200 cm vs 70 / 90), invincible on startup (frames 0-9, 0.17 s),
+#           costs more (15 stamina vs 6). 0.23 s slide + 0.17 s recovery = 0.4 s in all. On ✕ by default.
+id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,empower_qi,empower_damage_pct,empower_armor,knockback,hit_angle,advance,dash,invincible
 luohan_quan_1,罗汉拳 1 冲拳,waigong,medium,false,13,3,21,5,2,8,0,6,true,27,120,luohan_quan_2,6,0,0,100,false,4,60,10
 luohan_quan_2,罗汉拳 2 连拳,waigong,medium,false,19,3,11,4,2,8,0,6,true,14,120,luohan_quan_3,6,0,0,100,false,4,60,8
 luohan_quan_3,罗汉拳 3 挑掌,waigong,medium,false,6,3,21,4,2,9,0,7,true,27,125,luohan_quan_4,6,0,0,100,false,4,70,8
 luohan_quan_4,罗汉拳 4 收势重拳,waigong,heavy,false,19,4,20,6,2,14,0,12,true,24,140,,0,0,0,100,false,60,90,15
 timed_parry,化绵掌 (timed parry),huajin,light,false,3,14,10,0,0,10,0,0,false,0,0,,0,4,0,100,false,0,,0
 tiesha_zhang,铁砂掌 (iron palm),waigong,heavy,false,36,4,36,8,2,20,0,15,true,40,130,,0,0,30,200,true,50,60,20
+qinggong_dash,轻功 冲步 (dash),qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,100,false,0,,0,200,10
