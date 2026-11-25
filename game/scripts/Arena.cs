@@ -732,7 +732,7 @@ public partial class Arena : Node3D
                     ? $"[color=#33bfff][b]Blocked.[/b][/color] Your opponent blocked your {name}; your string can carry on."
                     : $"[color=#33bfff][b]Blocked[/b][/color] {name}: no damage, but its string carries on, so tap again for the next hit " +
                       $"(each tap costs {hit.DefenderTechnique!.StaminaCost} stamina). " +
-                      $"({PerfectMiss(hit.DefenderTechnique!, hit.DefenderMoveFrame)} frame(s) late for a perfect parry.)";
+                      $"({PerfectMiss(hit.DefenderTechnique!, hit.DefenderMoveFrame)} for a perfect parry.)";
         }
 
         switch (hit.Clash)
@@ -766,7 +766,11 @@ public partial class Arena : Node3D
             : line;
     }
 
-    private static int PerfectMiss(Technique parry, int frame) => frame - parry.StartupFrames - parry.PerfectParryFrames + 1;
+    /// <summary>How far a block was from the perfect parry: "N frame(s) early" or "N frame(s) late".</summary>
+    private static string PerfectMiss(Technique parry, int frame) =>
+        frame < parry.PerfectParryStart
+            ? $"{parry.PerfectParryStart - frame} frame(s) early"
+            : $"{frame - parry.PerfectParryStart - parry.PerfectParryFrames + 1} frame(s) late";
 
     /// <summary>You were parrying but outside the window: say whether it was early or late, and by how much.</summary>
     private static string MissedParry(Technique parry, int frame)

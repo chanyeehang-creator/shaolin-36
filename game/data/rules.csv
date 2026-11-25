@@ -20,7 +20,7 @@ clash_perfect_stagger,40,Perfect clash: the target is staggered this long
 clash_perfect_recovery,6,Perfect clash: the striker recovers in this many frames
 clash_perfect_qi,10,Perfect clash: the striker gains this much Qi
 clash_recoil_push,25,Same weight: each fighter is pushed back this many cm (a real reset: 110 cm apart becomes 160)
-parry_recovery,8,Parry: the defender recovers in this many frames
+parry_recovery,5,Parry: after a block the defender recovers in this many frames (Chan's balance patch: was 8)
 parry_perfect_recovery,4,Perfect parry: the defender recovers in this many frames
 parry_perfect_stagger,30,Perfect parry: the attacker is staggered this long
 parry_perfect_drain,15,Perfect parry: the attacker loses this much stamina (the defender's parry cost is refunded)

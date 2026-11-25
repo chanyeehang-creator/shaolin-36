@@ -19,7 +19,7 @@ namespace Shaolin36.Core.Data
         };
 
         /// <summary>Columns a sheet may leave out; an empty cell means the default (no empowered version).</summary>
-        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "seal", "heal", "lunge", "hold", "knockdown", "hits_down" };
+        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "seal", "heal", "lunge", "hold", "knockdown", "hits_down", "early_block", "hit_recovery" };
 
         /// <summary>Most a hit can push the defender back, in centimetres.</summary>
         public const int MaxKnockback = 500;
@@ -183,6 +183,8 @@ namespace Shaolin36.Core.Data
                 int hold = Cell("hold").Length == 0 ? 0 : Int("hold");
                 bool knockdown = Cell("knockdown").Length != 0 && Bool("knockdown");
                 bool hitsDown = Cell("hits_down").Length != 0 && Bool("hits_down");
+                int earlyBlock = Cell("early_block").Length == 0 ? 0 : Int("early_block");
+                int hitRecovery = Cell("hit_recovery").Length == 0 ? 0 : Int("hit_recovery");
 
                 if (startup < 1) rowErrors.Add("'startup' must be at least 1 frame");
                 if (active < 1) rowErrors.Add("'active' must be at least 1 frame");
@@ -195,6 +197,12 @@ namespace Shaolin36.Core.Data
                 if (next.Length > 0 && next == id) rowErrors.Add("'next' cannot be the technique itself");
                 if (perfectParry > 0 && category != Category.Huajin) rowErrors.Add("only 化劲 (huajin) techniques can have 'perfect_parry'");
                 if (perfectParry > active) rowErrors.Add($"'perfect_parry' ({perfectParry}) cannot be longer than 'active' ({active}), which is the parry window");
+                if (earlyBlock > 0 && perfectParry == 0) rowErrors.Add("'early_block' is set but 'perfect_parry' is 0: only a 化劲 (huajin) parry has a block window");
+                if (earlyBlock + perfectParry > active)
+                    rowErrors.Add($"'early_block' + 'perfect_parry' ({earlyBlock} + {perfectParry}) cannot be longer than 'active' ({active}), which is the parry window");
+                if (hitRecovery > 0 && reach == 0) rowErrors.Add("'hit_recovery' is set but 'reach' is 0, so the move never hits");
+                if (hitRecovery > 0 && hitRecovery >= active + recovery)
+                    rowErrors.Add($"'hit_recovery' ({hitRecovery}) must be shorter than 'active' + 'recovery' ({active + recovery}), or it isn't a shorter recovery");
 
                 if (empowerQi == 0 && (empowerPct != 100 || empowerArmor))
                     rowErrors.Add("'empower_damage_pct' or 'empower_armor' is set but 'empower_qi' is 0, so the empowered version can never happen");
@@ -241,7 +249,7 @@ namespace Shaolin36.Core.Data
                 if (next.Length > 0) chains.Add((lineNo, id, next));
                 techniques.Add(new Technique(id, displayName, category, weight, weapon,
                     startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
-                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape, seal, heal, lunge, hold, knockdown, hitsDown));
+                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape, seal, heal, lunge, hold, knockdown, hitsDown, earlyBlock, hitRecovery));
             }
 
             foreach (var (line, id, next) in chains)

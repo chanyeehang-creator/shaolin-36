@@ -68,7 +68,7 @@ The capsules change colour with what they are doing:
 
 - **Yellow**: startup (winding up). A faint yellow wedge on the floor shows where the move will hit: as long as its reach and as wide as its hit angle.
 - **Red**: active, the hit is live. The floor wedge turns red.
-- **Green / light blue**: your 化绵掌 window. Green is the perfect part (the first 4 frames), light blue the rest.
+- **Green / light blue**: your 化绵掌 window. Green is the perfect part (4 frames, after a 3-frame block), light blue the block parts either side.
 - **Dark blue**: recovery, can't act.
 - **White**: hit and frozen (hitstun).
 - **Purple**: staggered after a perfect parry or a lost clash. Wide open: hit them!
@@ -79,10 +79,11 @@ The capsules change colour with what they are doing:
 
 The top lines show both HP bars and stamina bars, what each fighter is doing with its frame number, and **"chain now!"** while you are in the window where pressing the same button again starts the next hit. When the same fighter lands hits in a row before the other recovers, you see **"N hit combo"**.
 
-**About 化绵掌 (the parry):** it is a tap, not a hold. Each press winds up for 3 frames, opens a 14-frame window (about 0.23 s), then has a 10-frame cooldown if nothing hit it, so to block a whole string you tap once for each hit. When the dummy's hit lands in your window:
+**About 化绵掌 (the parry):** it is a tap, not a hold. Each press winds up for 2 frames, opens a 17-frame window (about 0.28 s), then has a 10-frame cooldown if nothing hit it, so to block a whole string you tap once for each hit. When the dummy's hit lands in your window:
 
-- **First 4 frames: PERFECT PARRY.** No damage, the dummy's attack is stopped and it is staggered (purple) for 30 frames, and you recover in 4. Hit it straight away.
-- **The next 10 frames: Blocked.** No damage, but the dummy isn't interrupted: its string carries on, so tap again for its next hit. You recover in 8 frames, then you can tap again.
+- **First 3 frames: Blocked (early).** Leeway for pressing a little early: a plain block instead of a hit.
+- **Next 4 frames: PERFECT PARRY.** No damage, the dummy's attack is stopped and it is staggered (purple) for 30 frames, and you recover in 4. Hit it straight away. (Press 5 to 8 frames before the hit lands.)
+- **The last 10 frames: Blocked.** No damage, but the dummy isn't interrupted: its string carries on, so tap again for its next hit. After any block you recover in 5 frames, then you can tap again.
 - **Outside the window**, the hit lands as normal and the screen tells you whether you were too early or too late, and by how many frames.
 
 **Stamina:** the blue bar next to each HP bar (100 to start). Both you and the dummy play by the same rules:
@@ -111,7 +112,7 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 
 **点穴 封穴 (seal), on ○:** one finger strike that seals your opponent's 外功.
 
-- Wind-up 30 frames (0.5 s, standing still), then a **140 cm lunge** over 8 frames (0.13 s) with the hit going along with your body, then recovery 60 frames (1 s): 98 frames in all. The lunge sits between the quick step (70 / 90 cm) and the 轻功 dash (200 cm), so 封穴 connects from up to 255 cm away. The wind-up is long enough to parry or step on reaction, and a miss leaves you open for a second (a hit during the recovery interrupts it like any move).
+- Wind-up 30 frames (0.5 s, standing still), then a **140 cm lunge** over 8 frames (0.13 s) with the hit going along with your body, then recovery 60 frames (1 s) if it misses: 98 frames in all. **If it hits, you're free 24 frames (0.4 s) after the hit**, a few frames before their 30-frame hitstun ends, so a landed 封穴 doesn't leave you open; a miss (or a block) does. The lunge sits between the quick step (70 / 90 cm) and the 轻功 dash (200 cm), so 封穴 connects from up to 255 cm away. The wind-up is long enough to parry or step on reaction, and a miss leaves you open for a second (a hit during the recovery interrupts it like any move).
 - Costs 25 stamina (a 罗汉拳 hit costs 8), deals only 4 damage, freezes for 30 frames, reaches 115 cm from your body, and can't clash.
 - **On a landed hit the target can't use 外功 (罗汉拳) for 5 s.** 铁砂掌 is 内功 (a heavy strike), so it still works. A purple **【封】** icon and the seconds left show by their HP bar. 铁砂掌, parry, 轻功, quick step, 点穴 and 仙辽术 still work. A blocked, parried or dodged 点穴 seals nothing.
 
@@ -176,7 +177,7 @@ Hits also **push the defender back** (knockback). This is a rule, not just a loo
 | Same-weight clash | both fighters 25 cm, a real reset (110 cm apart becomes 160) |
 | Hit on hyper armor, a parry, a lost clash | nobody moves |
 
-Because of the small pushes, the full 罗汉拳 string only stays in reach if you start it **116 cm away or closer**. If you start it at the very tip of hit 1's 120 cm reach, hit 2 will miss: step in first.
+Because of the small pushes, the full 罗汉拳 string only stays in reach if you start it **135 cm away or closer** (hit 1's 125 cm reach plus its 10 cm step in; hits 2 and 3 each step 15 cm to keep up).
 
 **The opponent brain (Stage 3).** The opponent is now played by a brain that uses the same buttons and stick you do: the same three techniques (罗汉拳 on □, 铁砂掌 on △, 化绵掌 on L1), the same stamina, Qi and frame data, and the quick step. It never reads your buttons. It only "sees" what you do a little late, like a person reacting. What it does, in order of priority:
 
@@ -184,7 +185,7 @@ Because of the small pushes, the full 罗汉拳 string only stays in reach if yo
 2. **Answers a strike it sees coming:** a parry timed for your hit frame (sometimes aiming for the perfect part, sometimes the plain block part), or else a quick step to the side.
 3. **Backs off to breathe** when its stamina is low (it walks back to 250 cm and waits). It still parries if it can pay for it.
 4. **Punishes:** if it sees you recovering from a move, staggered or recoiling while you're in its reach, it may attack straight away.
-5. **Otherwise** it walks in until its attacks reach (120 cm), with the odd quick step forward to close a long gap. In reach, every so often it chooses: attack (with enough Qi it always picks the Qi 铁砂掌), throw its parry on a guess, circle round you, or wait.
+5. **Otherwise** it walks in until its attacks reach (about 125 cm), with the odd quick step forward to close a long gap. In reach, every so often it chooses: attack (with enough Qi it always picks the Qi 铁砂掌), throw its parry on a guess, circle round you, or wait.
 
 The top line shows what it is up to, for example "closing in", "circling you", "saw your strike, parrying", "parrying on a guess" or "backing off to breathe".
 
@@ -199,9 +200,9 @@ Three brains to pick from on the loadout screen (you start against the monk):
 Things worth knowing when you fight it:
 
 - **Every duel starts 300 cm apart** and the brain waits half a second (30 frames) before it moves, so a new duel or a restart never opens with you getting hit. Walking in at 200 cm per second, it needs about 1.4 s in all to reach you. (The old training dummy never walks, so walk up to it.)
-- **罗汉拳 hit 1 lands 13 frames (0.22 s) after you press**, faster than any of the brains can react (12 frames to see it plus 3 to open a parry is already 15). So your opening jab only gets parried when the brain **guesses**. Its slow moves are different: your 铁砂掌 winds up for 36 frames (0.6 s), and every brain sees that coming in time.
-- **A wrong guess is your chance.** When it throws 化绵掌 and nothing comes, it's stuck for 27 frames (0.45 s) and paid 10 stamina. Wait for the parry colours to pass, then hit it.
-- **After it blocks one hit, it can block the next only if the gap is long enough.** A block costs 8 frames of recovery and a new parry takes 3 frames to open. 罗汉拳 hit 3 lands only 9 frames after hit 2, so if you mash the string, hit 3 always gets through a block. The same is true for you when it attacks you.
+- **罗汉拳 hit 1 lands 13 frames (0.22 s) after you press**, faster than any of the brains can react (12 frames to see it plus 2 to open a parry is already 14). So your opening jab only gets parried when the brain **guesses**. Its slow moves are different: your 铁砂掌 winds up for 36 frames (0.6 s), and every brain sees that coming in time.
+- **A wrong guess is your chance.** When it throws 化绵掌 and nothing comes, it's stuck for 29 frames (0.48 s) and paid 10 stamina. Wait for the parry colours to pass, then hit it.
+- **After it blocks one hit, it can block the next only if the gap is long enough.** A block costs 5 frames of recovery, a new parry takes 2 frames to open and its window starts with 3 block frames. 罗汉拳 hit 3 lands 9 frames after hit 2, so a parry re-pressed straight after a block is in time to block it. The same is true for you when it attacks you.
 - **It gets tired like you do.** Every parry costs it 10 stamina and every strike its own cost. When it backs off to breathe, chase it.
 - Its choices come from a random roll that starts the same way every time (a "seed"), and the seed changes each new duel, so duels differ but the game stays fully repeatable for testing.
 
@@ -214,7 +215,8 @@ Things worth knowing when you fight it:
 
 | Move | Reach | Hit angle (wedge) |
 | --- | --- | --- |
-| 罗汉拳 hits 1 and 2 | 120 cm | 60° (30° either side) |
+| 罗汉拳 hit 1 | 125 cm | 60° (30° either side) |
+| 罗汉拳 hit 2 | 120 cm | 60° |
 | 罗汉拳 hit 3 | 125 cm | 70° |
 | 罗汉拳 finisher | 140 cm | 90°: a wide hook, harder to step round |
 | 铁砂掌 | 130 cm | 60° |

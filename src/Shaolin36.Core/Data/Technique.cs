@@ -9,8 +9,8 @@ namespace Shaolin36.Core.Data
     ///          [ clash window ]   ← the last ClashWindowFrames frames of startup
     ///          [perfect]          ← the first PerfectClashFrames of that window
     /// </code>
-    /// For a 化劲 parry the active frames are the parry window, and its first
-    /// PerfectParryFrames are the perfect parry.
+    /// For a 化劲 parry the active frames are the parry window: EarlyBlockFrames of plain block first,
+    /// then PerfectParryFrames of perfect parry, then plain block to the end of the window.
     ///
     /// Empowered version (optional, <see cref="EmpowerQi"/> above 0): if the fighter has at least
     /// EmpowerQi Qi when the technique starts, it spends that Qi and the move is empowered: its hit
@@ -53,8 +53,12 @@ namespace Shaolin36.Core.Data
             int lungeCm = 0,
             int holdFrames = 0,
             bool knockdown = false,
-            bool hitsDown = false)
+            bool hitsDown = false,
+            int earlyBlockFrames = 0,
+            int hitRecoveryFrames = 0)
         {
+            EarlyBlockFrames = earlyBlockFrames;
+            HitRecoveryFrames = hitRecoveryFrames;
             Knockdown = knockdown;
             HitsDown = hitsDown;
             HoldFrames = holdFrames;
@@ -122,8 +126,21 @@ namespace Shaolin36.Core.Data
         /// <summary>The first N recovery frames in which pressing again starts <see cref="Next"/>.</summary>
         public int ChainWindowFrames { get; }
 
-        /// <summary>化劲 only: the first N active frames that count as a perfect parry.</summary>
+        /// <summary>化劲 only: N active frames that count as a perfect parry, right after the <see cref="EarlyBlockFrames"/>.</summary>
         public int PerfectParryFrames { get; }
+
+        /// <summary>
+        /// 化劲 only: the first N active frames are a plain block, before the perfect parry starts. Leeway for a parry
+        /// pressed a little early: it still blocks. 0 = the window opens straight into the perfect parry.
+        /// </summary>
+        public int EarlyBlockFrames { get; }
+
+        /// <summary>
+        /// If above 0: once this move's hit lands (damage, not blocked, parried or dodged), the attacker can act again
+        /// this many frames later, cutting the rest of the move short. A miss keeps the full recovery.
+        /// 0 = the recovery is the same either way.
+        /// </summary>
+        public int HitRecoveryFrames { get; }
 
         /// <summary>Qi needed (and spent) for the empowered version when the move starts; 0 means it has none.</summary>
         public int EmpowerQi { get; }
@@ -256,7 +273,11 @@ namespace Shaolin36.Core.Data
         /// <summary>A parry deflects strikes during its active frames.</summary>
         public bool IsParrying(int frame) => Category == Category.Huajin && PerfectParryFrames > 0 && IsActive(frame);
 
-        public bool IsInPerfectParry(int frame) => IsParrying(frame) && frame < StartupFrames + PerfectParryFrames;
+        /// <summary>First frame of the perfect parry (inclusive).</summary>
+        public int PerfectParryStart => StartupFrames + EarlyBlockFrames;
+
+        public bool IsInPerfectParry(int frame) =>
+            IsParrying(frame) && frame >= PerfectParryStart && frame < PerfectParryStart + PerfectParryFrames;
 
         /// <summary>
         /// How many of the chain window's frames give a true combo into <paramref name="next"/>:

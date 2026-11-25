@@ -6,8 +6,10 @@
 # Chained on the first frame the hits land on frames 13, 35, 44, 66 (were 19, 49, 61, 91). Each link still has 5 frames to chain and combo.
 # stamina = paid when the move starts (each hit of a string pays its own). A perfect parry refunds the parry's cost.
 # next = id of the next hit in the string; chain_window = first N recovery frames where pressing again starts it.
-# perfect_parry (化劲 only) = first N active frames that count as a perfect parry; the active frames are the parry window.
-# 化绵掌 (Chan's 3rd playtest): 3 wind-up, 4 perfect + 10 block = 14-frame window, 10 cooldown if nothing hits.
+# perfect_parry (化劲 only) = N active frames that count as a perfect parry, right after early_block; the active frames are the parry window.
+# early_block (化劲 only) = first N active frames that are a plain block before the perfect parry starts: leeway for pressing a bit early.
+# 化绵掌 (Chan's balance patch): 2 wind-up, then 3 block + 4 perfect + 10 block = 17-frame window, 10 recovery if nothing hits.
+#           Press 2-4 frames early: blocked. 5-8 frames before the hit: perfect. After a block you're free in parry_recovery (5).
 # empower_qi = if you have this much Qi when the move starts, it spends it and is empowered (0 = no empowered version).
 # empower_damage_pct = empowered damage as % of damage (200 = double). empower_armor = empowered move has hyper armor in startup and active (hits deal damage but don't interrupt it).
 # 铁砂掌 (Chan's test): one heavy palm, 0.6 s wind-up, 0.6 s recovery. With 30+ Qi: spends 30, hyper armor, double damage.
@@ -16,7 +18,9 @@
 # hit_angle = how wide the strike is, in degrees, centred on where it was aimed when it started (60 = 30 either side; 360 or empty = all round).
 #             Reach and angle are both checked, so stepping to the side during the wind-up can slip a strike. Each hit of a string aims afresh.
 # advance = cm the attacker steps forward along its aim during the move (slid over the startup frames; stops at min_distance). 0 = stands still.
-#           罗汉拳 steps 10, 8, 8, then 15 cm into the finisher (41 cm over the string), so started 130 cm away or closer every hit stays in reach.
+#           罗汉拳 steps 10, 15, 15, then 15 cm into the finisher (55 cm over the string), so started 135 cm away or closer every hit stays in reach.
+#           (Chan's balance patch: hit 1 reach 120 -> 125 so it connects easier; hits 2 and 3 step 8 -> 15 cm to press forward.
+#           Hit 1 stops at 125: from touching range the finisher leaves them 140 cm away, so at 130 + 10 a re-press would land.)
 # dash (轻功 only) = cm the move carries you, slid over its startup + active frames. It goes the way the stick is held when you press it
 #           (relative to your opponent), or straight at your opponent with no direction held; it stops at min_distance (touching range).
 # invincible = first N frames of the move where strikes pass through you (counted from the press). 0 = none.
@@ -28,8 +32,11 @@
 #           Seals refresh, they don't stack. The defender can still parry, dash, quick step and use other categories.
 # heal (气功 only) = HP restored when the channel (the active frames) finishes, never above hp_max. Hit before then: no heal, Qi gone.
 # 点穴 封穴 (Chan's brief; the name from the build plan): one finger strike, small damage, seals 外功 for 5 s. Balanced by a long 0.5 s wind-up
-#           (parry or step on reaction), 25 stamina (vs 8 for a 罗汉拳 hit) and a 1 s recovery (Chan: recovery, not a skill cooldown; a hit
-#           during it interrupts it like any move). Not clashable (a Qi strike). Later variants can be faster and cost Qi.
+#           (parry or step on reaction), 25 stamina (vs 8 for a 罗汉拳 hit) and a 1 s recovery on a miss (Chan: recovery, not a skill cooldown;
+#           a hit during it interrupts it like any move). On a hit (Chan's balance patch) it's free 24 frames (0.4 s) after the hit,
+#           6 frames before the 30-frame hitstun ends: a brief pause, so dodging it is what beats it. Not clashable (a Qi strike). Later variants can be faster and cost Qi.
+# hit_recovery = if set: once the hit lands (damage; not blocked, parried or dodged), the attacker can act this many frames later,
+#           cutting the rest of the move short. A miss keeps the full active + recovery. Empty = same recovery either way.
 # lunge = cm the attacker's body surges forward along its aim from the first active frame, slid over the active frames: the hitbox goes
 #           with it, so the hit connects farther out. Stops at min_distance. 封穴 (Chan's playtest): stands still for its 0.5 s wind-up,
 #           then lunges 140 cm over 8 frames (0.13 s), between the quick step (70 / 90 cm) and the 轻功 dash (200 cm). Hits up to 255 cm away.
@@ -49,14 +56,14 @@
 #           then thrown 130 cm for 14 damage and knocked down. The grabber is free 35 frames after the throw; the thrown fighter
 #           can rise 20 + 20 = 40 frames after it at the earliest, so the grabber is a little ahead but too far for a free hit.
 #           Whiffed: 32 frames (0.53 s) of recovery, a sure punish. 15 stamina. Strike beats grab, grab beats parry, parry beats strike.
-id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,empower_qi,empower_damage_pct,empower_armor,knockback,hit_angle,advance,dash,invincible,escape,seal,heal,lunge,hold,knockdown,hits_down
-luohan_quan_1,罗汉拳 1 冲拳,waigong,medium,false,13,3,21,5,2,8,0,6,true,27,120,luohan_quan_2,6,0,0,100,false,4,60,10
-luohan_quan_2,罗汉拳 2 连拳,waigong,medium,false,19,3,11,4,2,8,0,6,true,14,120,luohan_quan_3,6,0,0,100,false,4,60,8
-luohan_quan_3,罗汉拳 3 挑掌,waigong,medium,false,6,3,21,4,2,9,0,7,true,27,125,luohan_quan_4,6,0,0,100,false,4,70,8
+id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,empower_qi,empower_damage_pct,empower_armor,knockback,hit_angle,advance,dash,invincible,escape,seal,heal,lunge,hold,knockdown,hits_down,early_block,hit_recovery
+luohan_quan_1,罗汉拳 1 冲拳,waigong,medium,false,13,3,21,5,2,8,0,6,true,27,125,luohan_quan_2,6,0,0,100,false,4,60,10
+luohan_quan_2,罗汉拳 2 连拳,waigong,medium,false,19,3,11,4,2,8,0,6,true,14,120,luohan_quan_3,6,0,0,100,false,4,60,15
+luohan_quan_3,罗汉拳 3 挑掌,waigong,medium,false,6,3,21,4,2,9,0,7,true,27,125,luohan_quan_4,6,0,0,100,false,4,70,15
 luohan_quan_4,罗汉拳 4 收势重拳,waigong,heavy,false,19,4,20,6,2,14,0,12,true,24,140,,0,0,0,100,false,60,90,15
-timed_parry,化绵掌 (timed parry),huajin,light,false,3,14,10,0,0,10,0,0,false,0,0,,0,4,0,100,false,0,,0
+timed_parry,化绵掌 (timed parry),huajin,light,false,2,17,10,0,0,10,0,0,false,0,0,,0,4,0,100,false,0,,0,,,,,,,,,,3,
 tiesha_zhang,铁砂掌 (iron palm),neigong,heavy,false,36,4,36,8,2,20,0,15,true,40,130,,0,0,30,200,true,50,60,20
 qinggong_dash,轻功 冲步 (dash),qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,100,false,0,,0,200,10,true
-fengxue,点穴 封穴 (seal),dianxue,light,false,30,8,60,0,0,25,0,4,false,30,115,,0,0,0,100,false,10,50,0,0,0,false,300,0,140
+fengxue,点穴 封穴 (seal),dianxue,light,false,30,8,60,0,0,25,0,4,false,30,115,,0,0,0,100,false,10,50,0,0,0,false,300,0,140,,,,,24
 xianliao_shu,仙辽术 (healing qigong),qigong,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,0,100,false,0,,0,0,0,false,0,10
 qinna_shou,擒拿手 (grab),qinna,light,false,10,4,32,0,0,15,0,14,false,0,100,,0,0,0,100,false,130,60,15,0,0,false,0,0,0,30,true,false

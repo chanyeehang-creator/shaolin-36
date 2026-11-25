@@ -22,6 +22,23 @@ public class ParryTests
         Assert.Equal(expected, Parry.Resolve(P, frame));
     }
 
+    [Theory]
+    [InlineData(1, ParryOutcome.NotParried)]   // still starting up (2 frames)
+    [InlineData(2, ParryOutcome.Parried)]      // early block: pressed a bit early, still blocked
+    [InlineData(4, ParryOutcome.Parried)]
+    [InlineData(5, ParryOutcome.PerfectParry)] // then the 4 perfect frames
+    [InlineData(8, ParryOutcome.PerfectParry)]
+    [InlineData(9, ParryOutcome.Parried)]      // then the late block
+    [InlineData(18, ParryOutcome.Parried)]
+    [InlineData(19, ParryOutcome.NotParried)]  // window closed
+    public void An_early_block_window_comes_before_the_perfect_frames(int frame, ParryOutcome expected)
+    {
+        var p = new Technique("p", "p", Category.Huajin, Weight.Light, false, 2, 17, 10, 0, 0, 10, 0, 0, false,
+            perfectParryFrames: 4, earlyBlockFrames: 3);
+        Assert.Equal(5, p.PerfectParryStart);
+        Assert.Equal(expected, Parry.Resolve(p, frame));
+    }
+
     [Fact]
     public void An_attack_never_parries()
     {
