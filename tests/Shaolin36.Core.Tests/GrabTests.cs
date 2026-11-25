@@ -8,7 +8,7 @@ using Xunit;
 namespace Shaolin36.Core.Tests;
 
 /// <summary>
-/// 擒拿 龙爪手: a fast, short grab that beats a parry. It catches, holds for a moment, then throws.
+/// 擒拿手: a fast, short grab that beats a parry. It catches, holds for a moment, then throws.
 /// Strike beats grab, grab beats parry, parry beats strike. Played on the real sheets.
 /// </summary>
 public class GrabTests
@@ -19,12 +19,12 @@ public class GrabTests
         new(TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques);
 
     private static Technique T(string id) => Book.Find(id)!;
-    private static Technique Grab => T("longzhua_shou");
+    private static Technique Grab => T("qinna_shou");
 
     private static readonly SlotInput None = SlotInput.None;
     private static SlotInput P(Slot s) => SlotInput.Press(s);
 
-    /// <summary>The playtest loadout: 罗汉拳 □, 铁砂掌 △, 封穴 ○, dash ✕, 化绵掌 L1, 仙辽术 R1, 龙爪手 R2.</summary>
+    /// <summary>The playtest loadout: 罗汉拳 □, 铁砂掌 △, 封穴 ○, dash ✕, 化绵掌 L1, 仙辽术 R1, 擒拿手 R2.</summary>
     private static Loadout Full()
     {
         var l = new Loadout(Book);
@@ -53,8 +53,9 @@ public class GrabTests
     // ---------- The sheet ----------
 
     [Fact]
-    public void Longzhua_shou_is_a_fast_short_unclashable_grab_with_no_cooldown()
+    public void Qinna_shou_is_a_fast_short_unclashable_grab_with_no_cooldown()
     {
+        Assert.Equal("擒拿手 (grab)", Grab.Name);
         Assert.Equal(Category.Qinna, Grab.Category);
         Assert.True(Grab.IsGrab);
         Assert.False(Grab.Clashable);
@@ -62,7 +63,8 @@ public class GrabTests
         Assert.True(Grab.FullReachCm < T("luohan_quan_1").FullReachCm, "shorter than a 罗汉拳 hit: you have to be close");
         Assert.True(Grab.RecoveryFrames >= 30, "a whiff is a sure punish");
         Assert.Equal(30, Grab.HoldFrames);
-        Assert.True(Grab.KnockbackCm > 0 && Grab.HitstunFrames > 0, "the throw sends them away");
+        Assert.True(Grab.KnockbackCm > 0 && Grab.Knockdown, "the throw sends them away, down on the floor");
+        Assert.False(Grab.HitsDown);
     }
 
     // ---------- Catch, hold, throw ----------
@@ -97,7 +99,8 @@ public class GrabTests
         Assert.Equal(Rules.HpMax - Grab.Damage, d.Two.Hp);
         Assert.Equal(Grab.KnockbackCm, thrown.KnockbackCm);
         Assert.Equal(Rules.QiPerHit, thrown.AttackerQiGained);
-        Assert.Equal(FighterState.Hitstun, d.Two.State);
+        Assert.True(thrown.KnockedDown);
+        Assert.Equal(FighterState.KnockedDown, d.Two.State);
         Assert.False(d.One.IsHolding);
         d.Step(None, None);
         Assert.Equal(11, d.One.MoveFrame); // the move carries on after the throw
@@ -109,11 +112,15 @@ public class GrabTests
         var d = DuelAt(100);
         RunTo(d, 40, one: At(0, Slot.R2));
         int throwTick = 40;
-        while (!d.One.CanAct) d.Step(None, None);
-        int grabberFree = d.Tick - 1;
-        while (!d.Two.CanAct) d.Step(None, None);
-        int thrownFree = d.Tick - 1;
-        Assert.Equal(throwTick + Grab.HitstunFrames, thrownFree);
+        int grabberFree = -1, thrownFree = -1;
+        while (grabberFree < 0 || thrownFree < 0)
+        {
+            int t = d.Tick;
+            d.Step(None, d.Two.State == FighterState.KnockedDown ? P(Slot.Square) : None);
+            if (grabberFree < 0 && d.One.CanAct) grabberFree = t;
+            if (thrownFree < 0 && d.Two.CanAct) thrownFree = t;
+        }
+        Assert.Equal(throwTick + Rules.DownMin + Rules.RiseFrames, thrownFree); // the quickest rise
         Assert.True(grabberFree < thrownFree, "the grabber recovers first");
         Assert.True(d.DistanceCm > T("luohan_quan_1").FullReachCm, $"thrown {d.DistanceCm} cm: out of reach of a 罗汉拳 hit");
     }
@@ -267,7 +274,7 @@ public class GrabTests
         var d = DuelAt(100);
         var brain = new Brain(Style(grab: 100), 1);
         for (int i = 0; i < 5 && d.Two.Technique == null; i++) d.Step(None, brain.Think(d, Side.Two).Slots);
-        Assert.Equal("longzhua_shou", d.Two.Technique?.Id);
+        Assert.Equal("qinna_shou", d.Two.Technique?.Id);
         Assert.Equal(BrainIntent.Grabbing, brain.Intent);
     }
 
@@ -279,7 +286,7 @@ public class GrabTests
         for (int i = 0; i < 30; i++)
         {
             far.Step(None, brain.Think(far, Side.Two).Slots, MoveInput.WalkBack, MoveInput.None);
-            Assert.NotEqual("longzhua_shou", far.Two.Technique?.Id);
+            Assert.NotEqual("qinna_shou", far.Two.Technique?.Id);
         }
 
         var near = DuelAt(100);
@@ -290,7 +297,7 @@ public class GrabTests
             var press = brain2.Think(near, Side.Two).Slots;
             bool stunned = near.One.State == FighterState.Hitstun;
             near.Step(None, press);
-            if (stunned) Assert.NotEqual("longzhua_shou", near.Two.Technique?.Id);
+            if (stunned) Assert.NotEqual("qinna_shou", near.Two.Technique?.Id);
         }
     }
 

@@ -47,7 +47,7 @@ Every fight button is a **slot**. Slots don't mean anything on their own: whatev
 | L1 | 5 | Q or right click | 化绵掌 |
 | L2 | 7 | Left Shift | |
 | R1 | 6 | E | 仙辽术 |
-| R2 | 8 | F | 擒拿 龙爪手 (grab) |
+| R2 | 8 | F | 擒拿手 (grab) |
 
 | Other | Gamepad | Keyboard |
 | --- | --- | --- |
@@ -123,14 +123,22 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 
 **The opponent uses both:** it throws 封穴 like its other light attacks, but not while you're already sealed (and it can't use 外功 while you have it sealed). It heals when it's hurt, has the Qi, and is well out of your reach (the brain sheet's `heal` chance: novice 20, monk 40, master 60). It also counts your heal as an opening and runs in to punish it.
 
-**擒拿 龙爪手 (dragon claw grab), on R2:** a fast, short grab that beats a parry.
+**擒拿手 (grab), on R2:** a fast, short grab that beats a parry, and a throw that knocks down.
 
 - Reach in 10 frames (0.17 s, stepping 15 cm), then 4 frames to catch. It only reaches 100 cm (the capsules touch at 80), so you have to be close. Costs 15 stamina. No cooldown: the wind-up and recovery are the cost.
-- **Caught:** both capsules turn orange. You hold them for 30 frames (0.5 s), then throw them **130 cm for 14 damage** and 50 frames of hitstun. You're free 35 frames after the throw, so you're ahead, but too far away for a free hit.
+- **Caught:** both capsules turn orange. You hold them for 30 frames (0.5 s), then throw them **130 cm for 14 damage** and **knock them down**. You're free 35 frames after the throw; they can be up 40 frames after it at the soonest, so you're a little ahead, but too far away for a free hit.
 - **Missed:** 32 frames (0.53 s) of recovery. A sure punish.
 - **What it beats:** a 化绵掌 parry, even a perfect one ("Parry can't stop a grab!"); hyper armor (a Qi 铁砂掌 wind-up); clashes (a grab never clashes).
-- **What beats it:** a strike that lands on the same tick or earlier (your 罗汉拳 hit 1 out-speeds it if you press first), stepping back out of its 100 cm, or a 轻功 dash's invincible frames (a just dodge). It can't catch a fighter in hitstun, so you can't grab out of a combo. So it's rock-paper-scissors: **strike beats grab, grab beats parry, parry beats strike.**
-- Held, you can't do anything, not even the dash. Once you're thrown, the dash can break the hitstun like any combo.
+- **What beats it:** a strike that lands on the same tick or earlier (your 罗汉拳 hit 1 out-speeds it if you press first), stepping back out of its 100 cm, or a 轻功 dash's invincible frames (a just dodge). It can't catch a fighter in hitstun or on the floor. So it's rock-paper-scissors: **strike beats grab, grab beats parry, parry beats strike.**
+- Held, you can't do anything, not even the dash.
+
+**Knocked down:** the thrown fighter lies flat on the floor (brown). **Nothing can hit you while you're down**: every move passes over you (later moves can be marked `hits_down` in techniques.csv to change that).
+
+- For the first 20 frames (0.33 s) you can't do anything. Then **press any button to rise** (20 frames, 0.33 s, the capsule tips back up) or **hold a direction to roll away** (150 cm over 24 frames, 0.4 s, the capsule spins along the floor; hold back to roll away from your opponent). Both are invincible. The button that rises doesn't also start a move.
+- Do nothing and you rise by yourself after 90 frames (1.5 s).
+- **Exhausted (stamina hit 0 and hasn't refilled to 50 yet): you stay down** until it has, however long that takes.
+- The opponent gets up as soon as it can: it rolls back with its `step` chance, otherwise it rises. It doesn't attack you while you're down or getting up.
+- The numbers are `down_min`, `down_max`, `rise_frames`, `roll_frames` and `roll_distance` in rules.csv.
 
 **The opponent grabs too:** at each choice in grab reach it rolls the brain sheet's `grab` chance first (novice 10, monk 20, master 30). It never tries to parry your grab; it steps or dashes if it reacts in time, but at 10 frames most grabs are too fast to react to.
 

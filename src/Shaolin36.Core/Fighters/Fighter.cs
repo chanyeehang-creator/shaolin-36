@@ -77,6 +77,14 @@ namespace Shaolin36.Core.Fighters
     /// fighter in <see cref="FighterState.Grabbed"/>. While holding, the grabber's move is paused on the frame it caught;
     /// on the tick the hold runs out <see cref="ThrewThisTick"/> is true (the Duel lands the throw), and the move carries on
     /// from the next frame.
+    ///
+    /// Knocked down (<see cref="KnockDown"/>, needs <see cref="DownRules"/>; a <see cref="Combat.Duel"/> always gives them):
+    /// the fighter lies in <see cref="FighterState.KnockedDown"/> and can't act. Once <see cref="Fighters.DownRules.MinFrames"/>
+    /// have passed (<see cref="CanGetUp"/>), a direction held rolls away (<see cref="FighterState.Rolling"/>, aimed like a dash,
+    /// relative to the lock-on) and any slot button rises (<see cref="FighterState.Rising"/>); after
+    /// <see cref="Fighters.DownRules.MaxFrames"/> they rise by themselves. While exhausted they can do neither, and stay down
+    /// until stamina is back up to exhausted_until. Rising and rolling are invincible and cost nothing; the button that rises
+    /// is used up (it doesn't also start a move). Presses on the floor aren't buffered.
     /// </summary>
     public sealed class Fighter
     {
@@ -89,8 +97,9 @@ namespace Shaolin36.Core.Fighters
         /// <param name="qi">Qi to start with (a <see cref="Combat.Duel"/> passes qi_start, or what a run carried over).</param>
         /// <param name="quickStep">The quick step's numbers. Null means this fighter can't quick-step.</param>
         public Fighter(Loadout? loadout = null, int maxHp = 1, int positionCm = 0, int inputBufferFrames = 0, StaminaRules? stamina = null,
-            int maxQi = 0, int qi = 0, QuickStepRules? quickStep = null)
+            int maxQi = 0, int qi = 0, QuickStepRules? quickStep = null, DownRules? down = null)
         {
+            DownRules = down;
             QuickStepRules = quickStep;
             if (maxQi < 0) throw new ArgumentOutOfRangeException(nameof(maxQi), maxQi, "max Qi cannot be negative");
             if (qi < 0 || qi > maxQi) throw new ArgumentOutOfRangeException(nameof(qi), qi, $"starting Qi must be between 0 and max Qi ({maxQi})");
@@ -132,6 +141,43 @@ namespace Shaolin36.Core.Fighters
             if (!State.IsInMove()) throw new InvalidOperationException("only a fighter in a move can hold a grab");
             if (frames < 1) throw new ArgumentOutOfRangeException(nameof(frames), frames, "a hold lasts at least 1 frame");
             HoldFramesLeft = frames;
+        }
+
+        /// <summary>Knocked-down and getting-up numbers, or null when this fighter can't be knocked down.</summary>
+        public DownRules? DownRules { get; }
+
+        /// <summary>Frames spent on the floor since the knockdown. -1 when not knocked down.</summary>
+        public int DownFrame { get; private set; } = -1;
+
+        /// <summary>Frame within the current rise or roll, 0-based. -1 when not getting up.</summary>
+        public int GetUpFrame { get; private set; } = -1;
+
+        /// <summary>Which way the current roll goes, relative to the lock-on (out of 100). 0, 0 when not rolling.</summary>
+        public int RollForward { get; private set; }
+
+        /// <summary>The sideways part of the current roll's way (negative is left).</summary>
+        public int RollRight { get; private set; }
+
+        public bool IsKnockedDown => State == FighterState.KnockedDown;
+
+        /// <summary>True when a knocked-down fighter may rise or roll now: down_min frames passed and not exhausted.</summary>
+        public bool CanGetUp => State == FighterState.KnockedDown && DownFrame >= DownRules!.MinFrames && !IsExhausted;
+
+        /// <summary>Total frames of the current rise or roll.</summary>
+        public int GetUpTotalFrames =>
+            State == FighterState.Rising ? DownRules!.RiseFrames : State == FighterState.Rolling ? DownRules!.RollFrames : 0;
+
+        /// <summary>Knock this fighter down on this tick: whatever they were doing stops and they lie on the floor.</summary>
+        public void KnockDown()
+        {
+            if (DownRules == null) throw new InvalidOperationException("this fighter has no down rules, so it can't be knocked down");
+            EndMove();
+            EndQuickStep();
+            StunFramesLeft = 0;
+            State = FighterState.KnockedDown;
+            DownFrame = 0;
+            GetUpFrame = -1;
+            ClearBuffer();
         }
 
         /// <summary>HP a 气功 heal restored on the latest tick (0 on every other tick).</summary>
@@ -181,7 +227,8 @@ namespace Shaolin36.Core.Fighters
         public int DashRight { get; private set; }
 
         /// <summary>True while strikes pass through this fighter: the invincible frames at the start of a move such as a 轻功 dash.</summary>
-        public bool IsInvincible => State.IsInMove() && Technique!.IsInvincible(MoveFrame);
+        public bool IsInvincible =>
+            State.IsInMove() && Technique!.IsInvincible(MoveFrame) || State == FighterState.Rising || State == FighterState.Rolling;
 
         /// <summary>True while in a 轻功 dash (its slide or its recovery).</summary>
         public bool IsDashing => State.IsInMove() && Technique!.IsDash;
@@ -316,6 +363,9 @@ namespace Shaolin36.Core.Fighters
         public FighterState NextState()
         {
             if (IsHolding) return State;
+            if (State == FighterState.KnockedDown) return State;
+            if (State == FighterState.Rising || State == FighterState.Rolling)
+                return GetUpFrame + 1 >= GetUpTotalFrames ? FighterState.Idle : State;
             if (State == FighterState.QuickStep)
                 return QuickStepFrame + 1 >= QuickStepRules!.TotalFrames ? FighterState.Idle : FighterState.QuickStep;
             if (State.IsInMove())
@@ -339,6 +389,13 @@ namespace Shaolin36.Core.Fighters
             if (SealedFrames > 0) SealedFrames--;
             Advance();
 
+            if (State == FighterState.KnockedDown)
+            {
+                TryGetUp(input);
+                Regen(walking);
+                return;
+            }
+
             if (TryAct(input) || TryAct(Buffered))
                 ClearBuffer();
             else
@@ -360,6 +417,26 @@ namespace Shaolin36.Core.Fighters
             }
 
             Regen(walking);
+        }
+
+        /// <summary>On the floor: roll if a direction is held, rise on any button, or rise by itself after down_max.</summary>
+        private void TryGetUp(SlotInput input)
+        {
+            if (!CanGetUp) return;
+            if (_stick.IsWalking)
+            {
+                State = FighterState.Rolling;
+                RollForward = _stick.Forward;
+                RollRight = _stick.Right;
+            }
+            else if (input.Any || DownFrame >= DownRules!.MaxFrames)
+            {
+                State = FighterState.Rising;
+            }
+            else return;
+            DownFrame = -1;
+            GetUpFrame = 0;
+            ClearBuffer();
         }
 
         /// <summary>True if a quick step could start now: free, able to quick-step, and not out of breath for it.</summary>
@@ -522,6 +599,8 @@ namespace Shaolin36.Core.Fighters
             if (frames < 1) throw new ArgumentOutOfRangeException(nameof(frames), frames, "a stun lasts at least 1 frame");
             EndMove();
             EndQuickStep();
+            DownFrame = -1;
+            GetUpFrame = -1;
             State = state;
             StunFramesLeft = frames;
         }
@@ -570,7 +649,22 @@ namespace Shaolin36.Core.Fighters
 
         private void Advance()
         {
-            if (State == FighterState.QuickStep)
+            if (State == FighterState.KnockedDown)
+            {
+                DownFrame++;
+            }
+            else if (State == FighterState.Rising || State == FighterState.Rolling)
+            {
+                GetUpFrame++;
+                if (GetUpFrame >= GetUpTotalFrames)
+                {
+                    GetUpFrame = -1;
+                    RollForward = 0;
+                    RollRight = 0;
+                    State = FighterState.Idle;
+                }
+            }
+            else if (State == FighterState.QuickStep)
             {
                 QuickStepFrame++;
                 if (QuickStepFrame >= QuickStepRules!.TotalFrames)
@@ -645,7 +739,9 @@ namespace Shaolin36.Core.Fighters
         }
 
         public override string ToString() =>
-            IsHolding ? $"Holding {Technique!.Id} ({HoldFramesLeft} left)"
+            State == FighterState.KnockedDown ? $"KnockedDown f{DownFrame}"
+            : State == FighterState.Rising || State == FighterState.Rolling ? $"{State} f{GetUpFrame}"
+            : IsHolding ? $"Holding {Technique!.Id} ({HoldFramesLeft} left)"
             : State == FighterState.QuickStep ? $"QuickStep {QuickStepDirection} f{QuickStepFrame}"
             : State.IsInMove() ? $"{State} {Technique!.Id} f{MoveFrame}"
             : State.IsStunned() ? $"{State} ({StunFramesLeft} left)"

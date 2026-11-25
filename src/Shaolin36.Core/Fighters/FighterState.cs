@@ -21,6 +21,15 @@ namespace Shaolin36.Core.Fighters
         QuickStep,
         /// <summary>Caught by a 擒拿 grab: held until the throw lands, unable to act, escape or be grabbed again.</summary>
         Grabbed,
+        /// <summary>
+        /// Knocked down on the floor (a 擒拿 throw). Only moves with hits_down can hit them (none yet). After down_min frames,
+        /// any slot button rises and a direction rolls away; not while exhausted.
+        /// </summary>
+        KnockedDown,
+        /// <summary>Getting up from a knockdown (quick rise): invincible, then free.</summary>
+        Rising,
+        /// <summary>Rolling away from a knockdown: invincible, slides roll_distance, then free.</summary>
+        Rolling,
     }
 
     public static class FighterStates
@@ -30,6 +39,10 @@ namespace Shaolin36.Core.Fighters
             s == FighterState.Startup || s == FighterState.Active || s == FighterState.Recovery;
 
         /// <summary>True for the states where something was done to the fighter and they wait it out.</summary>
+        /// <summary>True while on the floor or getting up from it.</summary>
+        public static bool IsGroundState(this FighterState s) =>
+            s == FighterState.KnockedDown || s == FighterState.Rising || s == FighterState.Rolling;
+
         public static bool IsStunned(this FighterState s) =>
             s == FighterState.Hitstun || s == FighterState.Stagger || s == FighterState.Recoil || s == FighterState.Grabbed;
     }

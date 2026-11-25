@@ -19,7 +19,7 @@ namespace Shaolin36.Core.Data
         };
 
         /// <summary>Columns a sheet may leave out; an empty cell means the default (no empowered version).</summary>
-        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "seal", "heal", "lunge", "hold" };
+        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "seal", "heal", "lunge", "hold", "knockdown", "hits_down" };
 
         /// <summary>Most a hit can push the defender back, in centimetres.</summary>
         public const int MaxKnockback = 500;
@@ -181,6 +181,8 @@ namespace Shaolin36.Core.Data
                 int heal = Cell("heal").Length == 0 ? 0 : Int("heal");
                 int lunge = Cell("lunge").Length == 0 ? 0 : Int("lunge");
                 int hold = Cell("hold").Length == 0 ? 0 : Int("hold");
+                bool knockdown = Cell("knockdown").Length != 0 && Bool("knockdown");
+                bool hitsDown = Cell("hits_down").Length != 0 && Bool("hits_down");
 
                 if (startup < 1) rowErrors.Add("'startup' must be at least 1 frame");
                 if (active < 1) rowErrors.Add("'active' must be at least 1 frame");
@@ -222,7 +224,10 @@ namespace Shaolin36.Core.Data
                     rowErrors.Add("a 擒拿 (qinna) technique is a grab: it needs 'hold' 1 or more");
                 if (hold > 0 && reach == 0) rowErrors.Add("'hold' is set but 'reach' is 0, so the grab never catches");
                 if (hold > 0 && clashable) rowErrors.Add("a grab can't be clashed: it needs 'clashable' false");
-                if (hold > 0 && hitstun == 0) rowErrors.Add("a grab's throw needs 'hitstun' 1 or more");
+                if (hold > 0 && hitstun == 0 && !knockdown) rowErrors.Add("a grab's throw needs 'hitstun' 1 or more, or 'knockdown' true");
+                if (knockdown && reach == 0) rowErrors.Add("'knockdown' is set but 'reach' is 0, so the move never hits");
+                if (hitsDown && reach == 0) rowErrors.Add("'hits_down' is set but 'reach' is 0, so the move never hits");
+                if (hitsDown && hold > 0) rowErrors.Add("a grab can't catch a downed fighter: leave 'hits_down' false");
                 if (hold > 0 && lunge > 0) rowErrors.Add("a grab can't have 'lunge' yet (use 'advance' to step in)");
                 if (hold > 0 && empowerQi > 0) rowErrors.Add("a grab has no empowered version yet: leave 'empower_qi' 0");
                 if (empowerQi > 0 && empowerPct == 0) rowErrors.Add("'empower_damage_pct' must be above 0");
@@ -236,7 +241,7 @@ namespace Shaolin36.Core.Data
                 if (next.Length > 0) chains.Add((lineNo, id, next));
                 techniques.Add(new Technique(id, displayName, category, weight, weapon,
                     startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
-                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape, seal, heal, lunge, hold));
+                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape, seal, heal, lunge, hold, knockdown, hitsDown));
             }
 
             foreach (var (line, id, next) in chains)

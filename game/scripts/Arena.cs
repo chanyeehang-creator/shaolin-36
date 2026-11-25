@@ -34,13 +34,15 @@ public partial class Arena : Node3D
     private static readonly Color InvincibleColor = new(0.85f, 1.00f, 1.00f);
     /// <summary>A 擒拿 grab holding its catch, and the fighter held.</summary>
     private static readonly Color GrabColor = new(0.90f, 0.45f, 0.20f);
+    /// <summary>Lying knocked down on the floor.</summary>
+    private static readonly Color DownColor = new(0.45f, 0.38f, 0.32f);
     private static readonly Color PlayerColor = new(0.95f, 0.65f, 0.15f);
     private static readonly Color DummyColor = new(0.55f, 0.15f, 0.15f);
 
     private const string Legend =
         "[color=#ffd11a]■ startup[/color]   [color=#f2261a]■ active (hit)[/color]   [color=#33ff59]■ perfect parry[/color]   " +
         "[color=#33bfff]■ parry[/color]   [color=#4059f2]■ recovery[/color]   [color=#ffffff]■ hit[/color]   " +
-        "[color=#d94df2]■ staggered (open!)[/color]   [color=#8c8c99]■ recoil / recovering from a parry[/color]   [color=#b3ffd9]■ quick step[/color]   [color=#7dffb0]■ healing[/color]   [color=#e67333]■ grab / held[/color]";
+        "[color=#d94df2]■ staggered (open!)[/color]   [color=#8c8c99]■ recoil / recovering from a parry[/color]   [color=#b3ffd9]■ quick step[/color]   [color=#7dffb0]■ healing[/color]   [color=#e67333]■ grab / held[/color]   [color=#736152]■ knocked down[/color]";
 
     /// <summary>
     /// Debug floating text over the capsules ("-6", "Blocked!", "Parried!"). A playtest aid,
@@ -119,10 +121,10 @@ public partial class Arena : Node3D
         _playerLoadout.Assign(Slot.Cross, Find("qinggong_dash"));
         _playerLoadout.Assign(Slot.Circle, Find("fengxue"));
         _playerLoadout.Assign(Slot.R1, Find("xianliao_shu"));
-        _playerLoadout.Assign(Slot.R2, Find("longzhua_shou"));
+        _playerLoadout.Assign(Slot.R2, Find("qinna_shou"));
 
         // The opponent gets the same starting techniques as you: 罗汉拳 on □, 铁砂掌 on △, 点穴 on ○, 轻功 dash on ✕, 化绵掌 on L1, 仙辽术 on R1,
-        // 龙爪手 on R2.
+        // 擒拿手 on R2.
         // (The training dummy only ever presses □.)
         _dummyLoadout = new Loadout(_book);
         _dummyLoadout.Assign(Slot.Square, Find("luohan_quan_1"));
@@ -131,7 +133,7 @@ public partial class Arena : Node3D
         _dummyLoadout.Assign(Slot.Cross, Find("qinggong_dash"));
         _dummyLoadout.Assign(Slot.Circle, Find("fengxue"));
         _dummyLoadout.Assign(Slot.R1, Find("xianliao_shu"));
-        _dummyLoadout.Assign(Slot.R2, Find("longzhua_shou"));
+        _dummyLoadout.Assign(Slot.R2, Find("qinna_shou"));
         _dummy = TrainingDummy.FromRules(rules, Slot.Square);
         _doubleTap = new DoubleTap(rules.QuickStepTapWindow);
 
@@ -709,8 +711,9 @@ public partial class Arena : Node3D
         }
         if (hit.Grab == GrabPhase.Thrown)
             return mine
-                ? $"[color=#ffb347][b]Thrown![/b] {name}: {hit.Damage} damage, sent {hit.KnockbackCm} cm.[/color]"
-                : $"[color=#ff6666][b]Thrown![/b] {name}: {hit.Damage} damage, sent {hit.KnockbackCm} cm.[/color]";
+                ? $"[color=#ffb347][b]Thrown![/b] {name}: {hit.Damage} damage, sent {hit.KnockbackCm} cm{(hit.KnockedDown ? " and knocked down. Nothing can hit it on the floor: wait for it to get up" : "")}.[/color]"
+                : $"[color=#ff6666][b]Thrown![/b] {name}: {hit.Damage} damage, sent {hit.KnockbackCm} cm.[/color]" +
+                  (hit.KnockedDown ? $"\n[b]You're down.[/b] In {Seconds(_rules.DownMin)}: press any button to rise, or hold a direction to roll away (both invincible)." : "");
 
         if (hit.JustDodged)
             return mine
@@ -803,6 +806,7 @@ public partial class Arena : Node3D
             return;
         }
         if (hit.Grab == GrabPhase.Thrown) Float(defender, "Thrown!", GrabColor);
+        if (hit.KnockedDown) Float(defender, "Down!", DownColor);
 
         if (hit.JustDodged)
         {
@@ -922,7 +926,7 @@ public partial class Arena : Node3D
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  轻功 dash: ✕ (hold a direction to aim it; none = straight in; also breaks out of a combo)  ·  封穴: ○ (seals 外功)  ·  仙辽术: R1 (10 Qi → 10 HP)  ·  龙爪手 grab: R2 (beats a parry; loses to a strike)  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  轻功 dash: ✕ (hold a direction to aim it; none = straight in; also breaks out of a combo)  ·  封穴: ○ (seals 外功)  ·  仙辽术: R1 (10 Qi → 10 HP)  ·  擒拿手 grab: R2 (beats a parry; loses to a strike; the throw knocks down)  ·  Knocked down: any button rises, a direction rolls  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
@@ -940,8 +944,12 @@ public partial class Arena : Node3D
         var feet = Floor(f.Position);
         // Hit reaction: lean back from the feet, away from the way the fighter faces (see ArenaFeel.cs).
         float lean = Mathf.DegToRad(LeanDegrees(side));
-        var basis = new Basis(Vector3.Up, Yaw(f.Facing)) * new Basis(Vector3.Right, lean);
-        body.Transform = new Transform3D(basis, feet + basis * new Vector3(0, 1, 0));
+        // Placeholder roll away: spin about the body's long axis while lying down.
+        float spin = f.State == FighterState.Rolling ? Mathf.Tau * 1.5f * (f.GetUpFrame + 1) / f.GetUpTotalFrames : 0f;
+        var basis = new Basis(Vector3.Up, Yaw(f.Facing)) * new Basis(Vector3.Right, lean) * new Basis(Vector3.Up, spin);
+        // Lying down, lift by the capsule's radius so it rests on the floor instead of sinking into it.
+        var lift = new Vector3(0, 0.4f * Mathf.Sin(lean), 0);
+        body.Transform = new Transform3D(basis, feet + lift + basis * new Vector3(0, 1, 0));
         ((StandardMaterial3D)body.MaterialOverride).AlbedoColor = ColorOf(f, idle);
 
         var t = f.Technique;
@@ -959,6 +967,7 @@ public partial class Arena : Node3D
     private static Color ColorOf(Fighter f, Color idle)
     {
         if (f.IsHolding) return GrabColor;
+        if (f.State == FighterState.KnockedDown) return DownColor;
         if (f.IsInvincible) return InvincibleColor;
         if (f.IsDashing) return QuickStepColor;
         switch (f.State)
@@ -1025,7 +1034,8 @@ public partial class Arena : Node3D
             case BrainIntent.Resting: return "[color=#ff8c1a]backing off to breathe[/color]";
             case BrainIntent.Escaping: return "[color=#ccffff]dashed out of your combo[/color]";
             case BrainIntent.Healing: return "[color=#7dffb0]healing with 仙辽术: hit it to break it![/color]";
-            case BrainIntent.Grabbing: return "[color=#e67333]going for a 龙爪手 grab: strike it or step back[/color]";
+            case BrainIntent.GettingUp: return "getting up off the floor";
+            case BrainIntent.Grabbing: return "[color=#e67333]going for a 擒拿手 grab: strike it or step back[/color]";
             default: return "still";
         }
     }
@@ -1034,6 +1044,12 @@ public partial class Arena : Node3D
     {
         if (f.IsHolding)
             return $"{f.Technique!.Name} · holding · throw in {f.HoldFramesLeft} frames";
+        if (f.State == FighterState.KnockedDown)
+            return f.IsExhausted ? "[color=#ff8c1a]down · exhausted: wait for stamina to get up[/color]"
+                : f.CanGetUp ? "[color=#ffd11a]down · any button: rise · direction: roll away[/color]"
+                : $"down · {f.DownRules!.MinFrames - f.DownFrame} frames before you can get up";
+        if (f.State == FighterState.Rising || f.State == FighterState.Rolling)
+            return $"{(f.State == FighterState.Rising ? "rising" : "rolling away")} · frame {f.GetUpFrame + 1}/{f.GetUpTotalFrames}  [color=#ccffff]invincible[/color]";
         if (f.State == FighterState.QuickStep)
             return $"quick step {f.QuickStepDirection.ToString().ToLowerInvariant()} · frame {f.QuickStepFrame + 1}/{f.QuickStepRules!.TotalFrames}";
         if (f.State.IsInMove())

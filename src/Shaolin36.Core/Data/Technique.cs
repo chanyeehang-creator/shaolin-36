@@ -51,8 +51,12 @@ namespace Shaolin36.Core.Data
             int sealFrames = 0,
             int heal = 0,
             int lungeCm = 0,
-            int holdFrames = 0)
+            int holdFrames = 0,
+            bool knockdown = false,
+            bool hitsDown = false)
         {
+            Knockdown = knockdown;
+            HitsDown = hitsDown;
             HoldFrames = holdFrames;
             LungeCm = lungeCm;
             SealFrames = sealFrames;
@@ -188,6 +192,18 @@ namespace Shaolin36.Core.Data
         public int HoldFrames { get; }
 
         public bool IsGrab => HoldFrames > 0;
+
+        /// <summary>
+        /// True if a landed hit (or a grab's throw) knocks the defender down (<see cref="Fighters.FighterState.KnockedDown"/>)
+        /// instead of putting them in hitstun. Hyper armor still holds its ground.
+        /// </summary>
+        public bool Knockdown { get; }
+
+        /// <summary>
+        /// True if this strike can hit a fighter lying knocked down (damage only: they stay down). False for every move so
+        /// far: a downed fighter can't be hit.
+        /// </summary>
+        public bool HitsDown { get; }
 
         /// <summary>The farthest this strike can connect when started: its reach plus any step-in and lunge.</summary>
         public int FullReachCm => ReachCm + AdvanceCm + LungeCm;

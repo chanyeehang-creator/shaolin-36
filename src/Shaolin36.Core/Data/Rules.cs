@@ -24,6 +24,7 @@ namespace Shaolin36.Core.Data
             "dummy_pause", "dummy_chain_frame",
             "quick_step_distance", "quick_step_frames", "quick_step_recovery", "quick_step_stamina", "quick_step_tap_window",
             "quick_step_side_distance", "opponent_ready", "just_dodge_qi",
+            "down_min", "down_max", "rise_frames", "roll_frames", "roll_distance",
         };
 
         private readonly Dictionary<string, int> _values;
@@ -116,6 +117,21 @@ namespace Shaolin36.Core.Data
 
         /// <summary>Qi for a just dodge: a strike passing through a dash's invincible frames (not one started out of hitstun).</summary>
         public int JustDodgeQi => V("just_dodge_qi");
+
+        /// <summary>Knocked down: frames on the floor before you can rise or roll.</summary>
+        public int DownMin => V("down_min");
+
+        /// <summary>Knocked down: after this many frames on the floor you rise by yourself (unless exhausted).</summary>
+        public int DownMax => V("down_max");
+
+        /// <summary>Frames a quick rise takes (invincible) before you're free.</summary>
+        public int RiseFrames => V("rise_frames");
+
+        /// <summary>Frames a roll away takes (invincible) before you're free.</summary>
+        public int RollFrames => V("roll_frames");
+
+        /// <summary>How far a roll away goes, in centimetres.</summary>
+        public int RollDistance => V("roll_distance");
 
         /// <summary>The most frames from the first tap of a direction to the second that still makes a quick step.</summary>
         public int QuickStepTapWindow => V("quick_step_tap_window");
@@ -214,6 +230,10 @@ namespace Shaolin36.Core.Data
                 Check(values["quick_step_distance"] <= 300, "quick_step_distance", "must be 300 cm or less: it's a step, not a dash");
                 Check(values["quick_step_side_distance"] <= 300, "quick_step_side_distance", "must be 300 cm or less: it's a step, not a dash");
                 Check(values["opponent_ready"] <= 600, "opponent_ready", "must be 600 frames (10 s) or fewer");
+                Check(values["down_max"] >= values["down_min"], "down_max", $"({values["down_max"]}) cannot be less than 'down_min' ({values["down_min"]})");
+                Check(values["rise_frames"] >= 1, "rise_frames", "must be at least 1 frame");
+                Check(values["roll_frames"] >= 1, "roll_frames", "must be at least 1 frame");
+                Check(values["roll_distance"] <= 600, "roll_distance", "must be 600 cm or less");
                 Check(values["quick_step_frames"] >= 1, "quick_step_frames", "must be at least 1 frame");
                 Check(values["quick_step_tap_window"] >= 1 && values["quick_step_tap_window"] <= 30, "quick_step_tap_window",
                     "must be between 1 and 30 frames (half a second)");

@@ -51,6 +51,8 @@ namespace Shaolin36.Core.Brains
         Healing,
         /// <summary>Close in: going for a 擒拿 grab.</summary>
         Grabbing,
+        /// <summary>Knocked down: getting up (a quick rise or a roll away).</summary>
+        GettingUp,
     }
 
     /// <summary>
@@ -169,6 +171,14 @@ namespace Shaolin36.Core.Brains
             }
             _hitstunTicks = 0;
             _escapeDecided = false;
+
+            // 0b. Knocked down: as soon as it can, roll back away (step chance) or rise.
+            if (me.State == FighterState.KnockedDown)
+            {
+                Intent = BrainIntent.GettingUp;
+                if (!me.CanGetUp) return BrainInput.None;
+                return _dice.Chance(Style.Step) ? Walk(MoveInput.WalkBack) : new BrainInput(SlotInput.Press(Slot.Square), MoveInput.None);
+            }
 
             // 1. In its own string: carry on when the chain window opens.
             if (next.IsInMove())
@@ -303,9 +313,11 @@ namespace Shaolin36.Core.Brains
 
             // 5. The other fighter is open (recovering, staggered or recoiling): punish.
             // A 气功 heal in its wind-up or channel is open too: hit it before the heal lands.
+            // Nothing it has can hit a fighter on the floor or getting up (invincible): wait for them to stand.
+            bool foeDown = foe.State.IsGroundState();
             bool healing = seen.Technique != null && seen.Technique.IsHeal && seen.State != FighterState.Recovery;
             bool open = healing || seen.State == FighterState.Recovery || seen.State.IsStunned() && seen.State != FighterState.Hitstun;
-            if (open && seen.StartTick != _decidedOpening)
+            if (open && !foeDown && seen.StartTick != _decidedOpening)
             {
                 var punisher = PickAttack(me, foe, distance);
                 if (punisher != null)
@@ -339,6 +351,13 @@ namespace Shaolin36.Core.Brains
                 return Walk(MoveInput.WalkForward);
             }
             if (Intent == BrainIntent.Closing || Intent == BrainIntent.Still) _choiceTicksLeft = 0;
+
+            if (foeDown)
+            {
+                Intent = BrainIntent.Waiting;
+                _circle = 0;
+                return BrainInput.None;
+            }
 
             if (--_choiceTicksLeft <= 0)
             {
