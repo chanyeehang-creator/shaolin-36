@@ -188,6 +188,9 @@ namespace Shaolin36.Core.Combat
     /// larger steps first), so the step is done as the hit comes out. It stops at min_distance like walking,
     /// and a hit that knocks the fighter out of the move stops it.
     ///
+    /// Lunge: a move with a lunge (such as 点穴 封穴) surges its fighter forward along its aim from its first active frame,
+    /// slid over the active frames, so the hit connects farther out (see <see cref="LungeStep"/>). It stops at min_distance.
+    ///
     /// Quick step: a fighter asked for one (see <see cref="MoveInput.QuickStep"/>) who is free slides
     /// quick_step_distance forward or back, or quick_step_side_distance left or right, over quick_step_frames, relative to the lock-on (see
     /// <see cref="QuickStepStep"/>), then recovers for quick_step_recovery frames. It costs quick_step_stamina.
@@ -233,6 +236,8 @@ namespace Shaolin36.Core.Combat
         private readonly int[] _quickStepTicks = new int[2];
         private readonly int[] _dashLeft = new int[2];
         private readonly int[] _dashTicks = new int[2];
+        private readonly int[] _lungeLeft = new int[2];
+        private readonly int[] _lungeTicks = new int[2];
 
         /// <param name="oneQi">Qi fighter One starts with; null for the rules sheet's qi_start. A run passes what it carried over.</param>
         /// <param name="twoQi">Qi fighter Two starts with; null for qi_start.</param>
@@ -294,8 +299,8 @@ namespace Shaolin36.Core.Combat
             Two.Tick(two, moveTwo.IsWalking, moveTwo.QuickStep, moveTwo);
             Aim(One, Two);
             Aim(Two, One);
-            var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + DashStep(Side.One) + QuickStepStep(Side.One) + PushStep(Side.One);
-            var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + DashStep(Side.Two) + QuickStepStep(Side.Two) + PushStep(Side.Two);
+            var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + LungeStep(Side.One) + DashStep(Side.One) + QuickStepStep(Side.One) + PushStep(Side.One);
+            var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + LungeStep(Side.Two) + DashStep(Side.Two) + QuickStepStep(Side.Two) + PushStep(Side.Two);
             Move(stepOne, stepTwo);
 
             // Find both hits before applying either, so a same-tick trade doesn't depend on order.
@@ -461,6 +466,35 @@ namespace Shaolin36.Core.Combat
             int step = (_advanceLeft[i] + _advanceTicks[i] - 1) / _advanceTicks[i];
             _advanceLeft[i] -= step;
             _advanceTicks[i]--;
+            return f.Facing.WithLength(step * FloorPoint.UnitsPerCm);
+        }
+
+        /// <summary>Centimetres <paramref name="side"/>'s lunge still has to slide.</summary>
+        public int LungeLeftCm(Side side) => _lungeLeft[(int)side];
+
+        /// <summary>
+        /// This tick's share of <paramref name="side"/>'s lunge: a move with a lunge (such as 封穴) surges forward along its aim
+        /// from its first active frame, slid over the active frames (whole centimetres, larger steps first). The hit is
+        /// checked after the move each tick, so the hitbox goes with the body. Being knocked out of the move stops it.
+        /// </summary>
+        private FloorPoint LungeStep(Side side)
+        {
+            int i = (int)side;
+            var f = this[side];
+            if (!f.State.IsInMove())
+            {
+                _lungeLeft[i] = 0;
+                return FloorPoint.Zero;
+            }
+            if (f.MoveFrame == f.Technique!.StartupFrames)
+            {
+                _lungeLeft[i] = f.Technique.LungeCm;
+                _lungeTicks[i] = f.Technique.ActiveFrames;
+            }
+            if (_lungeLeft[i] <= 0 || _lungeTicks[i] <= 0) return FloorPoint.Zero;
+            int step = (_lungeLeft[i] + _lungeTicks[i] - 1) / _lungeTicks[i];
+            _lungeLeft[i] -= step;
+            _lungeTicks[i]--;
             return f.Facing.WithLength(step * FloorPoint.UnitsPerCm);
         }
 

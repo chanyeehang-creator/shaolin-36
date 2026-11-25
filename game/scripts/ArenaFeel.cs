@@ -142,6 +142,115 @@ public partial class Arena
         }
     }
 
+    // ---------------------------------------------------------------- 仙辽术 sounds (Chan's ask: placeholders to feel the heal)
+
+    private AudioStreamWav _healChannel = null!, _healDone = null!;
+    /// <summary>One channel voice per fighter, so a broken heal can cut its own hum short.</summary>
+    private readonly AudioStreamPlayer[] _healVoices = new AudioStreamPlayer[2];
+    private readonly bool[] _healHumming = new bool[2];
+
+    private void BuildHealSounds()
+    {
+        _healChannel = Wav(HealChannelSamples());
+        _healDone = Wav(HealDoneSamples());
+        for (int i = 0; i < 2; i++)
+        {
+            _healVoices[i] = new AudioStreamPlayer { VolumeDb = -8f };
+            AddChild(_healVoices[i]);
+        }
+    }
+
+    /// <summary>The heal's wind-up starts: a soft hum that swells and rises through the wind-up and channel.</summary>
+    private void PlayHealChannel(Side side)
+    {
+        if (!_feelOn) return;
+        var v = _healVoices[(int)side];
+        v.Stream = _healChannel;
+        v.VolumeDb = -8f;
+        v.Play();
+        _healHumming[(int)side] = true;
+    }
+
+    /// <summary>The heal lands: the hum stops and a bright rising chime plays.</summary>
+    private void PlayHealDone(Side side)
+    {
+        var v = _healVoices[(int)side];
+        v.Stop();
+        _healHumming[(int)side] = false;
+        if (!_feelOn) return;
+        v.Stream = _healDone;
+        v.VolumeDb = -5f;
+        v.Play();
+    }
+
+    /// <summary>The heal was broken before it landed: cut the hum (the success chime is left to ring).</summary>
+    private void StopHealChannel(Side side)
+    {
+        if (!_healHumming[(int)side]) return;
+        _healHumming[(int)side] = false;
+        _healVoices[(int)side].Stop();
+    }
+
+    private static AudioStreamWav Wav(float[] samples) => new()
+    {
+        Format = AudioStreamWav.FormatEnum.Format16Bits,
+        MixRate = MixRate,
+        Stereo = false,
+        Data = Pcm16(samples),
+    };
+
+    /// <summary>1.5 s (the wind-up and channel): a low drone with a fifth above, a tone gliding up an octave, and a slow shimmer.</summary>
+    private static float[] HealChannelSamples()
+    {
+        const float seconds = 1.5f;
+        var buf = new float[(int)(seconds * MixRate)];
+        float phase = 0;
+        for (int i = 0; i < buf.Length; i++)
+        {
+            float t = i / (float)MixRate;
+            float k = t / seconds;
+            float swell = Mathf.Min(1f, t / 0.25f) * (0.5f + 0.5f * k);
+            float glide = 330f * Mathf.Pow(2f, k); // 330 Hz rising to 660 Hz
+            phase += Mathf.Tau * glide / MixRate;
+            float shimmer = 0.5f + 0.5f * Mathf.Sin(Mathf.Tau * 6f * t);
+            buf[i] = swell * (0.5f * Sine(t, 165f) + 0.3f * Sine(t, 247.5f) + 0.35f * Mathf.Sin(phase) * shimmer);
+        }
+        return Normalise(buf, 0.55f);
+    }
+
+    /// <summary>0.9 s: a quick C-E-G-C chime, each note ringing on, like a small bell tree.</summary>
+    private static float[] HealDoneSamples()
+    {
+        const float seconds = 0.9f;
+        float[] notes = { 523.3f, 659.3f, 784f, 1046.5f };
+        var buf = new float[(int)(seconds * MixRate)];
+        for (int i = 0; i < buf.Length; i++)
+        {
+            float t = i / (float)MixRate;
+            float v = 0;
+            for (int n = 0; n < notes.Length; n++)
+            {
+                float start = n * 0.07f;
+                if (t < start) continue;
+                float u = t - start;
+                v += (Sine(u, notes[n]) + 0.3f * Sine(u, notes[n] * 2.01f)) * Mathf.Exp(-u * 4f) * Mathf.Min(1f, u * 400f);
+            }
+            buf[i] = v;
+        }
+        return Normalise(buf, 0.7f);
+    }
+
+    /// <summary>Scale to <paramref name="level"/> peak, with a 3 ms fade out so nothing clicks.</summary>
+    private static float[] Normalise(float[] buf, float level)
+    {
+        float peak = 0.0001f;
+        foreach (var x in buf) peak = Mathf.Max(peak, Mathf.Abs(x));
+        int fade = MixRate * 3 / 1000;
+        for (int i = 0; i < buf.Length; i++)
+            buf[i] = buf[i] / peak * level * Mathf.Min(1f, (buf.Length - 1 - i) / (float)fade);
+        return buf;
+    }
+
     private static float Remaining(float age, float length) => length <= 0 ? 0 : Mathf.Max(0, 1 - age / length);
 
     /// <summary>Where the strike meets: the defender's near side for a hit or a parry, between the two for a clash.</summary>

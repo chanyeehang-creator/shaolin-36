@@ -111,13 +111,14 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 
 **点穴 封穴 (seal), on ○:** one finger strike that seals your opponent's 外功.
 
-- Wind-up 30 frames (0.5 s, more than double 罗汉拳 hit 1's 13), hit 3 frames, recovery 60 frames (1 s): 93 frames in all. The wind-up is long enough to parry or step on reaction, and a miss leaves you open for a second (a hit during the recovery interrupts it like any move).
-- Costs 25 stamina (a 罗汉拳 hit costs 8), deals only 4 damage, freezes for 30 frames, reaches 115 cm (+15 cm step-in), and can't clash.
-- **On a landed hit the target can't use 外功 (罗汉拳, 铁砂掌) for 5 s.** A purple **【封】** icon and the seconds left show by their HP bar. Parry, 轻功, quick step, 点穴 and 仙辽术 still work. A blocked, parried or dodged 点穴 seals nothing.
+- Wind-up 30 frames (0.5 s, standing still), then a **140 cm lunge** over 8 frames (0.13 s) with the hit going along with your body, then recovery 60 frames (1 s): 98 frames in all. The lunge sits between the quick step (70 / 90 cm) and the 轻功 dash (200 cm), so 封穴 connects from up to 255 cm away. The wind-up is long enough to parry or step on reaction, and a miss leaves you open for a second (a hit during the recovery interrupts it like any move).
+- Costs 25 stamina (a 罗汉拳 hit costs 8), deals only 4 damage, freezes for 30 frames, reaches 115 cm from your body, and can't clash.
+- **On a landed hit the target can't use 外功 (罗汉拳) for 5 s.** 铁砂掌 is 内功 (a heavy strike), so it still works. A purple **【封】** icon and the seconds left show by their HP bar. 铁砂掌, parry, 轻功, quick step, 点穴 and 仙辽术 still work. A blocked, parried or dodged 点穴 seals nothing.
 
 **仙辽术 (healing qigong), on R1:** spend 10 Qi to heal 10 HP.
 
 - Wind-up 30 frames (0.5 s), channel 60 frames (1 s, the capsule glows green), then the heal lands ("+10 HP"), then 20 frames (0.33 s) to finish. 1.8 s in all.
+- Placeholder sounds (made in code until there are real ones): a soft rising hum through the wind-up and channel, and a bright chime when the heal lands. A broken heal cuts the hum. F3 turns them off with the rest of the feel kit.
 - No armor: **any hit in the first 1.5 s breaks it** ("Heal broken!"), no HP back, and the 10 Qi is gone. Use it when you've made space. Costs 5 stamina.
 
 **The opponent uses both:** it throws 封穴 like its other light attacks, but not while you're already sealed (and it can't use 外功 while you have it sealed). It heals when it's hurt, has the Qi, and is well out of your reach (the brain sheet's `heal` chance: novice 20, monk 40, master 60). It also counts your heal as an opening and runs in to punish it.

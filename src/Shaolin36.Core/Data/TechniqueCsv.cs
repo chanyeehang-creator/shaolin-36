@@ -19,7 +19,7 @@ namespace Shaolin36.Core.Data
         };
 
         /// <summary>Columns a sheet may leave out; an empty cell means the default (no empowered version).</summary>
-        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "seal", "heal" };
+        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "seal", "heal", "lunge" };
 
         /// <summary>Most a hit can push the defender back, in centimetres.</summary>
         public const int MaxKnockback = 500;
@@ -176,6 +176,7 @@ namespace Shaolin36.Core.Data
                 bool escape = Cell("escape").Length != 0 && Bool("escape");
                 int seal = Cell("seal").Length == 0 ? 0 : Int("seal");
                 int heal = Cell("heal").Length == 0 ? 0 : Int("heal");
+                int lunge = Cell("lunge").Length == 0 ? 0 : Int("lunge");
 
                 if (startup < 1) rowErrors.Add("'startup' must be at least 1 frame");
                 if (active < 1) rowErrors.Add("'active' must be at least 1 frame");
@@ -204,6 +205,9 @@ namespace Shaolin36.Core.Data
                 if (seal > MaxSeal) rowErrors.Add($"'seal' ({seal}) must be {MaxSeal} frames or less");
                 if (seal > 0 && category != Category.Dianxue) rowErrors.Add("only 点穴 (dianxue) techniques can have 'seal'");
                 if (seal > 0 && reach == 0) rowErrors.Add("'seal' is set but 'reach' is 0, so the move never hits");
+                if (lunge > MaxDash) rowErrors.Add($"'lunge' ({lunge}) must be {MaxDash} cm or less");
+                if (lunge > 0 && reach == 0) rowErrors.Add("'lunge' is set but 'reach' is 0, so the move never hits");
+                if (lunge > 0 && dash > 0) rowErrors.Add("a move can have 'dash' or 'lunge', not both");
                 if (heal > MaxHeal) rowErrors.Add($"'heal' ({heal}) must be {MaxHeal} HP or less");
                 if (heal > 0 && category != Category.Qigong) rowErrors.Add("only 气功 (qigong) techniques can have 'heal'");
                 if (heal > 0 && recovery == 0) rowErrors.Add("a heal lands on its first recovery frame, so it needs 'recovery' 1 or more");
@@ -219,7 +223,7 @@ namespace Shaolin36.Core.Data
                 if (next.Length > 0) chains.Add((lineNo, id, next));
                 techniques.Add(new Technique(id, displayName, category, weight, weapon,
                     startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
-                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape, seal, heal));
+                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape, seal, heal, lunge));
             }
 
             foreach (var (line, id, next) in chains)

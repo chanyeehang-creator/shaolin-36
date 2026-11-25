@@ -146,6 +146,8 @@ public partial class Arena : Node3D
         _cameraPlaced = false;
         _doubleTap?.Reset();
         _duel = Duel.Start(_rules, _playerLoadout, _dummyLoadout);
+        _healSeenTick[0] = _healSeenTick[1] = -1;
+        if (_healVoices[0] != null) { StopHealChannel(Side.One); StopHealChannel(Side.Two); }
         // A new seed each duel, counted up from 1: the brain's choices change from duel to duel but every run is repeatable.
         _duelNumber++;
         _brain = UsingDummy ? null : new Brain(_brains.Styles[_opponentMode], _duelNumber) { Active = _opponentActive };
@@ -230,6 +232,7 @@ public partial class Arena : Node3D
         _camera = new Camera3D { Fov = 55 };
         AddChild(_camera);
         BuildSounds();
+        BuildHealSounds();
         BuildFloor();
 
         _player = Capsule("Player", PlayerColor);
@@ -609,17 +612,26 @@ public partial class Arena : Node3D
     private static string Seconds(int frames) => $"{frames / (double)Sim.TicksPerSecond:0.0}s";
 
     /// <summary>Say so when a 气功 heal lands, or when a hit cancels one before it does.</summary>
+    private readonly int[] _healSeenTick = { -1, -1 };
+
     private void HealsThisTick(Side side, Technique? before, IReadOnlyList<HitEvent> hits)
     {
         var f = _duel[side];
         bool you = side == Side.One;
+        // During hit-stop the duel doesn't tick, so only act on a tick the duel actually ran.
+        if (_healSeenTick[(int)side] == _duel.Tick) return;
+        _healSeenTick[(int)side] = _duel.Tick;
+        if (f.Technique != before && f.Technique != null && f.Technique.IsHeal) PlayHealChannel(side);
         if (f.HealedThisTick > 0)
         {
+            PlayHealDone(side);
             _event.Text = $"[color=#7dffb0][b]{f.Technique!.Name}[/b][/color] {(you ? "You heal" : "Your opponent heals")} {f.HealedThisTick} HP.";
             if (_floatingText) Float(side, $"+{f.HealedThisTick} HP", HealColor);
             return;
         }
         if (before == null || !before.IsHeal || f.Technique == before) return;
+        // Interrupted any way (a hit, a parry stagger, a clash): cut the hum.
+        if (f.Technique != before) StopHealChannel(side);
         foreach (var hit in hits)
         {
             if (hit.Defender != side || !hit.Landed) continue;
@@ -722,8 +734,8 @@ public partial class Arena : Node3D
         var clash = hit.Clash == ClashOutcome.StrikerWins ? "[b]Clash won, breaking through![/b] " : "";
         var seal = hit.SealFrames > 0
             ? mine
-                ? $"\n[color=#c58cff][b]封 Sealed![/b][/color] Your opponent can't use 外功 (罗汉拳, 铁砂掌) for {Seconds(hit.SealFrames)}."
-                : $"\n[color=#c58cff][b]封 Sealed![/b][/color] You can't use 外功 (罗汉拳, 铁砂掌) for {Seconds(hit.SealFrames)}. Parry, dash, or 点穴 back."
+                ? $"\n[color=#c58cff][b]封 Sealed![/b][/color] Your opponent can't use 外功 (罗汉拳) for {Seconds(hit.SealFrames)}."
+                : $"\n[color=#c58cff][b]封 Sealed![/b][/color] You can't use 外功 (罗汉拳) for {Seconds(hit.SealFrames)}. 铁砂掌, parry, dash and 点穴 still work."
             : "";
         if (mine)
             return $"[color=#ffb347]{clash}You hit with {name}: {hit.Damage} damage.[/color]{combo}{seal}";

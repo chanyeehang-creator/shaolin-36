@@ -67,7 +67,7 @@ namespace Shaolin36.Core.Brains
     /// (<see cref="BrainStyle.Step"/> chance, once per combo);</item>
     /// <item>hurt by at least a heal's worth, with a 气功 heal it can pay for, and at least <see cref="HealMarginCm"/> beyond the other
     /// fighter's longest reach while they aren't in a move, heals (<see cref="BrainStyle.Heal"/> chance, rolled every think_every frames);</item>
-    /// <item>backs off to breathe when its stamina is under <see cref="BrainStyle.RestBelow"/>;</item>
+    /// <item>backs off to breathe when (and, hurt with a heal it can pay for, far enough to heal: <see cref="HealMarginCm"/> past your longest reach) its stamina is under <see cref="BrainStyle.RestBelow"/>;</item>
     /// <item>punishes when it sees the other fighter recovering, staggered, recoiling or winding up / channelling a 气功 heal in reach (<see cref="BrainStyle.Punish"/>);</item>
     /// <item>otherwise walks in until its attacks reach (with <see cref="BrainStyle.Step"/> chance per choice it dashes in from far
     /// off, or quick-steps in), then every <see cref="BrainStyle.ThinkEvery"/> frames
@@ -90,7 +90,7 @@ namespace Shaolin36.Core.Brains
         public const int RestDistanceCm = 250;
 
         /// <summary>It only starts a 气功 heal this far beyond the other fighter's longest reach (reach plus step-in).</summary>
-        public const int HealMarginCm = 80;
+        public const int HealMarginCm = 60;
 
         private struct Seen
         {
@@ -232,7 +232,7 @@ namespace Shaolin36.Core.Brains
             {
                 var t = seen.Technique;
                 int hitTick = seen.StartTick + t.StartupFrames;
-                bool comingAtMe = distance <= t.ReachCm + t.AdvanceCm + ThreatMarginCm;
+                bool comingAtMe = distance <= t.FullReachCm + ThreatMarginCm;
                 if (comingAtMe && hitTick > duel.Tick)
                 {
                     _decidedAttack = seen.StartTick;
@@ -289,7 +289,13 @@ namespace Shaolin36.Core.Brains
             {
                 Intent = BrainIntent.Resting;
                 _circle = 0;
-                return distance < RestDistanceCm ? Walk(MoveInput.WalkBack) : BrainInput.None;
+                // Hurt with a heal it can pay for (and a will to heal): back off far enough to heal safely.
+                int restAt = RestDistanceCm;
+                var healer = HealSlot(me);
+                if (healer != null && Style.Heal > 0 && me.MaxHp - me.Hp >= me.Loadout[healer.Value]!.Heal
+                    && me.CanAfford(me.Loadout[healer.Value]!))
+                    restAt = Math.Max(restAt, LongestReach(foe) + HealMarginCm);
+                return distance < restAt ? Walk(MoveInput.WalkBack) : BrainInput.None;
             }
 
             // 5. The other fighter is open (recovering, staggered or recoiling): punish.
@@ -398,7 +404,7 @@ namespace Shaolin36.Core.Brains
             foreach (var s in Slots.All)
             {
                 var t = f.Loadout[s];
-                if (IsAttack(t)) best = Math.Max(best, t!.ReachCm + t.AdvanceCm);
+                if (IsAttack(t)) best = Math.Max(best, t!.FullReachCm);
             }
             return best;
         }
@@ -495,7 +501,7 @@ namespace Shaolin36.Core.Brains
             foreach (var s in Slots.All)
             {
                 var t = me.Loadout[s];
-                if (!IsAttack(t) || !me.CanUse(t!) || t!.ReachCm + t.AdvanceCm < distance) continue;
+                if (!IsAttack(t) || !me.CanUse(t!) || t!.FullReachCm < distance) continue;
                 if (t.SealFrames > 0 && foe.IsSealed) continue;
                 if (empowered == null && t.CanEmpower && me.Qi - t.QiCost >= t.EmpowerQi) empowered = s;
                 if (t.Weight == Weight.Heavy) heavy[heavyCount++] = s;

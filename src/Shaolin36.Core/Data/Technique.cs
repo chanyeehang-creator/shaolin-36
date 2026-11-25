@@ -49,8 +49,10 @@ namespace Shaolin36.Core.Data
             int invincibleFrames = 0,
             bool canEscape = false,
             int sealFrames = 0,
-            int heal = 0)
+            int heal = 0,
+            int lungeCm = 0)
         {
+            LungeCm = lungeCm;
             SealFrames = sealFrames;
             Heal = heal;
             CanEscape = canEscape;
@@ -166,6 +168,17 @@ namespace Shaolin36.Core.Data
         public int Heal { get; }
 
         public bool IsHeal => Heal > 0;
+
+        /// <summary>
+        /// Lunge: how far the attacker's body surges forward along its aim as the hit comes out, in whole centimetres,
+        /// slid over the active frames (the hitbox goes with the body, so it connects farther out). Unlike
+        /// <see cref="AdvanceCm"/> (a step during the wind-up) it starts on the first active frame: wind-up, then lunge and hit.
+        /// Stops at min_distance like walking. 0 = no lunge.
+        /// </summary>
+        public int LungeCm { get; }
+
+        /// <summary>The farthest this strike can connect when started: its reach plus any step-in and lunge.</summary>
+        public int FullReachCm => ReachCm + AdvanceCm + LungeCm;
 
         /// <summary>Frames a dash slides over: its startup and active frames.</summary>
         public int DashFrames => StartupFrames + ActiveFrames;
