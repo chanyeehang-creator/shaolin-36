@@ -23,7 +23,7 @@ namespace Shaolin36.Core.Data
             "walk_speed", "min_distance", "start_distance", "arena_width",
             "dummy_pause", "dummy_chain_frame",
             "quick_step_distance", "quick_step_frames", "quick_step_recovery", "quick_step_stamina", "quick_step_tap_window",
-            "quick_step_side_distance", "opponent_ready",
+            "quick_step_side_distance", "opponent_ready", "just_dodge_qi",
         };
 
         private readonly Dictionary<string, int> _values;
@@ -113,6 +113,9 @@ namespace Shaolin36.Core.Data
 
         /// <summary>Frames the opponent brain waits at the start of a duel before it does anything.</summary>
         public int OpponentReady => V("opponent_ready");
+
+        /// <summary>Qi for a just dodge: a strike passing through a dash's invincible frames (not one started out of hitstun).</summary>
+        public int JustDodgeQi => V("just_dodge_qi");
 
         /// <summary>The most frames from the first tap of a direction to the second that still makes a quick step.</summary>
         public int QuickStepTapWindow => V("quick_step_tap_window");

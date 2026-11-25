@@ -30,6 +30,8 @@ namespace Shaolin36.Core.Feel
         PerfectClash,
         /// <summary>The hit that takes the last HP.</summary>
         Ko,
+        /// <summary>A strike passes through a 轻功 dash's invincible frames (a just dodge).</summary>
+        JustDodge,
     }
 
     /// <summary>The sounds the game can make for a strike (synthesised in game until there are real sound files).</summary>
@@ -43,13 +45,16 @@ namespace Shaolin36.Core.Feel
         Ring,
         Clang,
         Gong,
+        /// <summary>A light rush of air, for a just dodge.</summary>
+        Whoosh,
     }
 
     /// <summary>One row of the feel sheet: what one kind of strike looks, sounds and feels like.</summary>
     public sealed class FeelRow
     {
-        public FeelRow(FeelEvent @event, int hitStopFrames, int shakeCm, int pushCm, int sparkCm, FeelSound sound)
+        public FeelRow(FeelEvent @event, int hitStopFrames, int shakeCm, int pushCm, int sparkCm, FeelSound sound, int slowFrames = 0)
         {
+            SlowFrames = slowFrames;
             Event = @event;
             HitStopFrames = hitStopFrames;
             ShakeCm = shakeCm;
@@ -73,6 +78,12 @@ namespace Shaolin36.Core.Feel
         public int SparkCm { get; }
 
         public FeelSound Sound { get; }
+
+        /// <summary>
+        /// Sim ticks the game then plays at half speed (a slowdown). Only the screen slows: the rules still run tick by
+        /// tick, so frame data and stamina are unchanged. The playtest slows only for your own just dodge.
+        /// </summary>
+        public int SlowFrames { get; }
     }
 
     /// <summary>The feel sheet (game/data/feel.csv): one row per <see cref="FeelEvent"/>.</summary>
@@ -82,6 +93,7 @@ namespace Shaolin36.Core.Feel
         public const int MaxShake = 50;
         public const int MaxPush = 100;
         public const int MaxSpark = 200;
+        public const int MaxSlow = 120;
 
         /// <summary>The sheet name of every event, in sheet order.</summary>
         public static readonly IReadOnlyDictionary<string, FeelEvent> EventNames = new Dictionary<string, FeelEvent>(StringComparer.Ordinal)
@@ -97,6 +109,7 @@ namespace Shaolin36.Core.Feel
             ["clash_lost"] = FeelEvent.ClashLost,
             ["perfect_clash"] = FeelEvent.PerfectClash,
             ["ko"] = FeelEvent.Ko,
+            ["just_dodge"] = FeelEvent.JustDodge,
         };
 
         public static readonly string[] Columns = { "event", "hitstop", "shake", "push", "spark", "sound" };
@@ -164,7 +177,7 @@ namespace Shaolin36.Core.Feel
                 if (CsvText.IsBlankOrComment(lines[i])) continue;
                 int lineNo = i + 1;
                 var cells = CsvText.SplitRow(lines[i]);
-                string Cell(string name) => col[name] < cells.Count ? cells[col[name]].Trim() : string.Empty;
+                string Cell(string name) => !col.ContainsKey(name) ? string.Empty : col[name] < cells.Count ? cells[col[name]].Trim() : string.Empty;
 
                 var eventName = Cell("event");
                 if (!FeelSheet.EventNames.TryGetValue(eventName, out var e))
@@ -193,16 +206,17 @@ namespace Shaolin36.Core.Feel
                 int shake = Number("shake", FeelSheet.MaxShake);
                 int push = Number("push", FeelSheet.MaxPush);
                 int spark = Number("spark", FeelSheet.MaxSpark);
+                int slow = col.ContainsKey("slow") && Cell("slow").Length > 0 ? Number("slow", FeelSheet.MaxSlow) : 0;
 
                 var soundRaw = Cell("sound");
                 if (!Enum.TryParse<FeelSound>(soundRaw, true, out var sound) || !Enum.IsDefined(typeof(FeelSound), sound)
                     || int.TryParse(soundRaw, out _))
                 {
-                    errors.Add($"line {lineNo} ({eventName}, sound): unknown sound '{soundRaw}' (expected none, thud, smack, crack, block, ring, clang or gong)");
+                    errors.Add($"line {lineNo} ({eventName}, sound): unknown sound '{soundRaw}' (expected none, thud, smack, crack, block, ring, clang, gong or whoosh)");
                     ok = false;
                 }
 
-                if (ok) rows[e] = new FeelRow(e, hitStop, shake, push, spark, sound);
+                if (ok) rows[e] = new FeelRow(e, hitStop, shake, push, spark, sound, slow);
             }
 
             foreach (var pair in FeelSheet.EventNames)

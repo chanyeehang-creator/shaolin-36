@@ -81,6 +81,8 @@ public partial class Arena : Node3D
     private bool _menuOpen;
     private int _menuRow;
     private bool _slowMotion;
+    /// <summary>Sim ticks still to play at half speed after your just dodge (feel.csv just_dodge slow).</summary>
+    private int _dodgeSlowTicks;
     private int _physicsFrame;
     private int _combo;
     private Side? _comboBy;
@@ -134,6 +136,7 @@ public partial class Arena : Node3D
     private void NewDuel()
     {
         _lean[0] = _lean[1] = 0;
+        _dodgeSlowTicks = 0;
         _cameraPlaced = false;
         _doubleTap?.Reset();
         _duel = Duel.Start(_rules, _playerLoadout, _dummyLoadout);
@@ -499,7 +502,12 @@ public partial class Arena : Node3D
     public override void _PhysicsProcess(double delta)
     {
         _physicsFrame++;
-        if (!_menuOpen && !(_slowMotion && _physicsFrame % 2 == 1)) Step();
+        bool halfSpeed = _slowMotion || _dodgeSlowTicks > 0;
+        if (!_menuOpen && !(halfSpeed && _physicsFrame % 2 == 1))
+        {
+            if (_dodgeSlowTicks > 0) _dodgeSlowTicks--;
+            Step();
+        }
         Draw();
     }
 
@@ -530,6 +538,11 @@ public partial class Arena : Node3D
             Float(Side.One, "No stamina!", ExhaustedColor);
         var hits = _clock.Step(input, opponent.Slots, walk.WithQuickStep(quickStep), opponent.Move);
         if (_feelOn) foreach (var cue in _clock.Cues) PlayCue(cue);
+        // Your own just dodge slows the screen for a moment (only the screen: the rules still run tick by tick).
+        foreach (var cue in _clock.Cues)
+            if (_feelOn && cue.Hit.JustDodged && cue.Hit.Defender == Side.One) _dodgeSlowTicks = System.Math.Max(_dodgeSlowTicks, cue.Row.SlowFrames);
+        EscapeStarted(Side.One, oneWasStunned);
+        EscapeStarted(Side.Two, twoWasStunned);
         foreach (var hit in hits)
         {
             if (hit.Landed)
@@ -556,6 +569,17 @@ public partial class Arena : Node3D
             var winner = _duel.Two.IsDown ? "You win" : "Your opponent wins";
             _event.Text += $"\n[font_size=28][b]{winner}![/b][/font_size]  Press Enter, or Start on the pad, to fight again.";
         }
+    }
+
+    /// <summary>Say so when a fighter dashes out of hitstun (a combo escape).</summary>
+    private void EscapeStarted(Side side, bool wasStunned)
+    {
+        var f = _duel[side];
+        if (!wasStunned || !f.EscapedHitstun || f.MoveFrame != 0) return;
+        _event.Text = side == Side.One
+            ? $"[color=#ccffff][b]Escaped![/b][/color] You dashed out of the combo ({f.Technique!.StaminaCost} stamina). No just dodge from an escape."
+            : "[color=#ccffff][b]Your opponent escaped[/b][/color] your combo with its 轻功 dash.";
+        if (_floatingText) Float(side, "Escape!", InvincibleColor);
     }
 
     /// <summary>True if a slot pressed this tick holds a move the player can't pay for.</summary>
@@ -609,6 +633,11 @@ public partial class Arena : Node3D
     {
         bool mine = hit.Attacker == Side.One;
         var name = hit.Technique.Name;
+
+        if (hit.JustDodged)
+            return mine
+                ? $"[color=#ccffff][b]Just dodged.[/b][/color] Your opponent's 轻功 dash slipped your {name} (+{hit.DefenderQiGained} Qi to it)."
+                : $"[color=#ccffff][b]JUST DODGE![/b][/color] {name} passed through your 轻功 dash. +{hit.DefenderQiGained} Qi.";
 
         switch (hit.Parry)
         {
@@ -678,6 +707,13 @@ public partial class Arena : Node3D
     {
         var attacker = hit.Attacker;
         var defender = hit.Defender;
+
+        if (hit.JustDodged)
+        {
+            Float(defender, "Just dodge!", InvincibleColor);
+            if (hit.DefenderQiGained > 0) Float(defender, $"+{hit.DefenderQiGained} Qi", QiColor);
+            return;
+        }
 
         switch (hit.Parry)
         {
@@ -788,7 +824,7 @@ public partial class Arena : Node3D
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  轻功 dash: ✕ (hold a direction to aim it; none = straight in)  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  轻功 dash: ✕ (hold a direction to aim it; none = straight in; also breaks out of a combo)  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
@@ -882,6 +918,7 @@ public partial class Arena : Node3D
             case BrainIntent.Guessing: return "[color=#33bfff]parrying on a guess[/color]";
             case BrainIntent.Dodging: return "saw your strike, stepping aside";
             case BrainIntent.Resting: return "[color=#ff8c1a]backing off to breathe[/color]";
+            case BrainIntent.Escaping: return "[color=#ccffff]dashed out of your combo[/color]";
             default: return "still";
         }
     }

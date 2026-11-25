@@ -157,8 +157,97 @@ public class DashTests
             d.Step(t == press ? Cross : None, t == 0 ? Square : None);
             if (t == jab.StartupFrames) Assert.True(d.One.IsInvincible);
         }
-        Assert.Empty(d.Hits);
+        var dodge = Assert.Single(d.Hits); // the strike is spent: one just dodge, no hit later in its active frames
+        Assert.True(dodge.JustDodged);
+        Assert.False(dodge.Landed);
+        Assert.Equal(Side.One, dodge.Defender);
         Assert.Equal(Rules.HpMax, d.One.Hp);
+    }
+
+    [Fact]
+    public void A_just_dodge_gives_just_dodge_qi()
+    {
+        var d = DuelAt(Rules.MinDistance);
+        var jab = Book.Find("luohan_quan_1")!;
+        int press = jab.StartupFrames - Dash.InvincibleFrames / 2;
+        for (int t = 0; t < 40; t++) d.Step(t == press ? Cross : None, t == 0 ? Square : None);
+        Assert.Equal(5, Rules.JustDodgeQi);
+        Assert.Equal(Rules.QiStart + Rules.JustDodgeQi, d.One.Qi);
+        Assert.Equal(Rules.JustDodgeQi, d.Hits[0].DefenderQiGained);
+    }
+
+    // ---------- Combo escape ----------
+
+    /// <summary>Two hits One at touching range with 罗汉拳 hit 1 on tick 0 (it lands on its startup frame).</summary>
+    private static Duel HitByJab(out int hitTick)
+    {
+        var d = DuelAt(Rules.MinDistance);
+        hitTick = Book.Find("luohan_quan_1")!.StartupFrames;
+        for (int t = 0; t <= hitTick; t++) d.Step(None, t == 0 ? Square : None);
+        Assert.Equal(FighterState.Hitstun, d.One.State);
+        return d;
+    }
+
+    [Fact]
+    public void The_dash_breaks_out_of_hitstun()
+    {
+        var d = HitByJab(out _);
+        d.Step(Cross, None, MoveInput.WalkBack, MoveInput.None);
+        Assert.True(d.One.IsDashing);
+        Assert.True(d.One.EscapedHitstun);
+        Assert.Equal(0, d.One.StunFramesLeft);
+        Assert.Equal(Rules.StaminaMax - Dash.StaminaCost, d.One.Stamina);
+    }
+
+    [Fact]
+    public void Nothing_else_breaks_out_of_hitstun()
+    {
+        var d = HitByJab(out _);
+        d.Step(Square, None);
+        Assert.Equal(FighterState.Hitstun, d.One.State);
+        d.Step(SlotInput.Press(Slot.L1), None);
+        Assert.Equal(FighterState.Hitstun, d.One.State);
+    }
+
+    [Fact]
+    public void You_cant_escape_while_exhausted()
+    {
+        var d = HitByJab(out _);
+        d.One.LoseStamina(Rules.StaminaMax);
+        d.Step(Cross, None);
+        Assert.Equal(FighterState.Hitstun, d.One.State);
+    }
+
+    [Fact]
+    public void A_dash_from_a_normal_state_is_not_an_escape()
+    {
+        var d = DuelAt(400);
+        d.Step(Cross, None);
+        Assert.False(d.One.EscapedHitstun);
+    }
+
+    [Fact]
+    public void An_escape_dash_passes_through_strikes_but_never_earns_a_just_dodge()
+    {
+        // One backed against the arena edge, so the escape dash can't carry it away: only its invincible frames matter.
+        int edge = -Rules.ArenaWidth / 2;
+        var d = new Duel(Rules, Starter(), Starter(), edge, edge + Rules.MinDistance);
+        var jab1 = Book.Find("luohan_quan_1")!;
+        var jab2 = Book.Find("luohan_quan_2")!;
+        // Two chains hit 2 on the first chain frame: hit 1 lands on tick 13, hit 2 on 13 + 3 + 0 + 19 = 35.
+        int hit2 = jab1.StartupFrames + jab1.ActiveFrames + jab2.StartupFrames;
+        int press = hit2 - Dash.InvincibleFrames / 2; // still in hit 1's hitstun (13 + 27 = 40)
+        for (int t = 0; t < hit2 + 2; t++)
+        {
+            var two = t == 0 || d.Two.InChainWindow && d.Two.StringHit == 1 ? Square : None;
+            d.Step(t == press ? Cross : None, two, MoveInput.WalkBack, MoveInput.None);
+            if (t == press) Assert.True(d.One.EscapedHitstun);
+        }
+        var only = Assert.Single(d.Hits); // hit 1 landed; hit 2 passed through with no just dodge
+        Assert.True(only.Landed);
+        Assert.Equal("luohan_quan_1", only.Technique.Id);
+        Assert.Equal(Rules.QiStart, d.One.Qi);
+        Assert.Equal(Rules.HpMax - jab1.Damage, d.One.Hp);
     }
 
     [Fact]
@@ -209,6 +298,26 @@ public class DashTests
     }
 
     [Fact]
+    public void The_brain_dashes_out_of_your_combo()
+    {
+        // You land 罗汉拳 hit 1 on the brain; it starts thinking once it's in hitstun.
+        var d = DuelAt(Rules.MinDistance);
+        var jab = Book.Find("luohan_quan_1")!;
+        for (int t = 0; t <= jab.StartupFrames; t++) d.Step(t == 0 ? Square : None, None);
+        Assert.Equal(FighterState.Hitstun, d.Two.State);
+        var brain = new Brain(new BrainStyle("test", "test", 0, 10, 0, 0, 0, 0, 0, 100, 0, 0, 0, 0), 1);
+        bool escaped = false;
+        for (int i = 0; i < 5; i++)
+        {
+            var b = brain.Think(d, Side.Two);
+            d.Step(None, b.Slots, MoveInput.None, b.Move);
+            escaped |= d.Two.EscapedHitstun;
+        }
+        Assert.True(escaped);
+        Assert.Equal(BrainIntent.Escaping, brain.Intent);
+    }
+
+    [Fact]
     public void The_brain_dashes_aside_through_your_punch()
     {
         var d = DuelAt(110);
@@ -216,7 +325,7 @@ public class DashTests
         bool dashed = false;
         Run(d, brain, 40, i => i == 0 ? Square : None, () => dashed |= d.Two.IsDashing);
         Assert.True(dashed);
-        Assert.Empty(d.Hits);
+        Assert.DoesNotContain(d.Hits, h => h.Landed);
         Assert.Equal(Rules.HpMax, d.Two.Hp);
     }
 }

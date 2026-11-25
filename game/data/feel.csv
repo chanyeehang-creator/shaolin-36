@@ -4,16 +4,19 @@
 # shake   = how far the camera shakes, in centimetres (0-50). It dies away over the freeze plus a few frames.
 # push    = how far the camera pushes in toward the strike, in centimetres (0-100), then eases back. For the big moments.
 # spark   = size of the spark burst where the strike meets, in centimetres (0 = no sparks, up to 200).
-# sound   = none, thud, smack, crack, block, ring, clang or gong (made in game, no sound files yet).
-event,hitstop,shake,push,spark,sound,note
-hit,5,2,0,25,smack,A light or medium hit lands (罗汉拳 hits 1-3)
-heavy_hit,8,5,0,45,thud,A heavy hit lands (罗汉拳 finisher; plain 铁砂掌)
-empowered_hit,12,9,20,80,crack,A Qi-empowered hit lands (Qi 铁砂掌)
-armor_hit,4,3,0,30,thud,A hit lands on hyper armor: damage but no flinch
-block,3,1,0,20,block,化绵掌 blocks a hit (string carries on)
-perfect_parry,10,4,25,60,ring,化绵掌 perfect parry: the attacker is staggered
-clash_recoil,8,5,15,70,clang,Same-weight clash: both bounce off
-clash_break,9,6,15,70,clang,Heavier move wins its clash and lands its hit
-clash_lost,6,4,10,50,clang,Lighter move is knocked aside in a clash
-perfect_clash,14,8,35,110,clang,Perfect clash: the showpiece film beat
-ko,20,10,40,90,gong,The finishing hit (HP reaches 0)
+# sound   = none, thud, smack, crack, block, ring, clang, gong or whoosh (made in game, no sound files yet).
+# slow    = sim ticks the game then plays at half speed (0-120). Only the screen slows; the rules still run tick by tick.
+#           The playtest slows only for your own just dodge.
+event,hitstop,shake,push,spark,sound,slow,note
+hit,5,2,0,25,smack,0,A light or medium hit lands (罗汉拳 hits 1-3)
+heavy_hit,8,5,0,45,thud,0,A heavy hit lands (罗汉拳 finisher; plain 铁砂掌)
+empowered_hit,12,9,20,80,crack,0,A Qi-empowered hit lands (Qi 铁砂掌)
+armor_hit,4,3,0,30,thud,0,A hit lands on hyper armor: damage but no flinch
+block,3,1,0,20,block,0,化绵掌 blocks a hit (string carries on)
+perfect_parry,10,4,25,60,ring,0,化绵掌 perfect parry: the attacker is staggered
+clash_recoil,8,5,15,70,clang,0,Same-weight clash: both bounce off
+clash_break,9,6,15,70,clang,0,Heavier move wins its clash and lands its hit
+clash_lost,6,4,10,50,clang,0,Lighter move is knocked aside in a clash
+perfect_clash,14,8,35,110,clang,0,Perfect clash: the showpiece film beat
+ko,20,10,40,90,gong,0,The finishing hit (HP reaches 0)
+just_dodge,0,0,0,0,whoosh,30,A strike passes through your 轻功 dash's invincible frames: 0.5 s of half speed and a light whoosh (+just_dodge_qi Qi)

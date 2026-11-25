@@ -26,8 +26,9 @@ namespace Shaolin36.Core.Combat
             ParryOutcome parry = ParryOutcome.NotParried, ParryEffect? parryEffect = null,
             ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null, bool defenderExhausted = false,
             int attackerQiGained = 0, int defenderQiGained = 0, bool empowered = false, bool defenderArmored = false,
-            int knockbackCm = 0)
+            int knockbackCm = 0, bool justDodged = false)
         {
+            JustDodged = justDodged;
             KnockbackCm = knockbackCm;
             Empowered = empowered;
             DefenderArmored = defenderArmored;
@@ -99,11 +100,18 @@ namespace Shaolin36.Core.Combat
         /// </summary>
         public int KnockbackCm { get; }
 
+        /// <summary>
+        /// True when the defender just-dodged the strike: it reached them during a 轻功 dash's invincible frames (a dash
+        /// started from a normal state, not out of hitstun). No damage; the defender gained just_dodge_qi.
+        /// </summary>
+        public bool JustDodged { get; }
+
         /// <summary>True when the strike dealt its damage and hitstun.</summary>
-        public bool Landed => Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
+        public bool Landed => !JustDodged && Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
 
         public override string ToString() =>
-            Parry != ParryOutcome.NotParried ? $"t{Tick} {Attacker}'s {Technique.Id} is {Parry}"
+            JustDodged ? $"t{Tick} {Defender} just-dodged {Attacker}'s {Technique.Id}"
+            : Parry != ParryOutcome.NotParried ? $"t{Tick} {Attacker}'s {Technique.Id} is {Parry}"
             : Clash != ClashOutcome.NoClash && !Landed ? $"t{Tick} {Attacker}'s {Technique.Id} clashes: {Clash}"
             : $"t{Tick} {Attacker} hits with {Technique.Id}: {Damage} damage, {HitstunFrames}f hitstun, {DefenderHpAfter} HP left";
     }
@@ -188,8 +196,11 @@ namespace Shaolin36.Core.Combat
     /// relative to the lock-on each tick (so a sideways dash curves round the other fighter), or straight at them
     /// when no direction was held. It stops at min_distance like walking, so a dash in closes to touching range.
     /// For its invincible frames (<see cref="Technique.InvincibleFrames"/>, from frame 0) strikes pass through:
-    /// they don't connect, but a strike still in its active frames can catch the fighter once those frames end.
-    /// A dashing fighter keeps facing the other fighter. A hit after the invincible frames stops the dash.
+    /// the strike is spent (it can't hit later in its active frames). From a dash started in a normal state that is a
+    /// <b>just dodge</b>: a <see cref="HitEvent"/> with <see cref="HitEvent.JustDodged"/>, no damage, and just_dodge_qi Qi for
+    /// the dodger. A dash started out of hitstun (a combo escape) still passes through strikes but never earns a just dodge,
+    /// so mashing the dash while being hit gives nothing extra. A dashing fighter keeps facing the other fighter.
+    /// A strike that reaches it after the invincible frames lands as normal and stops the dash.
     ///
     /// Walking: each tick, a fighter who is idle walks the way their <see cref="MoveInput"/> says,
     /// relative to the other fighter (forward is straight at them, right is round their side), at the
@@ -278,10 +289,14 @@ namespace Shaolin36.Core.Combat
             Move(stepOne, stepTwo);
 
             // Find both hits before applying either, so a same-tick trade doesn't depend on order.
-            // Strikes pass through a fighter in invincible frames (a 轻功 dash's start).
-            bool oneHits = Connects(One, Two.Position) && !Two.IsInvincible;
-            bool twoHits = Connects(Two, One.Position) && !One.IsInvincible;
+            // Strikes pass through a fighter in invincible frames (a 轻功 dash's start), and are spent.
+            bool oneReaches = Connects(One, Two.Position), twoReaches = Connects(Two, One.Position);
+            bool oneDodged = oneReaches && Two.IsInvincible, twoDodged = twoReaches && One.IsInvincible;
+            bool oneHits = oneReaches && !oneDodged, twoHits = twoReaches && !twoDodged;
             Technique? oneMove = One.Technique, twoMove = Two.Technique;
+            var dodges = new List<HitEvent>(2);
+            if (oneDodged) { One.MarkHitLanded(); JustDodge(Side.One, oneMove!, One.Empowered, Two, dodges); }
+            if (twoDodged) { Two.MarkHitLanded(); JustDodge(Side.Two, twoMove!, Two.Empowered, One, dodges); }
             bool oneEmpowered = One.Empowered, twoEmpowered = Two.Empowered;
             bool oneArmored = One.HasArmor, twoArmored = Two.HasArmor;
             if (oneHits) One.MarkHitLanded();
@@ -289,7 +304,7 @@ namespace Shaolin36.Core.Combat
 
             // Note what each defender was doing before either hit changes it.
             int oneFrame = One.MoveFrame, twoFrame = Two.MoveFrame;
-            var landed = new List<HitEvent>(2);
+            var landed = dodges;
             if (oneHits) landed.Add(Land(Side.One, oneMove!, oneEmpowered, Two, twoMove, twoFrame, twoArmored));
             if (twoHits) landed.Add(Land(Side.Two, twoMove!, twoEmpowered, One, oneMove, oneFrame, oneArmored));
 
@@ -384,6 +399,15 @@ namespace Shaolin36.Core.Combat
             return new HitEvent(Tick, attacker, move, dealt, hitstun, defender.Hp, defenderMove, defenderFrame,
                 defenderExhausted: exhausted, attackerQiGained: hitQi, empowered: empowered, defenderArmored: defenderArmored,
                 knockbackCm: knockback);
+        }
+
+        /// <summary>A strike passed through <paramref name="dodger"/>'s invincible frames: a just dodge, unless the dash was a combo escape.</summary>
+        private void JustDodge(Side attacker, Technique move, bool empowered, Fighter dodger, List<HitEvent> into)
+        {
+            if (dodger.EscapedHitstun) return;
+            int qi = dodger.GainQi(Rules.JustDodgeQi);
+            into.Add(new HitEvent(Tick, attacker, move, 0, 0, dodger.Hp, dodger.Technique, dodger.MoveFrame,
+                defenderQiGained: qi, empowered: empowered, justDodged: true));
         }
 
         private static Side OtherSide(Side side) => side == Side.One ? Side.Two : Side.One;

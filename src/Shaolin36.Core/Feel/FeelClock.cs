@@ -27,6 +27,7 @@ namespace Shaolin36.Core.Feel
         public static FeelEvent Classify(HitEvent hit)
         {
             if (hit == null) throw new ArgumentNullException(nameof(hit));
+            if (hit.JustDodged) return FeelEvent.JustDodge;
             switch (hit.Parry)
             {
                 case ParryOutcome.PerfectParry: return FeelEvent.PerfectParry;

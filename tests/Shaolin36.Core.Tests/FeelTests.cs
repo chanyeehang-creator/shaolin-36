@@ -320,4 +320,30 @@ public class FeelTests
         Assert.True(s[FeelEvent.HeavyHit].HitStopFrames < s[FeelEvent.EmpoweredHit].HitStopFrames);
         Assert.True(s[FeelEvent.Block].HitStopFrames < s[FeelEvent.PerfectParry].HitStopFrames);
     }
+
+    [Fact]
+    public void A_just_dodge_slows_the_game_with_a_light_whoosh_and_no_freeze()
+    {
+        var row = RealSheet()[FeelEvent.JustDodge];
+        Assert.Equal(FeelSound.Whoosh, row.Sound);
+        Assert.True(row.SlowFrames > 0);
+        Assert.Equal(0, row.HitStopFrames);
+    }
+
+    [Fact]
+    public void A_just_dodge_is_classified_as_one()
+    {
+        var jab = Make.Move("jab");
+        var dodge = new HitEvent(0, Side.Two, jab, 0, 0, 100, justDodged: true);
+        Assert.Equal(FeelEvent.JustDodge, FeelCue.Classify(dodge));
+        Assert.False(dodge.Landed);
+    }
+
+    [Fact]
+    public void The_slow_column_is_optional_and_checked()
+    {
+        var ok = FeelCsv.Parse(SheetText());
+        Assert.True(ok.Ok, string.Join("\n", ok.Errors));
+        Assert.Equal(0, ok.Sheet![FeelEvent.Hit].SlowFrames);
+    }
 }
