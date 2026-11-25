@@ -60,8 +60,8 @@ public class BrainTests
     public void Engage_distance_is_the_shortest_full_reach_less_the_margin()
     {
         var d = DuelAt(400);
-        // 罗汉拳 hit 1: 120 reach + 10 step-in; 铁砂掌: 130 + 20. The parry has no reach.
-        Assert.Equal(130 - Brain.EngageMarginCm, Brain.EngageDistance(d.Two));
+        // 罗汉拳 hit 1: 125 reach + 10 step-in; 铁砂掌: 130 + 20. The parry has no reach.
+        Assert.Equal(135 - Brain.EngageMarginCm, Brain.EngageDistance(d.Two));
     }
 
     [Fact]
@@ -175,18 +175,16 @@ public class BrainTests
     }
 
     [Fact]
-    public void It_blocks_hits_1_and_2_of_a_mashed_string_but_hit_3_comes_too_fast()
+    public void It_blocks_a_whole_mashed_string_now_the_parry_recovers_in_5_and_opens_in_2()
     {
-        // After a block it recovers for parry_recovery (8) frames, and a new parry takes 3 frames to open.
-        // 罗汉拳 hit 3 lands 9 frames after hit 2, so a mashed string always gets hit 3 through a block:
-        // the same is true for you. (Chain later and it has time.)
+        // Chan's balance patch: after a block it recovers for parry_recovery (5) frames, a new parry opens in 2, and
+        // the window starts with 3 block frames. 罗汉拳 hit 3 lands 9 frames after hit 2, so a re-press straight after
+        // a block is in time to block it (it was 8 + 3 = 11 frames before: hit 3 always got through).
         var d = DuelAt(110);
         var brain = new Brain(Style(parry: 100, perfect: 0), 1);
         Run(d, brain, 120, _ => SlotInput.Press(Slot.Square));
-        Assert.Equal(ParryOutcome.Parried, d.Hits[0].Parry);
-        Assert.Equal(ParryOutcome.Parried, d.Hits[1].Parry);
-        Assert.Equal("luohan_quan_3", d.Hits[2].Technique.Id);
-        Assert.True(d.Hits[2].Landed);
+        Assert.Equal(new[] { "luohan_quan_1", "luohan_quan_2", "luohan_quan_3", "luohan_quan_4" }, d.Hits.Take(4).Select(h => h.Technique.Id));
+        Assert.All(d.Hits.Take(4), h => Assert.NotEqual(ParryOutcome.NotParried, h.Parry));
     }
 
     [Fact]

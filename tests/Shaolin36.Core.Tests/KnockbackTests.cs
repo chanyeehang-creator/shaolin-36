@@ -186,13 +186,13 @@ public class KnockbackTests
     }
 
     [Fact]
-    public void The_whole_string_stays_in_reach_from_110_cm()
+    public void The_whole_string_stays_in_reach_from_130_cm()
     {
-        var d = RunString(110);
+        var d = RunString(130);
         Assert.Equal(new[] { "luohan_quan_1", "luohan_quan_2", "luohan_quan_3", "luohan_quan_4" }, d.Hits.Select(h => h.Technique.Id));
         var hits = Sheet().Values.Where(t => t.Id.StartsWith("luohan_quan_")).ToList();
         int pushed = hits.Sum(t => t.KnockbackCm), stepped = hits.Sum(t => t.AdvanceCm);
-        Assert.Equal(110 + pushed - stepped, d.DistanceCm);
+        Assert.Equal(130 + pushed - stepped, d.DistanceCm);
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public class KnockbackTests
     {
         var sheet = Sheet();
         int limit = sheet["luohan_quan_1"].StringReachFrom(id => sheet.TryGetValue(id, out var t) ? t : null);
-        Assert.Equal(130, limit); // hit 1's 120 cm reach plus its 10 cm step in
+        Assert.Equal(135, limit); // hit 1's 125 cm reach plus its 10 cm step in
         Assert.Equal(4, RunString(limit).Hits.Count);
         Assert.True(RunString(limit + 1).Hits.Count < 4);
     }

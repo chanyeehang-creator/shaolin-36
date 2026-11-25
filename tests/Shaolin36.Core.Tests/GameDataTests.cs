@@ -57,13 +57,30 @@ public class GameDataTests
     }
 
     [Fact]
-    public void Timed_parry_has_block_frames_after_the_perfect_ones_and_a_cooldown()
+    public void Timed_parry_has_block_frames_either_side_of_the_perfect_ones_and_a_cooldown()
     {
-        // Chan's design: perfect frames first, then a block window, then a cooldown so it can't be held.
+        // Chan's design: a short block window (leeway for pressing early), then the perfect frames, then a longer
+        // block window, then a cooldown so it can't be held.
         var path = Path.Combine(RepoRoot(), "game", "data", "techniques.csv");
         var parry = TechniqueCsv.Parse(File.ReadAllText(path)).Techniques.Single(t => t.Id == "timed_parry");
-        Assert.True(parry.ActiveFrames > parry.PerfectParryFrames, "the window needs block frames after the perfect ones");
+        Assert.True(parry.EarlyBlockFrames > 0, "the window needs block frames before the perfect ones");
+        Assert.True(parry.ActiveFrames > parry.EarlyBlockFrames + parry.PerfectParryFrames, "the window needs block frames after the perfect ones");
         Assert.True(parry.RecoveryFrames > 0, "the parry needs a cooldown");
-        Assert.Equal(Combat.ParryOutcome.Parried, Combat.Parry.Resolve(parry, parry.StartupFrames + parry.PerfectParryFrames));
+        Assert.Equal(Combat.ParryOutcome.Parried, Combat.Parry.Resolve(parry, parry.StartupFrames));
+        Assert.Equal(Combat.ParryOutcome.PerfectParry, Combat.Parry.Resolve(parry, parry.PerfectParryStart));
+        Assert.Equal(Combat.ParryOutcome.Parried, Combat.Parry.Resolve(parry, parry.PerfectParryStart + parry.PerfectParryFrames));
+    }
+
+    [Fact]
+    public void Timed_parry_opens_in_2_frames_and_keeps_its_4_perfect_frames()
+    {
+        // Chan's balance patch: 2-frame wind-up, a 3-frame block before the perfect parry, the 4 perfect frames as they were.
+        var path = Path.Combine(RepoRoot(), "game", "data", "techniques.csv");
+        var parry = TechniqueCsv.Parse(File.ReadAllText(path)).Techniques.Single(t => t.Id == "timed_parry");
+        Assert.Equal(2, parry.StartupFrames);
+        Assert.Equal(3, parry.EarlyBlockFrames);
+        Assert.Equal(4, parry.PerfectParryFrames);
+        var rules = RulesCsv.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "game", "data", "rules.csv"))).Rules!;
+        Assert.Equal(5, rules.ParryRecovery);
     }
 }

@@ -176,6 +176,78 @@ public class DianxueHealTests
         Assert.Equal(FighterState.Hitstun, d.One.State);
     }
 
+    // ---------- Recovery: short on a hit, long on a miss (Chan's balance patch) ----------
+
+    [Fact]
+    public void Fengxue_recovers_in_24_frames_after_a_hit_and_stays_ahead_of_its_hitstun()
+    {
+        Assert.Equal(24, Finger.HitRecoveryFrames);
+        Assert.True(Finger.HitRecoveryFrames < Finger.HitstunFrames, "free before the defender, but only just");
+        Assert.True(Finger.HitstunFrames - Finger.HitRecoveryFrames <= 6, "a brief edge, not a free combo");
+    }
+
+    [Fact]
+    public void A_landed_fengxue_frees_the_attacker_hit_recovery_frames_after_the_hit()
+    {
+        var d = DuelAt(120);
+        int hitTick = -1;
+        for (int t = 0; t < Finger.TotalFrames && hitTick < 0; t++)
+            if (d.Step(t == 0 ? SlotInput.Press(Slot.Circle) : None, None).Any(h => h.Landed)) hitTick = t;
+        Assert.True(hitTick > 0, "封穴 should land from 120 cm");
+        int free = -1;
+        for (int t = hitTick + 1; t < hitTick + Finger.TotalFrames && free < 0; t++)
+        {
+            d.Step(None, None);
+            if (d.One.CanAct) free = t;
+        }
+        Assert.Equal(hitTick + Finger.HitRecoveryFrames, free);
+        Assert.Equal(FighterState.Hitstun, d.Two.State); // still reeling: the attacker is a few frames ahead
+    }
+
+    [Fact]
+    public void A_whiffed_fengxue_keeps_its_full_1_s_recovery()
+    {
+        var d = DuelAt(300);
+        for (int t = 0; t < Finger.TotalFrames; t++)
+        {
+            d.Step(t == 0 ? SlotInput.Press(Slot.Circle) : None, None);
+            Assert.False(d.One.CanAct, $"free on tick {t}, before the whiff recovery ended");
+        }
+        d.Step(None, None);
+        Assert.True(d.One.CanAct);
+        Assert.Empty(d.Hits);
+    }
+
+    [Fact]
+    public void A_parried_fengxue_keeps_its_full_recovery()
+    {
+        // Blocked (not perfect-parried, which staggers): no hit landed, so no short recovery.
+        var d = DuelAt(120);
+        var parry = T("timed_parry");
+        int pressAt = Finger.StartupFrames - parry.StartupFrames - 1; // meets the hit in the early block frames
+        int t = 0;
+        for (; t <= Finger.StartupFrames; t++)
+            d.Step(t == 0 ? SlotInput.Press(Slot.Circle) : None, t == pressAt ? SlotInput.Press(Slot.L1) : None);
+        Assert.Equal(ParryOutcome.Parried, d.Hits.Single().Parry);
+        for (; t < Finger.TotalFrames - 1; t++)
+        {
+            d.Step(None, None);
+            Assert.False(d.One.CanAct, $"free on tick {t} after a blocked 封穴");
+        }
+    }
+
+    [Theory]
+    [InlineData("x,x,dianxue,light,false,10,3,10,0,0,5,0,4,false,10,0,,0,0,0,0,,5", "'hit_recovery' is set but 'reach' is 0")]
+    [InlineData("x,x,dianxue,light,false,10,3,10,0,0,5,0,4,false,10,100,,0,0,0,0,,13", "must be shorter than 'active' + 'recovery'")]
+    [InlineData("x,x,huajin,light,false,2,10,10,0,0,5,0,0,false,0,0,,0,4,0,0,7,", "'early_block' + 'perfect_parry' (7 + 4) cannot be longer than 'active' (10)")]
+    [InlineData("x,x,waigong,light,false,2,10,10,0,0,5,0,0,false,0,100,,0,0,0,0,3,", "'early_block' is set but 'perfect_parry' is 0")]
+    public void Bad_early_block_and_hit_recovery_cells_are_reported(string row, string expected)
+    {
+        var r = TechniqueCsv.Parse(Header.Replace(",heal\n", ",heal,early_block,hit_recovery\n") + row + "\n");
+        Assert.False(r.Ok);
+        Assert.Contains(r.Errors, e => e.Contains(expected));
+    }
+
     // ---------- Seal ----------
 
     [Fact]
@@ -258,7 +330,7 @@ public class DianxueHealTests
     {
         var d = DuelAt(120);
         var parry = T("timed_parry");
-        int pressAt = Finger.StartupFrames - parry.StartupFrames - 1; // meets the hit on the parry's 2nd perfect frame
+        int pressAt = Finger.StartupFrames - parry.PerfectParryStart - 1; // meets the hit on the parry's 2nd perfect frame
         for (int t = 0; t <= Finger.StartupFrames; t++)
             d.Step(t == 0 ? SlotInput.Press(Slot.Circle) : None, t == pressAt ? SlotInput.Press(Slot.L1) : None);
         var hit = d.Hits.Single();

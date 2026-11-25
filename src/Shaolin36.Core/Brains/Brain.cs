@@ -489,10 +489,13 @@ namespace Shaolin36.Core.Brains
         /// <summary>Which frame of the parry's window to meet the strike on: in the perfect part, or in the plain block part.</summary>
         private int AimFrame(Technique parry)
         {
-            int perfect = Math.Max(0, Math.Min(parry.PerfectParryFrames, parry.ActiveFrames));
-            int plain = parry.ActiveFrames - perfect;
-            if (perfect > 0 && (plain == 0 || _dice.Chance(Style.Perfect))) return _dice.Below(perfect);
-            return perfect + _dice.Below(Math.Min(plain, 6));
+            int early = Math.Max(0, Math.Min(parry.EarlyBlockFrames, parry.ActiveFrames));
+            int perfect = Math.Max(0, Math.Min(parry.PerfectParryFrames, parry.ActiveFrames - early));
+            int plain = parry.ActiveFrames - early - perfect;
+            if (perfect > 0 && (plain + early == 0 || _dice.Chance(Style.Perfect))) return early + _dice.Below(perfect);
+            // A plain block: mostly a little late (after the perfect frames), sometimes a little early.
+            if (early > 0 && (plain == 0 || _dice.Chance(25))) return _dice.Below(early);
+            return early + perfect + _dice.Below(Math.Min(plain, 6));
         }
 
         /// <summary>The first slot holding a 化劲 parry, or null.</summary>

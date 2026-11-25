@@ -367,8 +367,14 @@ namespace Shaolin36.Core.Combat
             // Note what each defender was doing before either hit changes it.
             int oneFrame = One.MoveFrame, twoFrame = Two.MoveFrame;
             var landed = dodges;
-            if (oneHits) landed.Add(Land(Side.One, oneMove!, oneEmpowered, Two, twoMove, twoFrame, twoArmored));
-            if (twoHits) landed.Add(Land(Side.Two, twoMove!, twoEmpowered, One, oneMove, oneFrame, oneArmored));
+            HitEvent? oneLand = oneHits ? Land(Side.One, oneMove!, oneEmpowered, Two, twoMove, twoFrame, twoArmored) : null;
+            HitEvent? twoLand = twoHits ? Land(Side.Two, twoMove!, twoEmpowered, One, oneMove, oneFrame, oneArmored) : null;
+            if (oneLand != null) landed.Add(oneLand);
+            if (twoLand != null) landed.Add(twoLand);
+            // A hit that lands cuts a hit_recovery move short (点穴 封穴: long recovery only on a miss). After both
+            // lands, so a fighter hit on the same tick (out of their move) is left alone.
+            if (oneLand != null && oneLand.Landed) One.CutRecoveryOnHit(oneMove!);
+            if (twoLand != null && twoLand.Landed) Two.CutRecoveryOnHit(twoMove!);
 
             // A hold that ran out this tick throws.
             if (One.ThrewThisTick) landed.Add(Throw(Side.One));

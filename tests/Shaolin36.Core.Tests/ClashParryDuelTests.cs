@@ -374,7 +374,7 @@ public class ClashParryDuelTests
         // The dummy starts on tick `lead`, so hit 1 lands on lead + its startup. Parry so it lands on
         // the first perfect frame, or on the last frame of the block window (which can mean pressing
         // before the dummy starts, so it starts late enough for that).
-        int parryFrame = perfect ? parry.StartupFrames : parry.StartupFrames + parry.ActiveFrames - 1;
+        int parryFrame = perfect ? parry.PerfectParryStart : parry.StartupFrames + parry.ActiveFrames - 1;
         int lead = Math.Max(0, parryFrame - hit1.StartupFrames);
         int parryTick = lead + hit1.StartupFrames - parryFrame;
         for (int t = 0; t < lead + hit1.StartupFrames + hit1.ActiveFrames + hit2.StartupFrames + 2; t++)

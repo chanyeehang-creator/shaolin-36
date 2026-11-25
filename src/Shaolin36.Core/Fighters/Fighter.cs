@@ -320,6 +320,12 @@ namespace Shaolin36.Core.Fighters
         /// <summary>Frame within the current technique, 0-based. -1 when not in a move.</summary>
         public int MoveFrame { get; private set; } = -1;
 
+        /// <summary>
+        /// The move ends (back to idle) when <see cref="MoveFrame"/> reaches this: the technique's total frames,
+        /// or fewer once a hit with hit_recovery lands (<see cref="CutRecoveryOnHit"/>). -1 when not in a move.
+        /// </summary>
+        public int MoveEndFrame { get; private set; } = -1;
+
         /// <summary>Frames of stun left. 0 when not stunned.</summary>
         public int StunFramesLeft { get; private set; }
 
@@ -369,7 +375,7 @@ namespace Shaolin36.Core.Fighters
             if (State == FighterState.QuickStep)
                 return QuickStepFrame + 1 >= QuickStepRules!.TotalFrames ? FighterState.Idle : FighterState.QuickStep;
             if (State.IsInMove())
-                return MoveFrame + 1 >= Technique!.TotalFrames ? FighterState.Idle : PhaseAt(Technique, MoveFrame + 1);
+                return MoveFrame + 1 >= MoveEndFrame ? FighterState.Idle : PhaseAt(Technique!, MoveFrame + 1);
             if (State.IsStunned())
                 return StunFramesLeft <= 1 ? FighterState.Idle : State;
             return State;
@@ -625,6 +631,17 @@ namespace Shaolin36.Core.Fighters
             HitLanded = true;
         }
 
+        /// <summary>
+        /// The current move's hit just landed (damage, not blocked, parried or dodged): if <paramref name="move"/> is
+        /// still the move under way and has hit_recovery, it ends that many frames from now instead of running its
+        /// full recovery. Never makes a move longer.
+        /// </summary>
+        public void CutRecoveryOnHit(Technique move)
+        {
+            if (!State.IsInMove() || Technique != move || move.HitRecoveryFrames <= 0) return;
+            MoveEndFrame = Math.Min(MoveEndFrame, MoveFrame + move.HitRecoveryFrames);
+        }
+
         private void Start(Slot slot, Technique technique)
         {
             EscapedHitstun = false;
@@ -635,6 +652,7 @@ namespace Shaolin36.Core.Fighters
             Technique = technique;
             Slot = slot;
             MoveFrame = 0;
+            MoveEndFrame = technique.TotalFrames;
             HitLanded = false;
             StringHit = 1;
             State = PhaseAt(technique, 0);
@@ -682,18 +700,19 @@ namespace Shaolin36.Core.Fighters
             else if (State.IsInMove())
             {
                 MoveFrame++;
-                if (MoveFrame >= Technique!.TotalFrames)
+                if (MoveFrame >= MoveEndFrame)
                 {
                     EndMove();
                     State = FighterState.Idle;
                 }
                 else
                 {
-                    State = PhaseAt(Technique, MoveFrame);
+                    var t = Technique!;
+                    State = PhaseAt(t, MoveFrame);
                     // A 气功 heal lands as its channel (the active frames) ends.
-                    if (Technique.IsHeal && MoveFrame == Technique.StartupFrames + Technique.ActiveFrames && !IsDown)
+                    if (t.IsHeal && MoveFrame == t.StartupFrames + t.ActiveFrames && !IsDown)
                     {
-                        int healed = Math.Min(Technique.Heal, MaxHp - Hp);
+                        int healed = Math.Min(t.Heal, MaxHp - Hp);
                         Hp += healed;
                         HealedThisTick = healed;
                     }
@@ -721,6 +740,7 @@ namespace Shaolin36.Core.Fighters
             Technique = null;
             Slot = null;
             MoveFrame = -1;
+            MoveEndFrame = -1;
             HitLanded = false;
             StringHit = 0;
             Empowered = false;
