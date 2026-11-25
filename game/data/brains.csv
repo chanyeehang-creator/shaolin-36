@@ -14,7 +14,10 @@
 # guess       = at each choice in your reach where it doesn't attack, the chance it throws its parry on a guess, the way a person predicts a strike
 #               too fast to react to (罗汉拳 hit 1 lands in 13 frames, quicker than anyone reacts). A wrong guess costs it 10 stamina and leaves it open: bait it and punish.
 # heavy       = when it attacks, the chance it picks a heavy technique (such as 铁砂掌) over a lighter one. With enough Qi it always uses the empowered one.
-id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,note
-novice,弟子 (novice),24,30,35,30,60,15,20,10,40,20,15,5,Slow to react and rarely parries: for learning the duel
-monk,武僧 (monk),18,20,50,60,80,40,35,20,50,25,25,15,The baseline opponent: reacts like a person and parries about 2 strikes in 5
-master,方丈 (master),12,12,60,90,90,65,60,30,50,30,25,25,Sharp: reacts fast and parries often and punishes almost every opening
+# heal        = rolled every think_every frames while it is hurt by at least a heal's worth and 80 cm beyond your longest reach (you not mid-move):
+#               the chance it channels its 气功 heal (仙辽术, 10 Qi for 10 HP). Hit it in the 1.5 s before the heal lands to cancel it.
+# It uses 点穴 like its other light attacks (when off cooldown), and while you have it sealed it can't use 外功 either.
+id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,heal,note
+novice,弟子 (novice),24,30,35,30,60,15,20,10,40,20,15,5,20,Slow to react and rarely parries: for learning the duel
+monk,武僧 (monk),18,20,50,60,80,40,35,20,50,25,25,15,40,The baseline opponent: reacts like a person and parries about 2 strikes in 5
+master,方丈 (master),12,12,60,90,90,65,60,30,50,30,25,25,60,Sharp: reacts fast and parries often and punishes almost every opening

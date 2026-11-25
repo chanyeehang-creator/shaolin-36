@@ -24,7 +24,15 @@
 #           costs more (15 stamina vs 6). 0.23 s slide + 0.17 s recovery = 0.4 s in all. On ✕ by default.
 # escape (轻功 only) = true: the move can be started while in hitstun, to break out of a combo. Only the default dash can, for now.
 #           A dash out of hitstun still has its invincible frames but never earns a just dodge (just_dodge_qi in rules.csv).
-id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,empower_qi,empower_damage_pct,empower_armor,knockback,hit_angle,advance,dash,invincible,escape
+# cooldown = frames from the press before the move can be used again (counts the move itself; 0 = none). Stops it being spammed.
+# seal (点穴 only) = frames a landed hit stops the defender starting 外功 moves (罗汉拳, 铁砂掌). Blocked, parried or dodged: no seal.
+#           Seals refresh, they don't stack. The defender can still parry, dash, quick step and use other categories.
+# heal (气功 only) = HP restored when the channel (the active frames) finishes, never above hp_max. Hit before then: no heal, Qi gone.
+# 点穴 封脉指 (Chan's brief): one finger strike, small damage, seals 外功 for 5 s. Balanced by a long 0.5 s wind-up (parry or step on reaction),
+#           25 stamina (vs 8 for a 罗汉拳 hit) and a 6 s cooldown. Not clashable (a Qi strike). Later variants can be faster and cost Qi.
+# 仙辽术 (Chan's brief, Chan's spelling): spend 10 Qi to heal 10 HP. 0.5 s wind-up, 1 s channel, then the heal lands, then 0.33 s to finish.
+#           1.8 s in all with no armor: any hit in the first 1.5 s cancels it and the 10 Qi is lost.
+id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,empower_qi,empower_damage_pct,empower_armor,knockback,hit_angle,advance,dash,invincible,escape,cooldown,seal,heal
 luohan_quan_1,罗汉拳 1 冲拳,waigong,medium,false,13,3,21,5,2,8,0,6,true,27,120,luohan_quan_2,6,0,0,100,false,4,60,10
 luohan_quan_2,罗汉拳 2 连拳,waigong,medium,false,19,3,11,4,2,8,0,6,true,14,120,luohan_quan_3,6,0,0,100,false,4,60,8
 luohan_quan_3,罗汉拳 3 挑掌,waigong,medium,false,6,3,21,4,2,9,0,7,true,27,125,luohan_quan_4,6,0,0,100,false,4,70,8
@@ -32,3 +40,5 @@ luohan_quan_4,罗汉拳 4 收势重拳,waigong,heavy,false,19,4,20,6,2,14,0,12,t
 timed_parry,化绵掌 (timed parry),huajin,light,false,3,14,10,0,0,10,0,0,false,0,0,,0,4,0,100,false,0,,0
 tiesha_zhang,铁砂掌 (iron palm),waigong,heavy,false,36,4,36,8,2,20,0,15,true,40,130,,0,0,30,200,true,50,60,20
 qinggong_dash,轻功 冲步 (dash),qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,100,false,0,,0,200,10,true
+dianxue_zhi,点穴 封脉指 (sealing finger),dianxue,light,false,30,3,24,0,0,25,0,4,false,30,115,,0,0,0,100,false,10,50,15,0,0,false,360,300,0
+xianliao_shu,仙辽术 (healing qigong),qigong,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,0,100,false,0,,0,0,0,false,0,0,10

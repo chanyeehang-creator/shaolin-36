@@ -19,7 +19,7 @@ namespace Shaolin36.Core.Data
         };
 
         /// <summary>Columns a sheet may leave out; an empty cell means the default (no empowered version).</summary>
-        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape" };
+        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "cooldown", "seal", "heal" };
 
         /// <summary>Most a hit can push the defender back, in centimetres.</summary>
         public const int MaxKnockback = 500;
@@ -29,6 +29,15 @@ namespace Shaolin36.Core.Data
 
         /// <summary>Most a 轻功 dash can carry the fighter, in centimetres.</summary>
         public const int MaxDash = 600;
+
+        /// <summary>Longest cooldown, in frames (60 s).</summary>
+        public const int MaxCooldown = 3600;
+
+        /// <summary>Longest 点穴 seal, in frames (30 s).</summary>
+        public const int MaxSeal = 1800;
+
+        /// <summary>Most HP one heal can restore.</summary>
+        public const int MaxHeal = 1000;
 
         private static readonly Dictionary<string, Category> CategoryNames =
             new Dictionary<string, Category>(StringComparer.OrdinalIgnoreCase)
@@ -168,6 +177,9 @@ namespace Shaolin36.Core.Data
                 int dash = Cell("dash").Length == 0 ? 0 : Int("dash");
                 int invincible = Cell("invincible").Length == 0 ? 0 : Int("invincible");
                 bool escape = Cell("escape").Length != 0 && Bool("escape");
+                int cooldown = Cell("cooldown").Length == 0 ? 0 : Int("cooldown");
+                int seal = Cell("seal").Length == 0 ? 0 : Int("seal");
+                int heal = Cell("heal").Length == 0 ? 0 : Int("heal");
 
                 if (startup < 1) rowErrors.Add("'startup' must be at least 1 frame");
                 if (active < 1) rowErrors.Add("'active' must be at least 1 frame");
@@ -193,6 +205,14 @@ namespace Shaolin36.Core.Data
                 if (escape && category != Category.Qinggong) rowErrors.Add("only 轻功 (qinggong) techniques can have 'escape'");
                 if (invincible > startup + active + recovery)
                     rowErrors.Add($"'invincible' ({invincible}) cannot be longer than the whole move ({startup + active + recovery} frames)");
+                if (cooldown > MaxCooldown) rowErrors.Add($"'cooldown' ({cooldown}) must be {MaxCooldown} frames or less");
+                if (seal > MaxSeal) rowErrors.Add($"'seal' ({seal}) must be {MaxSeal} frames or less");
+                if (seal > 0 && category != Category.Dianxue) rowErrors.Add("only 点穴 (dianxue) techniques can have 'seal'");
+                if (seal > 0 && reach == 0) rowErrors.Add("'seal' is set but 'reach' is 0, so the move never hits");
+                if (heal > MaxHeal) rowErrors.Add($"'heal' ({heal}) must be {MaxHeal} HP or less");
+                if (heal > 0 && category != Category.Qigong) rowErrors.Add("only 气功 (qigong) techniques can have 'heal'");
+                if (heal > 0 && recovery == 0) rowErrors.Add("a heal lands on its first recovery frame, so it needs 'recovery' 1 or more");
+                if (heal > 0 && reach > 0) rowErrors.Add("a heal can't also be a strike: 'heal' needs 'reach' 0");
                 if (empowerQi > 0 && empowerPct == 0) rowErrors.Add("'empower_damage_pct' must be above 0");
 
                 if (rowErrors.Count > 0)
@@ -204,7 +224,7 @@ namespace Shaolin36.Core.Data
                 if (next.Length > 0) chains.Add((lineNo, id, next));
                 techniques.Add(new Technique(id, displayName, category, weight, weapon,
                     startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
-                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape));
+                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape, cooldown, seal, heal));
             }
 
             foreach (var (line, id, next) in chains)

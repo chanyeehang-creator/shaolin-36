@@ -26,8 +26,9 @@ namespace Shaolin36.Core.Combat
             ParryOutcome parry = ParryOutcome.NotParried, ParryEffect? parryEffect = null,
             ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null, bool defenderExhausted = false,
             int attackerQiGained = 0, int defenderQiGained = 0, bool empowered = false, bool defenderArmored = false,
-            int knockbackCm = 0, bool justDodged = false)
+            int knockbackCm = 0, bool justDodged = false, int sealFrames = 0)
         {
+            SealFrames = sealFrames;
             JustDodged = justDodged;
             KnockbackCm = knockbackCm;
             Empowered = empowered;
@@ -105,6 +106,9 @@ namespace Shaolin36.Core.Combat
         /// started from a normal state, not out of hitstun). No damage; the defender gained just_dodge_qi.
         /// </summary>
         public bool JustDodged { get; }
+
+        /// <summary>Frames the defender's 外功 is sealed by this 点穴 hit (0 if it seals nothing or didn't land).</summary>
+        public int SealFrames { get; }
 
         /// <summary>True when the strike dealt its damage and hitstun.</summary>
         public bool Landed => !JustDodged && Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
@@ -201,6 +205,12 @@ namespace Shaolin36.Core.Combat
     /// the dodger. A dash started out of hitstun (a combo escape) still passes through strikes but never earns a just dodge,
     /// so mashing the dash while being hit gives nothing extra. A dashing fighter keeps facing the other fighter.
     /// A strike that reaches it after the invincible frames lands as normal and stops the dash.
+    ///
+    /// 点穴 seal: a landed hit of a technique with a seal (see <see cref="Technique.SealFrames"/>) stops the defender starting 外功
+    /// techniques for that many frames from the hit (see <see cref="Fighter.Seal"/>). Parried, dodged and clash-lost strikes seal nothing.
+    ///
+    /// 气功 heal: see <see cref="Fighter"/>. A heal has no reach, so it never hits; hitting the healer during its wind-up or
+    /// channel knocks it out of the move like any other, and the heal is lost.
     ///
     /// Walking: each tick, a fighter who is idle walks the way their <see cref="MoveInput"/> says,
     /// relative to the other fighter (forward is straight at them, right is round their side), at the
@@ -369,9 +379,10 @@ namespace Shaolin36.Core.Combat
                         if (frames > 0 && !defender.IsDown) defender.Stun(FighterState.Stagger, frames);
                         int breakQi = striker.GainQi(Rules.QiPerHit);
                         StartPush(OtherSide(attacker), move.KnockbackCm);
+                        defender.Seal(move.SealFrames);
                         return new HitEvent(Tick, attacker, move, damage, frames, defender.Hp, defenderMove, defenderFrame,
                             clash: clash, clashEffect: e, defenderExhausted: tired, attackerQiGained: breakQi, empowered: empowered,
-                            knockbackCm: move.KnockbackCm);
+                            knockbackCm: move.KnockbackCm, sealFrames: move.SealFrames);
                     }
                     defender.LoseStamina(e.Target.StaminaLoss);
                     ApplyClashSide(striker, e.Striker, clash == ClashOutcome.TargetWins ? FighterState.Stagger : FighterState.Recoil);
@@ -396,9 +407,11 @@ namespace Shaolin36.Core.Combat
             // Hyper armor holds its ground.
             int knockback = defenderArmored ? 0 : move.KnockbackCm;
             StartPush(OtherSide(attacker), knockback);
+            // 点穴: the defender's 外功 is sealed, hyper armor or not.
+            defender.Seal(move.SealFrames);
             return new HitEvent(Tick, attacker, move, dealt, hitstun, defender.Hp, defenderMove, defenderFrame,
                 defenderExhausted: exhausted, attackerQiGained: hitQi, empowered: empowered, defenderArmored: defenderArmored,
-                knockbackCm: knockback);
+                knockbackCm: knockback, sealFrames: move.SealFrames);
         }
 
         /// <summary>A strike passed through <paramref name="dodger"/>'s invincible frames: a just dodge, unless the dash was a combo escape.</summary>
