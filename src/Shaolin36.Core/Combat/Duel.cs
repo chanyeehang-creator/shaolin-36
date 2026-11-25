@@ -183,6 +183,14 @@ namespace Shaolin36.Core.Combat
     /// reach, closing in, or getting off the line of a strike's hit angle before it comes out. It stops at
     /// min_distance like walking.
     ///
+    /// 轻功 dash: a technique with a dash (see <see cref="Technique.DashCm"/>) slides its fighter that far over its
+    /// startup and active frames (whole centimetres, larger steps first), the way the stick was held when it started,
+    /// relative to the lock-on each tick (so a sideways dash curves round the other fighter), or straight at them
+    /// when no direction was held. It stops at min_distance like walking, so a dash in closes to touching range.
+    /// For its invincible frames (<see cref="Technique.InvincibleFrames"/>, from frame 0) strikes pass through:
+    /// they don't connect, but a strike still in its active frames can catch the fighter once those frames end.
+    /// A dashing fighter keeps facing the other fighter. A hit after the invincible frames stops the dash.
+    ///
     /// Walking: each tick, a fighter who is idle walks the way their <see cref="MoveInput"/> says,
     /// relative to the other fighter (forward is straight at them, right is round their side), at the
     /// rules sheet's walk_speed scaled by how far the stick is pushed. Speeds in cm per second are
@@ -202,6 +210,8 @@ namespace Shaolin36.Core.Combat
         private readonly int[] _advanceTicks = new int[2];
         private readonly int[] _quickStepLeft = new int[2];
         private readonly int[] _quickStepTicks = new int[2];
+        private readonly int[] _dashLeft = new int[2];
+        private readonly int[] _dashTicks = new int[2];
 
         /// <param name="oneQi">Qi fighter One starts with; null for the rules sheet's qi_start. A run passes what it carried over.</param>
         /// <param name="twoQi">Qi fighter Two starts with; null for qi_start.</param>
@@ -259,17 +269,18 @@ namespace Shaolin36.Core.Combat
         {
             if (IsOver) return Array.Empty<HitEvent>();
 
-            One.Tick(one, moveOne.IsWalking, moveOne.QuickStep);
-            Two.Tick(two, moveTwo.IsWalking, moveTwo.QuickStep);
+            One.Tick(one, moveOne.IsWalking, moveOne.QuickStep, moveOne);
+            Two.Tick(two, moveTwo.IsWalking, moveTwo.QuickStep, moveTwo);
             Aim(One, Two);
             Aim(Two, One);
-            var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + QuickStepStep(Side.One) + PushStep(Side.One);
-            var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + QuickStepStep(Side.Two) + PushStep(Side.Two);
+            var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + DashStep(Side.One) + QuickStepStep(Side.One) + PushStep(Side.One);
+            var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + DashStep(Side.Two) + QuickStepStep(Side.Two) + PushStep(Side.Two);
             Move(stepOne, stepTwo);
 
             // Find both hits before applying either, so a same-tick trade doesn't depend on order.
-            bool oneHits = Connects(One, Two.Position);
-            bool twoHits = Connects(Two, One.Position);
+            // Strikes pass through a fighter in invincible frames (a 轻功 dash's start).
+            bool oneHits = Connects(One, Two.Position) && !Two.IsInvincible;
+            bool twoHits = Connects(Two, One.Position) && !One.IsInvincible;
             Technique? oneMove = One.Technique, twoMove = Two.Technique;
             bool oneEmpowered = One.Empowered, twoEmpowered = Two.Empowered;
             bool oneArmored = One.HasArmor, twoArmored = Two.HasArmor;
@@ -416,6 +427,45 @@ namespace Shaolin36.Core.Combat
             return f.Facing.WithLength(step * FloorPoint.UnitsPerCm);
         }
 
+        /// <summary>Centimetres <paramref name="side"/>'s 轻功 dash still has to slide.</summary>
+        public int DashLeftCm(Side side) => _dashLeft[(int)side];
+
+        /// <summary>
+        /// This tick's share of <paramref name="side"/>'s 轻功 dash: its dash distance slid over its startup and active
+        /// frames from the tick it starts (whole centimetres, larger steps first), the way it was aimed relative to where
+        /// the other fighter is now. Being knocked out of the move stops it where it is.
+        /// </summary>
+        private FloorPoint DashStep(Side side)
+        {
+            int i = (int)side;
+            var f = this[side];
+            if (!f.IsDashing)
+            {
+                _dashLeft[i] = 0;
+                return FloorPoint.Zero;
+            }
+            if (f.MoveFrame == 0)
+            {
+                _dashLeft[i] = f.Technique!.DashCm;
+                _dashTicks[i] = f.Technique.DashFrames;
+            }
+            if (_dashLeft[i] <= 0 || _dashTicks[i] <= 0) return FloorPoint.Zero;
+            int step = (_dashLeft[i] + _dashTicks[i] - 1) / _dashTicks[i];
+            _dashLeft[i] -= step;
+            _dashTicks[i]--;
+
+            var toward = this[OtherSide(side)].Position - f.Position;
+            if (toward.IsZero) toward = f.Facing;
+            double len = toward.Length;
+            double fx = toward.X / len, fz = toward.Z / len; // forward
+            double rx = -fz, rz = fx;                          // right
+            double wx = f.DashForward * fx + f.DashRight * rx, wz = f.DashForward * fz + f.DashRight * rz;
+            double wlen = Math.Sqrt(wx * wx + wz * wz);
+            if (wlen == 0) return FloorPoint.Zero;
+            double units = step * (double)FloorPoint.UnitsPerCm / wlen;
+            return new FloorPoint(FloorPoint.Round(wx * units), FloorPoint.Round(wz * units));
+        }
+
         /// <summary>Centimetres <paramref name="side"/>'s quick step still has to slide.</summary>
         public int QuickStepLeftCm(Side side) => _quickStepLeft[(int)side];
 
@@ -486,7 +536,8 @@ namespace Shaolin36.Core.Combat
         /// </summary>
         private static void Aim(Fighter me, Fighter other)
         {
-            if (me.State.IsInMove() && (me.MoveFrame > 0 || me.StringHit > 1)) return;
+            // A dash keeps the lock-on: it has no strike to aim.
+            if (me.State.IsInMove() && !me.IsDashing && (me.MoveFrame > 0 || me.StringHit > 1)) return;
             me.Facing = other.Position - me.Position;
         }
 

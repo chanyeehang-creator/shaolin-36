@@ -55,6 +55,12 @@ namespace Shaolin36.Core.Fighters
     /// nothing), stamina doesn't regenerate during it, an ask made while busy waits in the input buffer (its own,
     /// beside the slot one), and a slot press on the same tick goes first. Unlike a 轻功 dodge it has no
     /// invincible frames: a hit during a quick step lands as normal and stops it.
+    ///
+    /// 轻功 dash (a technique with <see cref="Data.Technique.DashCm"/>, on a slot like any other): it starts like any
+    /// move and pays its stamina. The way it goes is fixed on the tick it starts from the stick held then
+    /// (<see cref="DashForward"/>, <see cref="DashRight"/>), or straight at the other fighter when no direction is
+    /// held. Its first <see cref="Data.Technique.InvincibleFrames"/> frames are invincible (<see cref="IsInvincible"/>):
+    /// strikes pass through. The <see cref="Combat.Duel"/> does the sliding.
     /// </summary>
     public sealed class Fighter
     {
@@ -100,6 +106,21 @@ namespace Shaolin36.Core.Fighters
         public StepDirection BufferedStep { get; private set; }
 
         private int _bufferedStepTicksLeft;
+
+        /// <summary>The stick held on the current tick (set by <see cref="Tick"/>), for aiming a dash.</summary>
+        private MoveInput _stick;
+
+        /// <summary>Which way the current dash goes, relative to the lock-on (out of 100, like <see cref="MoveInput"/>). 0, 0 when not dashing.</summary>
+        public int DashForward { get; private set; }
+
+        /// <summary>The sideways part of the current dash's way (negative is left).</summary>
+        public int DashRight { get; private set; }
+
+        /// <summary>True while strikes pass through this fighter: the invincible frames at the start of a move such as a 轻功 dash.</summary>
+        public bool IsInvincible => State.IsInMove() && Technique!.IsInvincible(MoveFrame);
+
+        /// <summary>True while in a 轻功 dash (its slide or its recovery).</summary>
+        public bool IsDashing => State.IsInMove() && Technique!.IsDash;
 
         /// <summary>The stamina numbers, or null when this fighter doesn't use stamina.</summary>
         public StaminaRules? StaminaRules { get; }
@@ -240,10 +261,11 @@ namespace Shaolin36.Core.Fighters
         /// Advance one frame, then act on this tick's slot presses (or a buffered one) if free to, then
         /// start a quick step if asked (or one is buffered) and still free, then regain stamina.
         /// <paramref name="walking"/> says the fighter is being told to walk this tick, which only matters
-        /// for the regen rate.
+        /// for the regen rate. <paramref name="stick"/> is the stick held this tick, which aims a 轻功 dash started on it.
         /// </summary>
-        public void Tick(SlotInput input, bool walking = false, StepDirection quickStep = StepDirection.None)
+        public void Tick(SlotInput input, bool walking = false, StepDirection quickStep = StepDirection.None, MoveInput stick = default)
         {
+            _stick = stick;
             Advance();
 
             if (TryAct(input) || TryAct(Buffered))
@@ -449,6 +471,13 @@ namespace Shaolin36.Core.Fighters
             HitLanded = false;
             StringHit = 1;
             State = PhaseAt(technique, 0);
+            if (technique.IsDash)
+            {
+                // No direction held: straight at the other fighter.
+                bool held = _stick.IsWalking;
+                DashForward = held ? _stick.Forward : MoveInput.Full;
+                DashRight = held ? _stick.Right : 0;
+            }
         }
 
         private void Advance()
@@ -500,6 +529,8 @@ namespace Shaolin36.Core.Fighters
             HitLanded = false;
             StringHit = 0;
             Empowered = false;
+            DashForward = 0;
+            DashRight = 0;
         }
 
         /// <summary>Which phase frame <paramref name="frame"/> of a technique is in.</summary>

@@ -19,13 +19,16 @@ namespace Shaolin36.Core.Data
         };
 
         /// <summary>Columns a sheet may leave out; an empty cell means the default (no empowered version).</summary>
-        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance" };
+        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible" };
 
         /// <summary>Most a hit can push the defender back, in centimetres.</summary>
         public const int MaxKnockback = 500;
 
         /// <summary>Most a move can step the attacker forward, in centimetres.</summary>
         public const int MaxAdvance = 300;
+
+        /// <summary>Most a 轻功 dash can carry the fighter, in centimetres.</summary>
+        public const int MaxDash = 600;
 
         private static readonly Dictionary<string, Category> CategoryNames =
             new Dictionary<string, Category>(StringComparer.OrdinalIgnoreCase)
@@ -162,6 +165,8 @@ namespace Shaolin36.Core.Data
                 int knockback = Cell("knockback").Length == 0 ? 0 : Int("knockback");
                 int hitAngle = Cell("hit_angle").Length == 0 ? Technique.FullCircle : Int("hit_angle");
                 int advance = Cell("advance").Length == 0 ? 0 : Int("advance");
+                int dash = Cell("dash").Length == 0 ? 0 : Int("dash");
+                int invincible = Cell("invincible").Length == 0 ? 0 : Int("invincible");
 
                 if (startup < 1) rowErrors.Add("'startup' must be at least 1 frame");
                 if (active < 1) rowErrors.Add("'active' must be at least 1 frame");
@@ -181,6 +186,11 @@ namespace Shaolin36.Core.Data
                 if (knockback > 0 && reach == 0) rowErrors.Add("'knockback' is set but 'reach' is 0, so the move never hits");
                 if (hitAngle < 1 || hitAngle > Technique.FullCircle) rowErrors.Add($"'hit_angle' ({hitAngle}) must be between 1 and {Technique.FullCircle} degrees ({Technique.FullCircle} = all round)");
                 if (advance > MaxAdvance) rowErrors.Add($"'advance' ({advance}) must be {MaxAdvance} cm or less");
+                if (dash > MaxDash) rowErrors.Add($"'dash' ({dash}) must be {MaxDash} cm or less");
+                if (dash > 0 && advance > 0) rowErrors.Add("a move can have 'dash' or 'advance', not both");
+                if (dash > 0 && category != Category.Qinggong) rowErrors.Add("only 轻功 (qinggong) techniques can have 'dash'");
+                if (invincible > startup + active + recovery)
+                    rowErrors.Add($"'invincible' ({invincible}) cannot be longer than the whole move ({startup + active + recovery} frames)");
                 if (empowerQi > 0 && empowerPct == 0) rowErrors.Add("'empower_damage_pct' must be above 0");
 
                 if (rowErrors.Count > 0)
@@ -192,7 +202,7 @@ namespace Shaolin36.Core.Data
                 if (next.Length > 0) chains.Add((lineNo, id, next));
                 techniques.Add(new Technique(id, displayName, category, weight, weapon,
                     startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
-                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance));
+                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible));
             }
 
             foreach (var (line, id, next) in chains)

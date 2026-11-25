@@ -125,4 +125,30 @@ public class TechniqueCsvTests
             "\nb,B,waigong,light,false,5,2,8,2,1,3,0,2,true,12,100,,0,0");
         Assert.True(r.Ok, string.Join("\n", r.Errors));
     }
+
+    private const string DashHeader = Header + ",advance,dash,invincible";
+
+    [Fact]
+    public void Dash_and_invincible_columns_are_read()
+    {
+        var r = TechniqueCsv.Parse(DashHeader + "\nd,Dash,qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,200,10");
+        Assert.True(r.Ok, string.Join("\n", r.Errors));
+        var t = Assert.Single(r.Techniques);
+        Assert.Equal(200, t.DashCm);
+        Assert.Equal(10, t.InvincibleFrames);
+        Assert.Equal(14, t.DashFrames);
+        Assert.True(t.IsInvincible(9));
+        Assert.False(t.IsInvincible(10));
+    }
+
+    [Theory]
+    [InlineData("waigong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,200,0", "only 轻功")]
+    [InlineData("qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,10,200,0", "'dash' or 'advance'")]
+    [InlineData("qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,601,0", "600 cm or less")]
+    [InlineData("qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,200,25", "cannot be longer than the whole move")]
+    public void Bad_dash_rows_are_reported(string rest, string expected)
+    {
+        var r = TechniqueCsv.Parse(DashHeader + "\nd,Dash," + rest);
+        Assert.Contains(r.Errors, e => e.Contains(expected));
+    }
 }
