@@ -45,6 +45,8 @@ namespace Shaolin36.Core.Brains
         Dodging,
         /// <summary>Low on stamina: backing off to breathe.</summary>
         Resting,
+        /// <summary>Caught in a combo: dashed out of the hitstun.</summary>
+        Escaping,
     }
 
     /// <summary>
@@ -59,6 +61,8 @@ namespace Shaolin36.Core.Brains
     /// <item>answers a strike it sees coming: a 化劲 parry timed for the strike's hit frame (<see cref="BrainStyle.Parry"/>,
     /// aiming at the perfect part with <see cref="BrainStyle.Perfect"/>), or else a step aside (<see cref="BrainStyle.Step"/>): with a 轻功 dash
     /// on a slot it dashes to the side timed so the strike's hit frame falls in its invincible frames, otherwise it quick-steps;</item>
+    /// <item>caught in a combo, once it has been in hitstun for its reaction time, dashes back out of it with its 轻功 dash
+    /// (<see cref="BrainStyle.Step"/> chance, once per combo);</item>
     /// <item>backs off to breathe when its stamina is under <see cref="BrainStyle.RestBelow"/>;</item>
     /// <item>punishes when it sees the other fighter recovering, staggered or recoiling in reach (<see cref="BrainStyle.Punish"/>);</item>
     /// <item>otherwise walks in until its attacks reach (with <see cref="BrainStyle.Step"/> chance per choice it dashes in from far
@@ -97,6 +101,8 @@ namespace Shaolin36.Core.Brains
         private int _plannedAgainst = int.MinValue;
         private int _plannedDashTick = -1;         // tick to press the dash on, or -1
         private int _plannedDashRight;             // -100 left or 100 right
+        private int _hitstunTicks;                 // ticks in a row it has been in hitstun
+        private bool _escapeDecided;               // rolled for a combo escape in this run of hitstun
         private int _decidedOpening = int.MinValue;
         private int _decidedLink = -1;
         private int _choiceTicksLeft;
@@ -137,6 +143,22 @@ namespace Shaolin36.Core.Brains
 
             var next = me.NextState();
             int distance = duel.DistanceCm;
+
+            // 0. Caught in a combo: once it has noticed (its reaction time), maybe dash back out of it.
+            if (me.State == FighterState.Hitstun)
+            {
+                _hitstunTicks++;
+                if (!_escapeDecided && _hitstunTicks >= Math.Max(1, Style.Reaction) && next == FighterState.Hitstun)
+                {
+                    _escapeDecided = true;
+                    var escape = EscapeSlot(me);
+                    if (escape != null && me.CanAfford(me.Loadout[escape.Value]!) && _dice.Chance(Style.Step))
+                        return Dash(escape.Value, MoveInput.WalkBack, BrainIntent.Escaping);
+                }
+                return BrainInput.None;
+            }
+            _hitstunTicks = 0;
+            _escapeDecided = false;
 
             // 1. In its own string: carry on when the chain window opens.
             if (next.IsInMove())
@@ -321,6 +343,17 @@ namespace Shaolin36.Core.Brains
             Intent = intent;
             _circle = 0;
             return new BrainInput(SlotInput.Press(slot), way);
+        }
+
+        /// <summary>The first slot holding a move that can break out of hitstun, or null.</summary>
+        private static Slot? EscapeSlot(Fighter me)
+        {
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (t != null && t.CanEscape) return s;
+            }
+            return null;
         }
 
         /// <summary>The first slot holding a 轻功 dash, or null.</summary>

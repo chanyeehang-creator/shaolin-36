@@ -46,8 +46,10 @@ namespace Shaolin36.Core.Data
             int hitAngle = FullCircle,
             int advanceCm = 0,
             int dashCm = 0,
-            int invincibleFrames = 0)
+            int invincibleFrames = 0,
+            bool canEscape = false)
         {
+            CanEscape = canEscape;
             DashCm = dashCm;
             InvincibleFrames = invincibleFrames;
             KnockbackCm = knockbackCm;
@@ -140,6 +142,12 @@ namespace Shaolin36.Core.Data
         public int InvincibleFrames { get; }
 
         public bool IsDash => DashCm > 0;
+
+        /// <summary>
+        /// True if this move can be started while in hitstun, to get out of a combo (the default 轻功 dash). It is the
+        /// only kind of move that can: everything else waits for the hitstun to end.
+        /// </summary>
+        public bool CanEscape { get; }
 
         /// <summary>Frames a dash slides over: its startup and active frames.</summary>
         public int DashFrames => StartupFrames + ActiveFrames;

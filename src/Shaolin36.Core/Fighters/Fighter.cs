@@ -61,6 +61,10 @@ namespace Shaolin36.Core.Fighters
     /// (<see cref="DashForward"/>, <see cref="DashRight"/>), or straight at the other fighter when no direction is
     /// held. Its first <see cref="Data.Technique.InvincibleFrames"/> frames are invincible (<see cref="IsInvincible"/>):
     /// strikes pass through. The <see cref="Combat.Duel"/> does the sliding.
+    ///
+    /// Combo escape: a technique that <see cref="Data.Technique.CanEscape"/> (the default 轻功 dash) can be started
+    /// while in hitstun, which ends the hitstun on that tick (<see cref="EscapedHitstun"/>). Nothing else can. Presses of
+    /// other slots during hitstun wait in the buffer as before.
     /// </summary>
     public sealed class Fighter
     {
@@ -121,6 +125,9 @@ namespace Shaolin36.Core.Fighters
 
         /// <summary>True while in a 轻功 dash (its slide or its recovery).</summary>
         public bool IsDashing => State.IsInMove() && Technique!.IsDash;
+
+        /// <summary>True while the current move was started out of hitstun (a combo escape). Such a dash never earns a just dodge.</summary>
+        public bool EscapedHitstun { get; private set; }
 
         /// <summary>The stamina numbers, or null when this fighter doesn't use stamina.</summary>
         public StaminaRules? StaminaRules { get; }
@@ -334,6 +341,22 @@ namespace Shaolin36.Core.Fighters
                 return true;
             }
 
+            if (State == FighterState.Hitstun)
+            {
+                // Only an escape move (the default 轻功 dash) can break out of hitstun.
+                foreach (var slot in Slots.All)
+                {
+                    if (!input.IsPressed(slot)) continue;
+                    var escape = Loadout[slot];
+                    if (escape == null || !escape.CanEscape || !CanAfford(escape)) continue;
+                    StunFramesLeft = 0;
+                    Start(slot, escape);
+                    EscapedHitstun = true;
+                    return true;
+                }
+                return false;
+            }
+
             if (!CanAct) return false;
             foreach (var slot in Slots.All)
             {
@@ -461,6 +484,7 @@ namespace Shaolin36.Core.Fighters
 
         private void Start(Slot slot, Technique technique)
         {
+            EscapedHitstun = false;
             LoseStamina(technique.StaminaCost);
             Qi -= technique.QiCost;
             Empowered = technique.CanEmpower && Qi >= technique.EmpowerQi;
@@ -529,6 +553,7 @@ namespace Shaolin36.Core.Fighters
             HitLanded = false;
             StringHit = 0;
             Empowered = false;
+            EscapedHitstun = false;
             DashForward = 0;
             DashRight = 0;
         }

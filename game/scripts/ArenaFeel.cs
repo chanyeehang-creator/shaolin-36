@@ -306,6 +306,7 @@ public partial class Arena
             FeelSound.Ring => 0.75f,
             FeelSound.Clang => 0.55f,
             FeelSound.Gong => 1.6f,
+            FeelSound.Whoosh => 0.35f,
             _ => 0.1f,
         };
         var buf = new float[(int)(seconds * MixRate)];
@@ -357,6 +358,15 @@ public partial class Arena
                     v = (Sine(t, 98f) + 0.7f * Sine(t, 147.5f) + 0.5f * Sine(t, 196.8f) + 0.3f * Sine(t, 262f))
                         * Mathf.Exp(-t * 2.2f) * Mathf.Min(1f, t * 200f) + low * 3f * Mathf.Exp(-t * 30f);
                     break;
+                case FeelSound.Whoosh:
+                {
+                    // Band of noise swelling in and out, its pitch sweeping down: a light rush of air.
+                    float cut = 0.05f + 0.25f * Mathf.Exp(-t * 6f);
+                    low += cut * (noise - low);
+                    float swell = Mathf.Sin(Mathf.Pi * Mathf.Min(1f, t / 0.35f));
+                    v = low * swell;
+                    break;
+                }
                 default:
                     v = 0;
                     break;
@@ -371,7 +381,8 @@ public partial class Arena
         for (int i = 0; i < buf.Length; i++)
         {
             float tail = Mathf.Min(1f, (buf.Length - 1 - i) / (float)fade);
-            buf[i] = buf[i] / peak * 0.8f * tail;
+            // The whoosh is a light sound: quieter than the strikes.
+            buf[i] = buf[i] / peak * (sound == FeelSound.Whoosh ? 0.45f : 0.8f) * tail;
         }
         return buf;
     }

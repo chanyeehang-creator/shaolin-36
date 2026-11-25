@@ -126,7 +126,7 @@ public class TechniqueCsvTests
         Assert.True(r.Ok, string.Join("\n", r.Errors));
     }
 
-    private const string DashHeader = Header + ",advance,dash,invincible";
+    private const string DashHeader = Header + ",advance,dash,invincible,escape";
 
     [Fact]
     public void Dash_and_invincible_columns_are_read()
@@ -139,6 +139,15 @@ public class TechniqueCsvTests
         Assert.Equal(14, t.DashFrames);
         Assert.True(t.IsInvincible(9));
         Assert.False(t.IsInvincible(10));
+        Assert.False(t.CanEscape); // an empty escape cell means no
+    }
+
+    [Fact]
+    public void Escape_column_is_read()
+    {
+        var r = TechniqueCsv.Parse(DashHeader + "\nd,Dash,qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,200,10,true");
+        Assert.True(r.Ok, string.Join("\n", r.Errors));
+        Assert.True(Assert.Single(r.Techniques).CanEscape);
     }
 
     [Theory]
@@ -146,6 +155,7 @@ public class TechniqueCsvTests
     [InlineData("qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,10,200,0", "'dash' or 'advance'")]
     [InlineData("qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,601,0", "600 cm or less")]
     [InlineData("qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,200,25", "cannot be longer than the whole move")]
+    [InlineData("waigong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,0,0,true", "only 轻功 (qinggong) techniques can have 'escape'")]
     public void Bad_dash_rows_are_reported(string rest, string expected)
     {
         var r = TechniqueCsv.Parse(DashHeader + "\nd,Dash," + rest);
