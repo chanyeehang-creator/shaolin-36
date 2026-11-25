@@ -72,6 +72,11 @@ namespace Shaolin36.Core.Fighters
     /// 气功 heal: a technique with <see cref="Data.Technique.Heal"/> restores that much HP (never above max) on the tick
     /// its active frames end (its first recovery frame), and <see cref="HealedThisTick"/> says how much. Knocked out
     /// of the move before then (a hit during the wind-up or the channel), it heals nothing; its Qi is spent anyway.
+    ///
+    /// 擒拿 grab: when a grab catches, the <see cref="Combat.Duel"/> calls <see cref="Hold"/> on the grabber and stuns the other
+    /// fighter in <see cref="FighterState.Grabbed"/>. While holding, the grabber's move is paused on the frame it caught;
+    /// on the tick the hold runs out <see cref="ThrewThisTick"/> is true (the Duel lands the throw), and the move carries on
+    /// from the next frame.
     /// </summary>
     public sealed class Fighter
     {
@@ -108,6 +113,26 @@ namespace Shaolin36.Core.Fighters
         public int SealedFrames { get; private set; }
 
         public bool IsSealed => SealedFrames > 0;
+
+        /// <summary>Frames left of a 擒拿 hold: the grabber's move is paused while this is above 0.</summary>
+        public int HoldFramesLeft { get; private set; }
+
+        /// <summary>True while this fighter is holding someone it grabbed.</summary>
+        public bool IsHolding => HoldFramesLeft > 0;
+
+        /// <summary>True on the tick the hold ran out: the throw lands on this tick.</summary>
+        public bool ThrewThisTick { get; private set; }
+
+        /// <summary>
+        /// The current grab caught: pause the move here for <paramref name="frames"/> ticks (counted from the next tick),
+        /// then throw. Only a fighter in a move can hold.
+        /// </summary>
+        public void Hold(int frames)
+        {
+            if (!State.IsInMove()) throw new InvalidOperationException("only a fighter in a move can hold a grab");
+            if (frames < 1) throw new ArgumentOutOfRangeException(nameof(frames), frames, "a hold lasts at least 1 frame");
+            HoldFramesLeft = frames;
+        }
 
         /// <summary>HP a 气功 heal restored on the latest tick (0 on every other tick).</summary>
         public int HealedThisTick { get; private set; }
@@ -290,6 +315,7 @@ namespace Shaolin36.Core.Fighters
         /// </summary>
         public FighterState NextState()
         {
+            if (IsHolding) return State;
             if (State == FighterState.QuickStep)
                 return QuickStepFrame + 1 >= QuickStepRules!.TotalFrames ? FighterState.Idle : FighterState.QuickStep;
             if (State.IsInMove())
@@ -309,6 +335,7 @@ namespace Shaolin36.Core.Fighters
         {
             _stick = stick;
             HealedThisTick = 0;
+            ThrewThisTick = false;
             if (SealedFrames > 0) SealedFrames--;
             Advance();
 
@@ -552,6 +579,12 @@ namespace Shaolin36.Core.Fighters
                     State = FighterState.Idle;
                 }
             }
+            else if (IsHolding)
+            {
+                // A grab holding its catch: the move waits on this frame until the throw.
+                HoldFramesLeft--;
+                if (HoldFramesLeft == 0) ThrewThisTick = true;
+            }
             else if (State.IsInMove())
             {
                 MoveFrame++;
@@ -600,6 +633,7 @@ namespace Shaolin36.Core.Fighters
             EscapedHitstun = false;
             DashForward = 0;
             DashRight = 0;
+            HoldFramesLeft = 0;
         }
 
         /// <summary>Which phase frame <paramref name="frame"/> of a technique is in.</summary>
@@ -611,7 +645,8 @@ namespace Shaolin36.Core.Fighters
         }
 
         public override string ToString() =>
-            State == FighterState.QuickStep ? $"QuickStep {QuickStepDirection} f{QuickStepFrame}"
+            IsHolding ? $"Holding {Technique!.Id} ({HoldFramesLeft} left)"
+            : State == FighterState.QuickStep ? $"QuickStep {QuickStepDirection} f{QuickStepFrame}"
             : State.IsInMove() ? $"{State} {Technique!.Id} f{MoveFrame}"
             : State.IsStunned() ? $"{State} ({StunFramesLeft} left)"
             : State.ToString();

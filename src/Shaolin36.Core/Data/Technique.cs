@@ -50,8 +50,10 @@ namespace Shaolin36.Core.Data
             bool canEscape = false,
             int sealFrames = 0,
             int heal = 0,
-            int lungeCm = 0)
+            int lungeCm = 0,
+            int holdFrames = 0)
         {
+            HoldFrames = holdFrames;
             LungeCm = lungeCm;
             SealFrames = sealFrames;
             Heal = heal;
@@ -176,6 +178,16 @@ namespace Shaolin36.Core.Data
         /// Stops at min_distance like walking. 0 = no lunge.
         /// </summary>
         public int LungeCm { get; }
+
+        /// <summary>
+        /// 擒拿 grab: how long the attacker holds the defender once the grab catches them, in frames, before the throw
+        /// lands its damage, hitstun and knockback. 0 = not a grab. A grab can't be parried or clashed, goes through
+        /// hyper armor, and can't catch a fighter in hitstun (no grabbing out of a combo). While holding, the attacker's
+        /// move is paused on the frame it caught, so the hold adds to the move's length.
+        /// </summary>
+        public int HoldFrames { get; }
+
+        public bool IsGrab => HoldFrames > 0;
 
         /// <summary>The farthest this strike can connect when started: its reach plus any step-in and lunge.</summary>
         public int FullReachCm => ReachCm + AdvanceCm + LungeCm;

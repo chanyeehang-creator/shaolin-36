@@ -15,8 +15,9 @@ namespace Shaolin36.Core.Brains
         public const int MaxThinkEvery = 120;
 
         public BrainStyle(string id, string name, int reaction, int thinkEvery, int aggression, int punish, int chain,
-            int parry, int perfect, int step, int circle, int restBelow, int heavy, int guess = 0, int heal = 0)
+            int parry, int perfect, int step, int circle, int restBelow, int heavy, int guess = 0, int heal = 0, int grab = 0)
         {
+            Grab = grab;
             Heal = heal;
             Id = id;
             Name = name;
@@ -83,6 +84,12 @@ namespace Shaolin36.Core.Brains
         /// </summary>
         public int Heal { get; }
 
+        /// <summary>
+        /// Chance, at each choice in reach of its 擒拿 grab where the other fighter can be grabbed, that it grabs (rolled
+        /// before <see cref="Aggression"/>). A grab beats a parry, so it is its answer to a fighter who guards a lot.
+        /// </summary>
+        public int Grab { get; }
+
         public override string ToString() => $"{Id} ({Name})";
     }
 
@@ -96,7 +103,7 @@ namespace Shaolin36.Core.Brains
         };
 
         /// <summary>Columns a sheet may leave out (an empty or missing cell is 0).</summary>
-        public static readonly string[] OptionalColumns = { "heal" };
+        public static readonly string[] OptionalColumns = { "heal", "grab" };
 
         private readonly List<BrainStyle> _styles;
 
@@ -196,11 +203,12 @@ namespace Shaolin36.Core.Brains
                 int heavy = Pct("heavy");
                 int guess = Pct("guess");
                 int heal = Cell("heal").Length == 0 ? 0 : Pct("heal");
+                int grab = Cell("grab").Length == 0 ? 0 : Pct("grab");
                 var name = Cell("name");
 
                 if (ok)
                     styles.Add(new BrainStyle(id, name.Length > 0 ? name : id, reaction, thinkEvery, aggression, punish, chain,
-                        parry, perfect, step, circle, restBelow, heavy, guess, heal));
+                        parry, perfect, step, circle, restBelow, heavy, guess, heal, grab));
             }
 
             if (errors.Count == 0 && styles.Count == 0) errors.Add($"line {lines.Count}: no brain rows, expected at least one");

@@ -28,6 +28,7 @@ namespace Shaolin36.Core.Feel
         {
             if (hit == null) throw new ArgumentNullException(nameof(hit));
             if (hit.JustDodged) return FeelEvent.JustDodge;
+            if (hit.Grab == GrabPhase.Caught) return FeelEvent.Grab;
             switch (hit.Parry)
             {
                 case ParryOutcome.PerfectParry: return FeelEvent.PerfectParry;
@@ -40,6 +41,7 @@ namespace Shaolin36.Core.Feel
                 case ClashOutcome.PerfectClash: return FeelEvent.PerfectClash;
             }
             if (hit.Landed && hit.DefenderHpAfter == 0) return FeelEvent.Ko;
+            if (hit.Grab == GrabPhase.Thrown) return FeelEvent.Throw;
             if (hit.Clash == ClashOutcome.StrikerWins) return FeelEvent.ClashBreak;
             if (hit.Empowered) return FeelEvent.EmpoweredHit;
             if (hit.DefenderArmored) return FeelEvent.ArmorHit;

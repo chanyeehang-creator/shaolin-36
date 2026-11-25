@@ -17,7 +17,9 @@
 # heal        = rolled every think_every frames while it is hurt by at least a heal's worth and 60 cm beyond your longest reach (封穴's lunge reaches 255 cm, so that's 315 cm; resting, it backs off that far to heal) (you not mid-move):
 #               the chance it channels its 气功 heal (仙辽术, 10 Qi for 10 HP). Hit it in the 1.5 s before the heal lands to cancel it.
 # It uses 点穴 封穴 like its other light attacks (but not on you while you're already sealed), and while you have it sealed it can't use 外功 either.
-id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,heal,note
-novice,弟子 (novice),24,30,35,30,60,15,20,10,40,20,15,5,20,Slow to react and rarely parries: for learning the duel
-monk,武僧 (monk),18,20,50,60,80,40,35,20,50,25,25,15,40,The baseline opponent: reacts like a person and parries about 2 strikes in 5
-master,方丈 (master),12,12,60,90,90,65,60,30,50,30,25,25,60,Sharp: reacts fast and parries often and punishes almost every opening
+# grab        = at each choice in reach of its 擒拿 grab (you not in hitstun), the chance it grabs, rolled before aggression. A grab beats a parry,
+#               so it's how it cracks a guard; it never parries your grab (it steps or dashes instead). Stay out of 115 cm or hit it as it reaches in.
+id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,heal,grab,note
+novice,弟子 (novice),24,30,35,30,60,15,20,10,40,20,15,5,20,10,Slow to react and rarely parries: for learning the duel
+monk,武僧 (monk),18,20,50,60,80,40,35,20,50,25,25,15,40,20,The baseline opponent: reacts like a person and parries about 2 strikes in 5
+master,方丈 (master),12,12,60,90,90,65,60,30,50,30,25,25,60,30,Sharp: reacts fast and parries often and punishes almost every opening

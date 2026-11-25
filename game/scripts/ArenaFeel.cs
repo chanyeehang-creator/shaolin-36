@@ -67,6 +67,8 @@ public partial class Arena
         FeelEvent.ClashLost => (0f, 14f),
         FeelEvent.PerfectClash => (20f, 4f),
         FeelEvent.Ko => (35f, 0f),
+        FeelEvent.Grab => (6f, 0f),
+        FeelEvent.Throw => (30f, 0f),
         _ => (0f, 0f),
     };
 
@@ -101,6 +103,7 @@ public partial class Arena
         FeelEvent.ClashRecoil or FeelEvent.ClashBreak or FeelEvent.ClashLost => new Color(1.00f, 0.95f, 0.60f),
         FeelEvent.PerfectClash => new Color(1.00f, 1.00f, 0.90f),
         FeelEvent.Ko => new Color(1.00f, 0.30f, 0.20f),
+        FeelEvent.Throw => new Color(0.95f, 0.55f, 0.25f),
         _ => new Color(1, 1, 1),
     };
 

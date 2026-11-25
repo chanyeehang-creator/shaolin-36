@@ -14,6 +14,17 @@ namespace Shaolin36.Core.Combat
         Two = 1,
     }
 
+    /// <summary>Where a 擒拿 grab is up to in a <see cref="HitEvent"/>.</summary>
+    public enum GrabPhase
+    {
+        /// <summary>Not a grab.</summary>
+        None = 0,
+        /// <summary>The grab caught the defender: no damage yet, the hold starts.</summary>
+        Caught,
+        /// <summary>The hold ran out and the throw landed its damage, hitstun and knockback.</summary>
+        Thrown,
+    }
+
     /// <summary>
     /// A strike that reached the other fighter on a tick. Most deal their damage, but a strike
     /// can also be deflected by a 化绵掌 parry or meet the defender's wind-up in a clash
@@ -26,8 +37,9 @@ namespace Shaolin36.Core.Combat
             ParryOutcome parry = ParryOutcome.NotParried, ParryEffect? parryEffect = null,
             ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null, bool defenderExhausted = false,
             int attackerQiGained = 0, int defenderQiGained = 0, bool empowered = false, bool defenderArmored = false,
-            int knockbackCm = 0, bool justDodged = false, int sealFrames = 0)
+            int knockbackCm = 0, bool justDodged = false, int sealFrames = 0, GrabPhase grab = GrabPhase.None)
         {
+            Grab = grab;
             SealFrames = sealFrames;
             JustDodged = justDodged;
             KnockbackCm = knockbackCm;
@@ -110,11 +122,18 @@ namespace Shaolin36.Core.Combat
         /// <summary>Frames the defender's 外功 is sealed by this 点穴 hit (0 if it seals nothing or didn't land).</summary>
         public int SealFrames { get; }
 
-        /// <summary>True when the strike dealt its damage and hitstun.</summary>
-        public bool Landed => !JustDodged && Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
+        /// <summary>
+        /// 擒拿: <see cref="GrabPhase.Caught"/> when a grab caught the defender (no damage yet; the hold starts),
+        /// <see cref="GrabPhase.Thrown"/> when the throw landed. <see cref="GrabPhase.None"/> for every other strike.
+        /// </summary>
+        public GrabPhase Grab { get; }
+
+        /// <summary>True when the strike dealt its damage and hitstun (a grab's catch doesn't; its throw does).</summary>
+        public bool Landed => Grab != GrabPhase.Caught && !JustDodged && Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
 
         public override string ToString() =>
-            JustDodged ? $"t{Tick} {Defender} just-dodged {Attacker}'s {Technique.Id}"
+            Grab == GrabPhase.Caught ? $"t{Tick} {Attacker} grabs {Defender} with {Technique.Id}"
+            : JustDodged ? $"t{Tick} {Defender} just-dodged {Attacker}'s {Technique.Id}"
             : Parry != ParryOutcome.NotParried ? $"t{Tick} {Attacker}'s {Technique.Id} is {Parry}"
             : Clash != ClashOutcome.NoClash && !Landed ? $"t{Tick} {Attacker}'s {Technique.Id} clashes: {Clash}"
             : $"t{Tick} {Attacker} hits with {Technique.Id}: {Damage} damage, {HitstunFrames}f hitstun, {DefenderHpAfter} HP left";
@@ -212,6 +231,15 @@ namespace Shaolin36.Core.Combat
     /// 点穴 seal: a landed hit of a technique with a seal (see <see cref="Technique.SealFrames"/>) stops the defender starting 外功
     /// techniques for that many frames from the hit (see <see cref="Fighter.Seal"/>). Parried, dodged and clash-lost strikes seal nothing.
     ///
+    /// 擒拿 grab (a technique with <see cref="Technique.HoldFrames"/>): it connects like a strike (reach and angle) but can't
+    /// catch a fighter in hitstun or already grabbed. When it catches, a parry doesn't stop it, it can't be clashed and it goes
+    /// through hyper armor: a <see cref="HitEvent"/> with <see cref="GrabPhase.Caught"/> and no damage, the defender is
+    /// <see cref="FighterState.Grabbed"/> and the grabber holds (its move paused) for hold frames. Any knockback still sliding
+    /// on the defender stops. On the tick the hold runs out the throw lands: damage, hitstun and knockback like a normal hit,
+    /// qi_per_hit for the grabber, in a <see cref="GrabPhase.Thrown"/> event. A 轻功 dash's invincible frames slip a grab
+    /// (a just dodge). If a strike and a grab connect on the same tick, the strike wins and the grab is spent; two grabs on the
+    /// same tick both come to nothing.
+    ///
     /// 气功 heal: see <see cref="Fighter"/>. A heal has no reach, so it never hits; hitting the healer during its wind-up or
     /// channel knocks it out of the move like any other, and the heal is lost.
     ///
@@ -305,10 +333,15 @@ namespace Shaolin36.Core.Combat
 
             // Find both hits before applying either, so a same-tick trade doesn't depend on order.
             // Strikes pass through a fighter in invincible frames (a 轻功 dash's start), and are spent.
-            bool oneReaches = Connects(One, Two.Position), twoReaches = Connects(Two, One.Position);
+            bool oneReaches = Reaches(One, Two), twoReaches = Reaches(Two, One);
             bool oneDodged = oneReaches && Two.IsInvincible, twoDodged = twoReaches && One.IsInvincible;
             bool oneHits = oneReaches && !oneDodged, twoHits = twoReaches && !twoDodged;
             Technique? oneMove = One.Technique, twoMove = Two.Technique;
+            // A strike beats a grab on the same tick, and two grabs cancel out: the grab is spent and catches nothing.
+            bool oneGrabBroken = oneHits && oneMove!.IsGrab && twoHits;
+            bool twoGrabBroken = twoHits && twoMove!.IsGrab && oneHits;
+            if (oneGrabBroken) { One.MarkHitLanded(); oneHits = false; }
+            if (twoGrabBroken) { Two.MarkHitLanded(); twoHits = false; }
             var dodges = new List<HitEvent>(2);
             if (oneDodged) { One.MarkHitLanded(); JustDodge(Side.One, oneMove!, One.Empowered, Two, dodges); }
             if (twoDodged) { Two.MarkHitLanded(); JustDodge(Side.Two, twoMove!, Two.Empowered, One, dodges); }
@@ -323,9 +356,51 @@ namespace Shaolin36.Core.Combat
             if (oneHits) landed.Add(Land(Side.One, oneMove!, oneEmpowered, Two, twoMove, twoFrame, twoArmored));
             if (twoHits) landed.Add(Land(Side.Two, twoMove!, twoEmpowered, One, oneMove, oneFrame, oneArmored));
 
+            // A hold that ran out this tick throws.
+            if (One.ThrewThisTick) landed.Add(Throw(Side.One));
+            if (Two.ThrewThisTick) landed.Add(Throw(Side.Two));
+
             _hits.AddRange(landed);
             Tick++;
             return landed;
+        }
+
+        /// <summary>
+        /// True if <paramref name="attacker"/>'s move connects with <paramref name="target"/> this tick (see <see cref="Connects"/>);
+        /// a grab also needs a target it can catch: not in hitstun and not already grabbed.
+        /// </summary>
+        private static bool Reaches(Fighter attacker, Fighter target) =>
+            Connects(attacker, target.Position) && (!attacker.Technique!.IsGrab || CanBeGrabbed(target));
+
+        /// <summary>True if a 擒拿 grab can catch <paramref name="f"/>: anything but hitstun (no grabbing out of a combo) or already held.</summary>
+        public static bool CanBeGrabbed(Fighter f) => f.State != FighterState.Hitstun && f.State != FighterState.Grabbed;
+
+        /// <summary>A grab caught <paramref name="defender"/>: hold them. No damage until the throw.</summary>
+        private HitEvent Catch(Side attacker, Technique move, Fighter defender, Technique? defenderMove, int defenderFrame)
+        {
+            var grabber = this[attacker];
+            int d = (int)OtherSide(attacker);
+            _pushLeft[d] = 0;
+            _pushTicks[d] = 0;
+            // Held one tick past the hold, so the throw (which puts them in hitstun) finds them still grabbed.
+            defender.Stun(FighterState.Grabbed, move.HoldFrames + 1);
+            grabber.Hold(move.HoldFrames);
+            return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame, grab: GrabPhase.Caught);
+        }
+
+        /// <summary>The hold ran out: the throw lands its damage, hitstun and knockback.</summary>
+        private HitEvent Throw(Side attacker)
+        {
+            var grabber = this[attacker];
+            var defender = this[OtherSide(attacker)];
+            var move = grabber.Technique!;
+            bool exhausted = defender.IsExhausted;
+            int dealt = defender.DamageTaken(StrikeDamage(move, false));
+            defender.TakeHit(dealt, move.HitstunFrames);
+            int qi = grabber.GainQi(Rules.QiPerHit);
+            StartPush(OtherSide(attacker), move.KnockbackCm);
+            return new HitEvent(Tick, attacker, move, dealt, move.HitstunFrames, defender.Hp,
+                defenderExhausted: exhausted, attackerQiGained: qi, knockbackCm: move.KnockbackCm, grab: GrabPhase.Thrown);
         }
 
         /// <summary>
@@ -351,6 +426,9 @@ namespace Shaolin36.Core.Combat
             int defenderFrame, bool defenderArmored)
         {
             var striker = this[attacker];
+
+            // 擒拿: a grab goes through parries, clashes and hyper armor.
+            if (move.IsGrab) return Catch(attacker, move, defender, defenderMove, defenderFrame);
 
             if (defenderMove != null)
             {
@@ -452,7 +530,7 @@ namespace Shaolin36.Core.Combat
         {
             int i = (int)side;
             var f = this[side];
-            if (!f.State.IsInMove())
+            if (!f.State.IsInMove() || f.IsHolding)
             {
                 _advanceLeft[i] = 0;
                 return FloorPoint.Zero;
@@ -481,7 +559,7 @@ namespace Shaolin36.Core.Combat
         {
             int i = (int)side;
             var f = this[side];
-            if (!f.State.IsInMove())
+            if (!f.State.IsInMove() || f.IsHolding)
             {
                 _lungeLeft[i] = 0;
                 return FloorPoint.Zero;

@@ -19,6 +19,8 @@ namespace Shaolin36.Core.Fighters
         Recoil,
         /// <summary>Doing a quick step (the short slide, then its few recovery frames). Can be hit like any other time.</summary>
         QuickStep,
+        /// <summary>Caught by a 擒拿 grab: held until the throw lands, unable to act, escape or be grabbed again.</summary>
+        Grabbed,
     }
 
     public static class FighterStates
@@ -27,8 +29,8 @@ namespace Shaolin36.Core.Fighters
         public static bool IsInMove(this FighterState s) =>
             s == FighterState.Startup || s == FighterState.Active || s == FighterState.Recovery;
 
-        /// <summary>True for the three states where something was done to the fighter and they wait it out.</summary>
+        /// <summary>True for the states where something was done to the fighter and they wait it out.</summary>
         public static bool IsStunned(this FighterState s) =>
-            s == FighterState.Hitstun || s == FighterState.Stagger || s == FighterState.Recoil;
+            s == FighterState.Hitstun || s == FighterState.Stagger || s == FighterState.Recoil || s == FighterState.Grabbed;
     }
 }
