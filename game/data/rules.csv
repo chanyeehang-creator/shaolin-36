@@ -46,3 +46,11 @@ down_max,90,Knocked down: after this many frames you rise by yourself (1.5 s). E
 rise_frames,20,Quick rise (any button once you can get up): frames to stand (0.33 s); invincible
 roll_frames,24,Roll away (hold a direction once you can get up): frames the roll takes (0.4 s); invincible
 roll_distance,150,Roll away: how far it goes in cm (the way the stick is held: back rolls away from your opponent)
+block_stamina_light,6,硬气功 guard: stamina a blocked light strike costs (stamina is only lost when hit; at 0 the guard drops)
+block_stamina_medium,10,硬气功 guard: stamina a blocked medium strike costs
+block_stamina_heavy,16,硬气功 guard: stamina a blocked heavy or pure energy strike costs
+block_heavy_damage_pct,50,Every block (化绵掌's block frames and 硬气功): heavy and energy strikes still deal this % of their damage (light and medium deal none). A perfect parry takes nothing
+cripple_walk_pct,50,无相劫指 movement lock: walking speed while locked (no quick step and no 轻功 at all)
+grab_strike_gap,12,龙爪手: fewest frames between two strikes while holding (0.2 s); taps sooner are buffered
+grab_break_recoil,20,Grab break-out (press any grab while held): both fighters recoil this long (0.33 s)
+grab_break_push,40,Grab break-out: each fighter steps back this many cm (Street Fighter style; from touching 80 cm they end about 160 apart)

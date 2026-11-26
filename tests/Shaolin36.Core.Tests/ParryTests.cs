@@ -33,7 +33,7 @@ public class ParryTests
     [InlineData(19, ParryOutcome.NotParried)]  // window closed
     public void An_early_block_window_comes_before_the_perfect_frames(int frame, ParryOutcome expected)
     {
-        var p = new Technique("p", "p", Category.Huajin, Weight.Light, false, 2, 17, 10, 0, 0, 10, 0, 0, false,
+        var p = new Technique("p", "p", Category.Fangshen, Weight.Light, false, 2, 17, 10, 0, 0, 10, 0, 0, false,
             perfectParryFrames: 4, earlyBlockFrames: 3);
         Assert.Equal(5, p.PerfectParryStart);
         Assert.Equal(expected, Parry.Resolve(p, frame));

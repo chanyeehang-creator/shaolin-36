@@ -274,7 +274,7 @@ public class DianxueHealTests
         var h = new Fighter(Full(), 120);
         h.Seal(100);
         h.Tick(SlotInput.Press(Slot.L1));
-        Assert.Equal(Category.Huajin, h.Technique!.Category);
+        Assert.Equal(Category.Fangshen, h.Technique!.Category);
     }
 
     [Fact]
@@ -315,7 +315,7 @@ public class DianxueHealTests
             var hits = d.Step(t == 0 ? SlotInput.Press(Slot.Circle) : None, two);
             if (hits.Count > 0 && hit == null) hit = hits[0];
             if (jabStarted < 0 && d.Two.Technique == Jab) jabStarted = t;
-            parried |= d.Two.Technique?.Category == Category.Huajin;
+            parried |= d.Two.Technique?.Category == Category.Fangshen;
         }
         Assert.NotNull(hit);
         Assert.True(hit!.Landed);

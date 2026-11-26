@@ -15,6 +15,11 @@ namespace Shaolin36.Core.Combat
         TargetWins,
         /// <summary>Hit in the first frames of the target's window: target breaks whatever the weights, is open, striker gains Qi.</summary>
         PerfectClash,
+        /// <summary>
+        /// Two pure energy moves meet (狮吼功 into 狮吼功): both cancel out whatever their Qi cost or damage. No damage,
+        /// both moves stop and both recoil, pushed apart like a same-weight clash.
+        /// </summary>
+        EnergyCancel,
     }
 
     /// <summary>
@@ -29,6 +34,13 @@ namespace Shaolin36.Core.Combat
         /// <param name="targetFrame">The target's current frame within its move (0-based).</param>
         public static ClashOutcome Resolve(Technique striker, Technique target, int targetFrame)
         {
+            // Pure energy is its own class: a physical move can't clash it, it clashes nothing physical, and two energy
+            // moves cancel out when the strike meets the other in its clash window or while it is going off.
+            if (striker.IsEnergy || target.IsEnergy)
+            {
+                bool meets = target.IsInClashWindow(targetFrame) || target.IsActive(targetFrame);
+                return striker.IsEnergy && target.IsEnergy && meets ? ClashOutcome.EnergyCancel : ClashOutcome.NoClash;
+            }
             if (!striker.Clashable || !target.IsInClashWindow(targetFrame)) return ClashOutcome.NoClash;
             if (target.IsInPerfectClash(targetFrame)) return ClashOutcome.PerfectClash;
 
@@ -47,6 +59,9 @@ namespace Shaolin36.Core.Combat
         {
             switch (outcome)
             {
+                case ClashOutcome.EnergyCancel:
+                    var cancel = new ClashSide(true, rules.ClashRecoilFrames, 0, 0);
+                    return new ClashEffect(false, cancel, cancel);
                 case ClashOutcome.BothRecoil:
                     var recoil = new ClashSide(true, rules.ClashRecoilFrames, rules.ClashRecoilStamina, 0);
                     return new ClashEffect(false, recoil, recoil);

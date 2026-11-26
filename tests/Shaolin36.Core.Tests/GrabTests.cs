@@ -55,7 +55,7 @@ public class GrabTests
     [Fact]
     public void Qinna_shou_is_a_fast_short_unclashable_grab_with_no_cooldown()
     {
-        Assert.Equal("擒拿手 (grab)", Grab.Name);
+        Assert.Equal("小擒拿手 (grab)", Grab.Name);
         Assert.Equal(Category.Qinna, Grab.Category);
         Assert.True(Grab.IsGrab);
         Assert.False(Grab.Clashable);
@@ -309,7 +309,7 @@ public class GrabTests
         for (int i = 0; i < 12; i++)
         {
             d.Step(i == 0 ? P(Slot.R2) : None, brain.Think(d, Side.Two).Slots);
-            Assert.NotEqual(Category.Huajin, d.Two.Technique?.Category);
+            Assert.NotEqual(Category.Fangshen, d.Two.Technique?.Category);
         }
         Assert.Equal(FighterState.Grabbed, d.Two.State);
     }
@@ -323,7 +323,7 @@ public class GrabTests
         for (int i = 0; i < 14; i++)
         {
             d.Step(i == 0 ? P(Slot.Square) : None, brain.Think(d, Side.Two).Slots);
-            parried |= d.Two.Technique?.Category == Category.Huajin;
+            parried |= d.Two.Technique?.Category == Category.Fangshen;
         }
         Assert.True(parried);
     }

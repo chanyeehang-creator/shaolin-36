@@ -12,7 +12,7 @@ hit,5,2,0,25,smack,0,A light or medium hit lands (罗汉拳 hits 1-3)
 heavy_hit,8,5,0,45,thud,0,A heavy hit lands (罗汉拳 finisher; plain 铁砂掌)
 empowered_hit,12,9,20,80,crack,0,A Qi-empowered hit lands (Qi 铁砂掌)
 armor_hit,4,3,0,30,thud,0,A hit lands on hyper armor: damage but no flinch
-block,3,1,0,20,block,0,化绵掌 blocks a hit (string carries on)
+block,3,1,0,20,block,0,化绵掌 or 硬气功 blocks a hit (string carries on)
 perfect_parry,10,4,25,60,ring,0,化绵掌 perfect parry: the attacker is staggered
 clash_recoil,8,5,15,70,clang,0,Same-weight clash: both bounce off
 clash_break,9,6,15,70,clang,0,Heavier move wins its clash and lands its hit
@@ -22,3 +22,5 @@ ko,20,10,40,90,gong,0,The finishing hit (HP reaches 0)
 just_dodge,0,0,0,0,whoosh,30,A strike passes through your 轻功 dash's invincible frames: 0.5 s of half speed and a light whoosh (+just_dodge_qi Qi)
 grab,4,2,0,0,smack,0,A 擒拿 grab catches: a short grip beat while the hold starts
 throw,10,7,20,50,thud,0,The 擒拿 throw lands (the hold ran out)
+energy_cancel,10,6,20,90,gong,0,Two pure energy moves meet and cancel out (狮吼功 into 狮吼功)
+grab_break,5,3,0,30,block,0,A held fighter breaks out with a grab of their own (or slips a 龙爪手 that ran out of taps)

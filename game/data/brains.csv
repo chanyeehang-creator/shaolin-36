@@ -24,7 +24,11 @@
 #               aims for the plain frames with a move at least as heavy as yours. It must see your move in time, so it clashes slow strikes:
 #               your 铁砂掌 (36-frame wind-up, window frames 28-35) or 封穴 (30, window 24-29) against its 罗汉拳 hit 1 (13). 擒拿手 can't be clashed.
 #               The novice (reaction 24) sees 铁砂掌 too late to clash it, so it practically never clashes; the master (12) can always try.
-id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,heal,grab,clash,note
-novice,弟子 (novice),24,30,35,30,60,15,20,10,40,20,15,5,20,10,5,Slow to react and rarely parries: for learning the duel
-monk,武僧 (monk),18,20,50,60,80,40,35,20,50,25,25,15,40,20,15,The baseline opponent: reacts like a person and parries about 2 strikes in 5
-master,方丈 (master),12,12,60,90,90,65,60,30,50,30,25,25,60,30,35,Sharp: reacts fast, clashes and parries often and punishes almost every opening
+# break       = each time it is grabbed (and at each 龙爪手 strike window), the chance it breaks out with its own grab, pressed its reaction
+#               time after the window opens (小擒拿手's hold is 30 frames, 龙爪手's windows 45). The novice never grabs, so it never breaks out (Chan).
+# With 硬气功 on its 防身 slot instead of 化绵掌, parry is the chance it raises and holds the guard against a strike it sees coming, and guess
+#               the chance it raises it on a guess. 炼气 uses the heal chance: out of reach, unbuffed and with 10 Qi, it channels it.
+id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,heal,grab,clash,break,note
+novice,弟子 (novice),24,30,35,30,60,15,20,10,40,20,15,5,20,0,5,0,Slow to react and rarely parries: for learning the duel
+monk,武僧 (monk),18,20,50,60,80,40,35,20,50,25,25,15,40,20,15,40,The baseline opponent: reacts like a person and parries about 2 strikes in 5
+master,方丈 (master),12,12,60,90,90,65,60,30,50,30,25,25,60,30,35,80,Sharp: reacts fast, clashes and parries often and punishes almost every opening

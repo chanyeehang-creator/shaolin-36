@@ -55,6 +55,14 @@ namespace Shaolin36.Core.Brains
         Grabbing,
         /// <summary>Knocked down: getting up (a quick rise or a roll away).</summary>
         GettingUp,
+        /// <summary>Holding its 硬气功 guard up against a strike.</summary>
+        Guarding,
+        /// <summary>Grabbed: breaking out with a grab of its own.</summary>
+        BreakingOut,
+        /// <summary>Holding you in 龙爪手 and tapping for its strikes.</summary>
+        Clawing,
+        /// <summary>Out of reach: channelling 炼气 for its damage buff.</summary>
+        Buffing,
     }
 
     /// <summary>
@@ -127,6 +135,10 @@ namespace Shaolin36.Core.Brains
         private int _circle; // -1 left, 1 right, 0 none
         private int _lastFoeStateTick;
         private FighterState _lastFoeState = FighterState.Idle;
+        private bool _guarding;                    // holding its 硬气功 guard
+        private int _guardUntil = -1;              // keeps the guard up at least until this tick
+        private int _grabWindowKey = int.MinValue; // which grab window (held or holding) it last planned for
+        private int _grabPressTick = -1;           // tick to press the grab button in that window, or -1
 
         public Brain(BrainStyle style, int seed)
         {
@@ -187,11 +199,63 @@ namespace Shaolin36.Core.Brains
                 return _dice.Chance(Style.Step) ? Walk(MoveInput.WalkBack) : new BrainInput(SlotInput.Press(Slot.Square), MoveInput.None);
             }
 
+            // 0c. Grabbed: maybe break out with a grab of its own, its reaction time after the window opens.
+            if (me.State == FighterState.Grabbed)
+            {
+                int key = foe.MoveFrame * 16 + foe.GrabHitsDone;
+                if (key != _grabWindowKey)
+                {
+                    _grabWindowKey = key;
+                    var breaker = GrabBreakSlot(me);
+                    _grabPressTick = breaker != null && foe.HoldCanBeBroken && _dice.Chance(Style.BreakOut)
+                        ? duel.Tick + Math.Max(1, Style.Reaction) + _dice.Below(6) : -1;
+                }
+                if (_grabPressTick >= 0 && duel.Tick >= _grabPressTick)
+                {
+                    _grabPressTick = -1;
+                    var breaker = GrabBreakSlot(me);
+                    if (breaker != null) return Press(breaker.Value, BrainIntent.BreakingOut);
+                }
+                return BrainInput.None;
+            }
+
+            // 0d. Holding someone in 龙爪手: tap for each strike, a little after each window opens.
+            if (me.IsHolding && me.Technique!.IsMultiGrab && me.Slot != null)
+            {
+                Intent = BrainIntent.Clawing;
+                int key = -1 - me.GrabHitsDone;
+                if (key != _grabWindowKey)
+                {
+                    _grabWindowKey = key;
+                    _grabPressTick = duel.Tick + Math.Max(duel.Rules.GrabStrikeGap, Style.Reaction / 2) + _dice.Below(4);
+                }
+                if (duel.Tick >= _grabPressTick) return Press(me.Slot.Value, BrainIntent.Clawing);
+                return BrainInput.None;
+            }
+
+            _grabWindowKey = int.MinValue;
+
+            // 0e. Its 硬气功 guard is up: hold it while it sees a strike coming or going, then let go.
+            if (me.State.IsInMove() && me.Technique!.IsGuard && me.Slot != null)
+            {
+                var watched = SeenNow();
+                bool threat = watched.Technique != null && watched.State.IsInMove() && watched.Technique.ReachCm > 0
+                    && watched.State != FighterState.Recovery;
+                if (_guarding && (threat || duel.Tick < _guardUntil) && !me.IsExhausted)
+                {
+                    Intent = BrainIntent.Guarding;
+                    return new BrainInput(SlotInput.Hold(me.Slot.Value), MoveInput.None);
+                }
+                _guarding = false;
+                return BrainInput.None;
+            }
+            _guarding = false;
+
             // 1. In its own string: carry on when the chain window opens.
             if (next.IsInMove())
             {
                 var t = me.Technique!;
-                if (next == FighterState.Recovery && t.HasNext && me.Slot != null && me.Loadout.Book != null)
+                if (next == FighterState.Recovery && t.HasNext && !t.AutoChain && me.Slot != null && me.Loadout.Book != null)
                 {
                     int recoveryFrame = me.MoveFrame + 1 - t.StartupFrames - t.ActiveFrames;
                     int link = duel.Tick;
@@ -273,8 +337,8 @@ namespace Shaolin36.Core.Brains
                 {
                     _decidedAttack = seen.StartTick;
 
-                    // 拼招: time one of its own strikes into the strike's clash window.
-                    if (t.Clashable && t.ClashWindowFrames > 0 && Style.Clash > 0 && _dice.Chance(Style.Clash)
+                    // 拼招: time one of its own strikes into the strike's clash window (pure energy can't be clashed).
+                    if (t.Clashable && !t.IsEnergy && t.ClashWindowFrames > 0 && Style.Clash > 0 && _dice.Chance(Style.Clash)
                         && PlanClash(me, t, seen.StartTick, duel.Tick, distance, out var clashSlot, out var clashTick))
                     {
                         if (clashTick <= duel.Tick) return Press(clashSlot, BrainIntent.Clashing);
@@ -297,6 +361,14 @@ namespace Shaolin36.Core.Brains
                         _plannedAgainst = seen.StartTick;
                         Intent = BrainIntent.Parrying;
                         return BrainInput.None;
+                    }
+                    // 硬气功: raise the guard and hold it through the strike (it can't stop a grab either).
+                    var guardSlot = GuardSlot(me);
+                    if (!t.IsGrab && parrySlot == null && guardSlot != null && me.CanUse(me.Loadout[guardSlot.Value]!) && _dice.Chance(Style.Parry))
+                    {
+                        _guarding = true;
+                        _guardUntil = hitTick + t.ActiveFrames + 2;
+                        return Press(guardSlot.Value, BrainIntent.Guarding);
                     }
                     var dodgeSlot = DashSlot(me);
                     if (dodgeSlot != null && me.CanUse(me.Loadout[dodgeSlot.Value]!) && _dice.Chance(Style.Step))
@@ -331,6 +403,14 @@ namespace Shaolin36.Core.Brains
                     bool hurt = me.MaxHp - me.Hp >= heal.Heal;
                     bool safe = distance >= LongestReach(foe) + HealMarginCm && !foe.State.IsInMove();
                     if (hurt && safe && me.CanUse(heal) && _dice.Chance(Style.Heal)) return Press(healSlot.Value, BrainIntent.Healing);
+                }
+                // 炼气: out of reach, not buffed yet, with the Qi for it: channel the damage buff.
+                var buffSlot = BuffSlot(me);
+                if (buffSlot != null)
+                {
+                    var buff = me.Loadout[buffSlot.Value]!;
+                    bool safe = distance >= LongestReach(foe) + HealMarginCm && !foe.State.IsInMove();
+                    if (!me.IsBuffed && safe && me.CanUse(buff) && _dice.Chance(Style.Heal)) return Press(buffSlot.Value, BrainIntent.Buffing);
                 }
             }
 
@@ -373,7 +453,8 @@ namespace Shaolin36.Core.Brains
                 {
                     _choiceTicksLeft = Style.ThinkEvery;
                     var dashIn = DashSlot(me);
-                    if (dashIn != null && me.CanUse(me.Loadout[dashIn.Value]!)
+                    // A 纵云梯 leap would fly over: it only walks or quick-steps in with that.
+                    if (dashIn != null && !me.Loadout[dashIn.Value]!.IsJump && me.CanUse(me.Loadout[dashIn.Value]!)
                         && distance - me.Loadout[dashIn.Value]!.DashCm / 2 >= engage && _dice.Chance(Style.Step))
                         return Dash(dashIn.Value, MoveInput.None, BrainIntent.Closing); // no direction: straight in
                     var steps = me.QuickStepRules;
@@ -404,11 +485,19 @@ namespace Shaolin36.Core.Brains
                 if (grab != null && _dice.Chance(Style.Grab)) return Press(grab.Value, BrainIntent.Grabbing);
                 var attack = PickAttack(me, foe, distance);
                 if (attack != null && _dice.Chance(Style.Aggression)) return Press(attack.Value, BrainIntent.Attacking);
-                var guessSlot = ParrySlot(me);
+                var guessSlot = ParrySlot(me) ?? GuardSlot(me);
                 int foeReach = EngageDistance(foe);
                 if (guessSlot != null && foeReach > 0 && distance <= foeReach + EngageMarginCm && foe.State == FighterState.Idle
                     && me.CanUse(me.Loadout[guessSlot.Value]!) && _dice.Chance(Style.Guess))
+                {
+                    if (me.Loadout[guessSlot.Value]!.IsGuard)
+                    {
+                        // A guess with the guard: hold it up a moment.
+                        _guarding = true;
+                        _guardUntil = duel.Tick + 20;
+                    }
                     return Press(guessSlot.Value, BrainIntent.Guessing);
+                }
                 if (_dice.Chance(Style.Circle)) _circle = _dice.Chance(50) ? -1 : 1;
             }
 
@@ -455,6 +544,39 @@ namespace Shaolin36.Core.Brains
             {
                 var t = me.Loadout[s];
                 if (t != null && t.IsGrab && t.FullReachCm >= distance && me.CanUse(t)) return s;
+            }
+            return null;
+        }
+
+        /// <summary>The first slot holding a 擒拿 grab it can pay for, to break out of a grab with; or null.</summary>
+        private static Slot? GrabBreakSlot(Fighter me)
+        {
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (t != null && t.IsGrab && me.CanUse(t)) return s;
+            }
+            return null;
+        }
+
+        /// <summary>The first slot holding a 硬气功 guard, or null.</summary>
+        private static Slot? GuardSlot(Fighter me)
+        {
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (t != null && t.IsGuard) return s;
+            }
+            return null;
+        }
+
+        /// <summary>The first slot holding a 气功 damage buff (炼气), or null.</summary>
+        private static Slot? BuffSlot(Fighter me)
+        {
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (t != null && t.IsBuff) return s;
             }
             return null;
         }
@@ -579,7 +701,7 @@ namespace Shaolin36.Core.Brains
             foreach (var s in Slots.All)
             {
                 var t = me.Loadout[s];
-                if (!IsAttack(t) || t!.IsGrab || !t.Clashable || !me.CanUse(t) || t.FullReachCm < distance) continue;
+                if (!IsAttack(t) || t!.IsGrab || !t.Clashable || t.IsEnergy || !me.CanUse(t) || t.FullReachCm < distance) continue;
                 int weight = Clash.EffectiveWeight(t, strike);
                 if (needWeight && weight < Clash.EffectiveWeight(strike, t)) continue;
                 int earliest = Math.Max(from, now + t.StartupFrames); // pressed this tick, it lands on the strike's frame now + startup
@@ -597,7 +719,7 @@ namespace Shaolin36.Core.Brains
             foreach (var s in Slots.All)
             {
                 var t = me.Loadout[s];
-                if (t != null && t.Category == Category.Huajin && t.PerfectParryFrames > 0) return s;
+                if (t != null && t.Category == Category.Fangshen && t.PerfectParryFrames > 0) return s;
             }
             return null;
         }
@@ -635,8 +757,9 @@ namespace Shaolin36.Core.Brains
                 var t = me.Loadout[s];
                 if (!IsAttack(t) || t!.IsGrab || !me.CanUse(t) || t.FullReachCm < distance) continue;
                 if (t.SealFrames > 0 && foe.IsSealed) continue;
+                if (t.HasNext && me.Loadout.Book?.Find(t.Next)?.CrippleFrames > 0 && foe.IsCrippled) continue;
                 if (empowered == null && t.CanEmpower && me.Qi - t.QiCost >= t.EmpowerQi) empowered = s;
-                if (t.Weight == Weight.Heavy) heavy[heavyCount++] = s;
+                if (t.Weight >= Weight.Heavy) heavy[heavyCount++] = s;
                 else light[lightCount++] = s;
             }
             if (empowered != null) return empowered;

@@ -23,6 +23,15 @@ namespace Shaolin36.Core.Combat
         Caught,
         /// <summary>The hold ran out and the throw landed its damage, hitstun and knockback.</summary>
         Thrown,
+        /// <summary>龙爪手: the grabber tapped and struck the held fighter (damage; the last strike knocks down and ends the hold).</summary>
+        Strike,
+        /// <summary>A multi-strike grab's hold ran out with no tap: the held fighter broke free by themselves. No damage.</summary>
+        Released,
+        /// <summary>
+        /// The held fighter broke out with a grab of their own, in time (<see cref="Fighter.HoldCanBeBroken"/>): both recoil
+        /// and are pushed apart. On this event the "attacker" is the one who broke out and the technique is their grab.
+        /// </summary>
+        Broken,
     }
 
     /// <summary>
@@ -38,8 +47,10 @@ namespace Shaolin36.Core.Combat
             ClashOutcome clash = ClashOutcome.NoClash, ClashEffect? clashEffect = null, bool defenderExhausted = false,
             int attackerQiGained = 0, int defenderQiGained = 0, bool empowered = false, bool defenderArmored = false,
             int knockbackCm = 0, bool justDodged = false, int sealFrames = 0, GrabPhase grab = GrabPhase.None,
-            bool knockedDown = false)
+            bool knockedDown = false, bool guarded = false, int crippleFrames = 0)
         {
+            Guarded = guarded;
+            CrippleFrames = crippleFrames;
             KnockedDown = knockedDown;
             Grab = grab;
             SealFrames = sealFrames;
@@ -133,11 +144,24 @@ namespace Shaolin36.Core.Combat
         /// <summary>True when this hit (or throw) knocked the defender down.</summary>
         public bool KnockedDown { get; }
 
+        /// <summary>
+        /// True when a 硬气功 guard blocked the strike: no hitstun, knockback or debuff. Light and medium deal nothing; heavy and
+        /// energy deal block_heavy_damage_pct (in <see cref="Damage"/>). The guard paid block_stamina_* for it.
+        /// </summary>
+        public bool Guarded { get; }
+
+        /// <summary>Frames this 无相劫指 hit locked the defender's movement for (0 if it didn't: both hits must land).</summary>
+        public int CrippleFrames { get; }
+
         /// <summary>True when the strike dealt its damage and hitstun (a grab's catch doesn't; its throw does).</summary>
-        public bool Landed => Grab != GrabPhase.Caught && !JustDodged && Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
+        public bool Landed => Grab != GrabPhase.Caught && Grab != GrabPhase.Released && Grab != GrabPhase.Broken && !JustDodged && !Guarded
+            && Parry == ParryOutcome.NotParried && (ClashEffect == null || ClashEffect.StrikerHitLands);
 
         public override string ToString() =>
             Grab == GrabPhase.Caught ? $"t{Tick} {Attacker} grabs {Defender} with {Technique.Id}"
+            : Grab == GrabPhase.Released ? $"t{Tick} {Defender} slips free of {Attacker}'s {Technique.Id}"
+            : Grab == GrabPhase.Broken ? $"t{Tick} {Attacker} breaks out of the grab with {Technique.Id}"
+            : Guarded ? $"t{Tick} {Defender} guards {Attacker}'s {Technique.Id}: {Damage} damage"
             : JustDodged ? $"t{Tick} {Defender} just-dodged {Attacker}'s {Technique.Id}"
             : Parry != ParryOutcome.NotParried ? $"t{Tick} {Attacker}'s {Technique.Id} is {Parry}"
             : Clash != ClashOutcome.NoClash && !Landed ? $"t{Tick} {Attacker}'s {Technique.Id} clashes: {Clash}"
@@ -280,6 +304,8 @@ namespace Shaolin36.Core.Combat
         private readonly int[] _lungeTicks = new int[2];
         private readonly int[] _rollLeft = new int[2];
         private readonly int[] _rollTicks = new int[2];
+        private readonly FloorPoint[] _jumpWay = new FloorPoint[2];
+        private readonly bool[] _airborne = new bool[2];
 
         /// <param name="oneQi">Qi fighter One starts with; null for the rules sheet's qi_start. A run passes what it carried over.</param>
         /// <param name="twoQi">Qi fighter Two starts with; null for qi_start.</param>
@@ -294,6 +320,7 @@ namespace Shaolin36.Core.Combat
                 new Fighter(two, rules.HpMax, twoPositionCm, rules.InputBuffer, StaminaRules.FromRules(rules),
                     rules.QiMax, twoQi ?? rules.QiStart, QuickStepRules.FromRules(rules), DownRules.FromRules(rules)),
             };
+            One.GrabStrikeGap = Two.GrabStrikeGap = rules.GrabStrikeGap;
             One.Facing = Two.Position - One.Position;
             Two.Facing = One.Position - Two.Position;
             if (One.Facing.IsZero) Two.Facing = new FloorPoint(-1, 0);
@@ -339,11 +366,17 @@ namespace Shaolin36.Core.Combat
 
             One.Tick(one, moveOne.IsWalking, moveOne.QuickStep, moveOne);
             Two.Tick(two, moveTwo.IsWalking, moveTwo.QuickStep, moveTwo);
+            // Held by a grab and pressed a grab of your own, in time: break out (before anything else this tick).
+            var broken = new List<HitEvent>(1);
+            BreakOut(Side.One, broken);
+            BreakOut(Side.Two, broken);
             Aim(One, Two);
             Aim(Two, One);
             var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + LungeStep(Side.One) + DashStep(Side.One) + RollStep(Side.One) + QuickStepStep(Side.One) + PushStep(Side.One);
             var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + LungeStep(Side.Two) + DashStep(Side.Two) + RollStep(Side.Two) + QuickStepStep(Side.Two) + PushStep(Side.Two);
             Move(stepOne, stepTwo);
+            LandJump(Side.One);
+            LandJump(Side.Two);
 
             // Find both hits before applying either, so a same-tick trade doesn't depend on order.
             // Strikes pass through a fighter in invincible frames (a 轻功 dash's start), and are spent.
@@ -356,7 +389,10 @@ namespace Shaolin36.Core.Combat
             bool twoGrabBroken = twoHits && twoMove!.IsGrab && oneHits;
             if (oneGrabBroken) { One.MarkHitLanded(); oneHits = false; }
             if (twoGrabBroken) { Two.MarkHitLanded(); twoHits = false; }
-            var dodges = new List<HitEvent>(2);
+            // Two pure energy strikes going off into each other on the same tick meet once: one cancel for both.
+            if (oneHits && twoHits && oneMove!.IsEnergy && twoMove!.IsEnergy) { Two.MarkHitLanded(); twoHits = false; }
+            var dodges = broken;
+            dodges.Capacity = Math.Max(dodges.Capacity, 2);
             if (oneDodged) { One.MarkHitLanded(); JustDodge(Side.One, oneMove!, One.Empowered, Two, dodges); }
             if (twoDodged) { Two.MarkHitLanded(); JustDodge(Side.Two, twoMove!, Two.Empowered, One, dodges); }
             bool oneEmpowered = One.Empowered, twoEmpowered = Two.Empowered;
@@ -376,9 +412,12 @@ namespace Shaolin36.Core.Combat
             if (oneLand != null && oneLand.Landed) One.CutRecoveryOnHit(oneMove!);
             if (twoLand != null && twoLand.Landed) Two.CutRecoveryOnHit(twoMove!);
 
-            // A hold that ran out this tick throws.
+            // A hold that ran out this tick throws (a multi-strike grab lets go instead).
             if (One.ThrewThisTick) landed.Add(Throw(Side.One));
             if (Two.ThrewThisTick) landed.Add(Throw(Side.Two));
+            // 龙爪手: a tap while holding strikes.
+            if (One.GrabStrikeThisTick && One.State.IsInMove() && Two.State == FighterState.Grabbed) landed.Add(GrabStrike(Side.One));
+            if (Two.GrabStrikeThisTick && Two.State.IsInMove() && One.State == FighterState.Grabbed && !IsOver) landed.Add(GrabStrike(Side.Two));
 
             _hits.AddRange(landed);
             Tick++;
@@ -411,14 +450,71 @@ namespace Shaolin36.Core.Combat
             return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame, grab: GrabPhase.Caught);
         }
 
+        /// <summary>
+        /// The held fighter on <paramref name="side"/> pressed a grab of their own (<see cref="Fighter.GrabBreakWith"/>): if the
+        /// grabber's hold can still be broken, both recoil grab_break_recoil frames and are pushed grab_break_push apart, and the
+        /// breaker pays their grab's stamina. Too late (龙爪手's last window, or the throw already landing), nothing happens.
+        /// </summary>
+        private void BreakOut(Side side, List<HitEvent> into)
+        {
+            var held = this[side];
+            var grabber = this[OtherSide(side)];
+            var with = held.GrabBreakWith;
+            if (with == null || held.State != FighterState.Grabbed || !grabber.HoldCanBeBroken) return;
+            var grab = grabber.Technique;
+            int frame = grabber.MoveFrame;
+            held.LoseStamina(with.StaminaCost);
+            held.Stun(FighterState.Recoil, Rules.GrabBreakRecoil);
+            grabber.Stun(FighterState.Recoil, Rules.GrabBreakRecoil);
+            StartPush(side, Rules.GrabBreakPush);
+            StartPush(OtherSide(side), Rules.GrabBreakPush);
+            into.Add(new HitEvent(Tick, side, with, 0, 0, grabber.Hp, grab, frame, grab: GrabPhase.Broken, knockbackCm: Rules.GrabBreakPush));
+        }
+
+        /// <summary>
+        /// 龙爪手: the grabber on <paramref name="attacker"/> tapped while holding: the strike deals its damage (no hitstun; the
+        /// held fighter stays held). The last strike knocks down (with knockdown) and pushes them away by its knockback.
+        /// It can't be blocked or dodged: the held fighter can only break out before it, in time.
+        /// </summary>
+        private HitEvent GrabStrike(Side attacker)
+        {
+            var grabber = this[attacker];
+            var defender = this[OtherSide(attacker)];
+            var move = grabber.Technique!;
+            bool last = grabber.GrabHitsDone >= move.GrabHits;
+            bool exhausted = defender.IsExhausted;
+            int dealt = defender.DamageTaken(grabber.Boost(move.Damage));
+            bool down = last && move.Knockdown && dealt < defender.Hp;
+            defender.TakeHit(dealt, 0);
+            int hitstun = 0;
+            if (!defender.IsDown)
+            {
+                if (down) defender.KnockDown();
+                else if (!last) defender.Stun(FighterState.Grabbed, move.HoldFrames + 1);
+                else if (move.HitstunFrames > 0) defender.Stun(FighterState.Hitstun, hitstun = move.HitstunFrames);
+                else defender.Release();
+            }
+            int qi = grabber.GainQi(Rules.QiPerHit);
+            int knockback = last ? move.KnockbackCm : 0;
+            StartPush(OtherSide(attacker), knockback);
+            return new HitEvent(Tick, attacker, move, dealt, hitstun, defender.Hp,
+                defenderExhausted: exhausted, attackerQiGained: qi, knockbackCm: knockback, grab: GrabPhase.Strike, knockedDown: down);
+        }
+
         /// <summary>The hold ran out: the throw lands its damage, hitstun and knockback.</summary>
         private HitEvent Throw(Side attacker)
         {
             var grabber = this[attacker];
             var defender = this[OtherSide(attacker)];
             var move = grabber.Technique!;
+            if (move.IsMultiGrab)
+            {
+                // 龙爪手 with no tap in time: the held fighter slips free; the grabber plays out its recovery.
+                defender.Release();
+                return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, grab: GrabPhase.Released);
+            }
             bool exhausted = defender.IsExhausted;
-            int dealt = defender.DamageTaken(StrikeDamage(move, false));
+            int dealt = defender.DamageTaken(grabber.Boost(StrikeDamage(move, false)));
             bool down = move.Knockdown && dealt < defender.Hp;
             int hitstun = down ? 0 : move.HitstunFrames;
             defender.TakeHit(dealt, hitstun);
@@ -454,12 +550,23 @@ namespace Shaolin36.Core.Combat
         {
             var striker = this[attacker];
 
-            // 擒拿: a grab goes through parries, clashes and hyper armor.
+            // 擒拿: a grab goes through parries, guards, clashes and hyper armor.
             if (move.IsGrab) return Catch(attacker, move, defender, defenderMove, defenderFrame);
+
+            // 硬气功: a strike from inside the guard's arc is blocked.
+            if (defenderMove != null && defenderMove.IsGuarding(defenderFrame)
+                && defenderMove.Covers(defender.Facing, striker.Position - defender.Position))
+            {
+                int blocked = defender.DamageTaken(BlockedDamage(striker, move, empowered));
+                defender.TakeHit(blocked, 0);
+                defender.LoseStamina(Rules.BlockStamina(move.Weight));
+                return new HitEvent(Tick, attacker, move, blocked, 0, defender.Hp, defenderMove, defenderFrame,
+                    empowered: empowered, guarded: true);
+            }
 
             if (defenderMove != null)
             {
-                var parry = Combat.Parry.Resolve(defenderMove, defenderFrame);
+                var parry = Combat.Parry.Resolve(defenderMove, defenderFrame, move);
                 if (parry != ParryOutcome.NotParried)
                 {
                     var e = Combat.Parry.Effect(parry, defenderMove, Rules);
@@ -468,7 +575,12 @@ namespace Shaolin36.Core.Combat
                     defender.GainStamina(e.DefenderStaminaRefund);
                     striker.LoseStamina(e.AttackerStaminaLoss);
                     int parryQi = defender.GainQi(e.DefenderQiGain);
-                    return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame, parry, e,
+                    // Every block works the same (Chan): a plain 化绵掌 block, like 硬气功, still lets block_heavy_damage_pct of a
+                    // heavy or energy strike through. A perfect parry deflects it all.
+                    int through = parry == ParryOutcome.Parried ? BlockedDamage(striker, move, empowered) : 0;
+                    int blockedDealt = defender.DamageTaken(through);
+                    defender.TakeHit(blockedDealt, 0);
+                    return new HitEvent(Tick, attacker, move, blockedDealt, 0, defender.Hp, defenderMove, defenderFrame, parry, e,
                         defenderQiGained: parryQi, empowered: empowered);
                 }
 
@@ -482,7 +594,7 @@ namespace Shaolin36.Core.Combat
                         // The heavier move breaks through: full damage, and the defender stays
                         // frozen for the longer of the hitstun and the clash stagger.
                         bool tired = defender.IsExhausted;
-                        int damage = defender.DamageTaken(StrikeDamage(move, empowered));
+                        int damage = defender.DamageTaken(striker.Boost(StrikeDamage(move, empowered)));
                         defender.TakeHit(damage, 0);
                         defender.LoseStamina(e.Target.StaminaLoss);
                         int frames = Math.Max(move.HitstunFrames, e.Target.StunFrames);
@@ -490,16 +602,17 @@ namespace Shaolin36.Core.Combat
                         int breakQi = striker.GainQi(Rules.QiPerHit);
                         StartPush(OtherSide(attacker), move.KnockbackCm);
                         defender.Seal(move.SealFrames);
+                        int locked = Cripple(striker, move, defender);
                         return new HitEvent(Tick, attacker, move, damage, frames, defender.Hp, defenderMove, defenderFrame,
                             clash: clash, clashEffect: e, defenderExhausted: tired, attackerQiGained: breakQi, empowered: empowered,
-                            knockbackCm: move.KnockbackCm, sealFrames: move.SealFrames);
+                            knockbackCm: move.KnockbackCm, sealFrames: move.SealFrames, crippleFrames: locked);
                     }
                     defender.LoseStamina(e.Target.StaminaLoss);
                     ApplyClashSide(striker, e.Striker, clash == ClashOutcome.TargetWins ? FighterState.Stagger : FighterState.Recoil);
                     ApplyClashSide(defender, e.Target, clash == ClashOutcome.PerfectClash ? FighterState.Stagger : FighterState.Recoil);
                     int strikerQi = striker.GainQi(e.Striker.QiGain);
                     int targetQi = defender.GainQi(e.Target.QiGain);
-                    int recoilPush = clash == ClashOutcome.BothRecoil ? Rules.ClashRecoilPush : 0;
+                    int recoilPush = clash == ClashOutcome.BothRecoil || clash == ClashOutcome.EnergyCancel ? Rules.ClashRecoilPush : 0;
                     StartPush(attacker, recoilPush);
                     StartPush(OtherSide(attacker), recoilPush);
                     return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame,
@@ -509,7 +622,7 @@ namespace Shaolin36.Core.Combat
             }
 
             bool exhausted = defender.IsExhausted;
-            int dealt = defender.DamageTaken(StrikeDamage(move, empowered));
+            int dealt = defender.DamageTaken(striker.Boost(StrikeDamage(move, empowered)));
             // A hit on a fighter lying down (a hits_down move): damage only, they stay down.
             bool wasDown = defender.State == FighterState.KnockedDown;
             // Knockdown: on the floor instead of hitstun (not through hyper armor, and not on the KO hit).
@@ -524,16 +637,37 @@ namespace Shaolin36.Core.Combat
             StartPush(OtherSide(attacker), knockback);
             // 点穴: the defender's 外功 is sealed, hyper armor or not.
             defender.Seal(move.SealFrames);
+            int crippled = Cripple(striker, move, defender);
             return new HitEvent(Tick, attacker, move, dealt, hitstun, defender.Hp, defenderMove, defenderFrame,
                 defenderExhausted: exhausted, attackerQiGained: hitQi, empowered: empowered, defenderArmored: defenderArmored,
-                knockbackCm: knockback, sealFrames: move.SealFrames, knockedDown: down);
+                knockbackCm: knockback, sealFrames: move.SealFrames, knockedDown: down, crippleFrames: crippled);
+        }
+
+        /// <summary>
+        /// What a blocked strike still deals (before the exhausted bonus), the same for every block (化绵掌 or 硬气功): nothing from
+        /// light and medium, block_heavy_damage_pct from heavy and pure energy.
+        /// </summary>
+        private int BlockedDamage(Fighter striker, Technique move, bool empowered) =>
+            move.Weight >= Weight.Heavy ? (striker.Boost(StrikeDamage(move, empowered)) * Rules.BlockHeavyDamagePct + 50) / 100 : 0;
+
+        /// <summary>
+        /// A hit of <paramref name="move"/> landed: count it on the striker's string, and if it locks movement (无相劫指) and every
+        /// hit of the string so far landed, lock the defender's movement. Returns the frames locked (0 if not).
+        /// </summary>
+        private static int Cripple(Fighter striker, Technique move, Fighter defender)
+        {
+            if (striker.Technique == move) striker.CountHitLanded();
+            if (move.CrippleFrames <= 0 || striker.Technique != move || !striker.WholeStringLanded || defender.IsDown) return 0;
+            defender.Cripple(move.CrippleFrames);
+            return move.CrippleFrames;
         }
 
         /// <summary>A strike passed through <paramref name="dodger"/>'s invincible frames: a just dodge, unless the dash was a combo escape.</summary>
         private void JustDodge(Side attacker, Technique move, bool empowered, Fighter dodger, List<HitEvent> into)
         {
             // A dash out of hitstun, or a rise or roll from a knockdown, slips the strike but earns nothing.
-            if (dodger.EscapedHitstun || !dodger.State.IsInMove()) return;
+            // 纵云梯's leap has invincible frames but no just dodge.
+            if (dodger.EscapedHitstun || !dodger.State.IsInMove() || dodger.Technique!.IsJump) return;
             int qi = dodger.GainQi(Rules.JustDodgeQi);
             into.Add(new HitEvent(Tick, attacker, move, 0, 0, dodger.Hp, dodger.Technique, dodger.MoveFrame,
                 defenderQiGained: qi, empowered: empowered, justDodged: true));
@@ -642,10 +776,39 @@ namespace Shaolin36.Core.Combat
             double fx = toward.X / len, fz = toward.Z / len; // forward
             double rx = -fz, rz = fx;                          // right
             double wx = f.DashForward * fx + f.DashRight * rx, wz = f.DashForward * fz + f.DashRight * rz;
+            // A jump (纵云梯) keeps the way it took off on: it flies straight over and past the other fighter.
+            if (f.Technique!.IsJump)
+            {
+                if (f.MoveFrame == 0) _jumpWay[i] = new FloorPoint(FloorPoint.Round(wx * 1000), FloorPoint.Round(wz * 1000));
+                return _jumpWay[i].IsZero ? FloorPoint.Zero : _jumpWay[i].WithLength(step * FloorPoint.UnitsPerCm);
+            }
             double wlen = Math.Sqrt(wx * wx + wz * wz);
             if (wlen == 0) return FloorPoint.Zero;
             double units = step * (double)FloorPoint.UnitsPerCm / wlen;
             return new FloorPoint(FloorPoint.Round(wx * units), FloorPoint.Round(wz * units));
+        }
+
+        /// <summary>
+        /// After moving: a fighter whose 纵云梯 leap just ended (landed, or knocked out of it) on top of the other fighter is set
+        /// down min_distance away from them, on its own side of them, so nobody is left standing inside anybody.
+        /// </summary>
+        private void LandJump(Side side)
+        {
+            int i = (int)side;
+            var f = this[side];
+            bool air = f.IsAirborne;
+            if (_airborne[i] && !air)
+            {
+                var other = this[OtherSide(side)];
+                var apart = f.Position - other.Position;
+                long min = (long)Rules.MinDistance * FloorPoint.UnitsPerCm;
+                if (apart.LengthSquared < min * min)
+                {
+                    if (apart.IsZero) apart = _jumpWay[i].IsZero ? f.Facing : _jumpWay[i];
+                    f.Position = ClampToArena(other.Position + apart.WithLength(min));
+                }
+            }
+            _airborne[i] = air;
         }
 
         /// <summary>Centimetres <paramref name="side"/>'s roll away still has to slide.</summary>
@@ -767,6 +930,8 @@ namespace Shaolin36.Core.Combat
             if (!input.IsWalking || !f.CanAct) return FloorPoint.Zero;
             // Speeds are cm per second, which is exactly floor units per tick.
             double speed = f.IsExhausted ? Rules.WalkSpeed * Rules.ExhaustedWalkPct / 100.0 : Rules.WalkSpeed;
+            // 无相劫指's movement lock slows walking too.
+            if (f.IsCrippled) speed = speed * Rules.CrippleWalkPct / 100.0;
             double tilt = Math.Sqrt((double)input.Forward * input.Forward + (double)input.Right * input.Right);
             double scale = speed * Math.Min(tilt, MoveInput.Full) / MoveInput.Full / tilt;
 
@@ -797,7 +962,9 @@ namespace Shaolin36.Core.Combat
             double before = (a0 - b0).Length;
             double after = (a - b).Length;
             double floor = Math.Min(Rules.MinDistance * (double)FloorPoint.UnitsPerCm, before);
-            if (after < floor)
+            // A fighter in the air (纵云梯) passes over the other: no min_distance until it lands.
+            bool flying = One.IsAirborne || Two.IsAirborne;
+            if (after < floor && !flying)
             {
                 double overlap = floor - after;
                 double capOne = stepOne.Length, capTwo = stepTwo.Length;

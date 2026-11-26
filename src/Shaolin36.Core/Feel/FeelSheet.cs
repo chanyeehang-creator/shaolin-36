@@ -34,8 +34,12 @@ namespace Shaolin36.Core.Feel
         JustDodge,
         /// <summary>A 擒拿 grab catches (the hold starts).</summary>
         Grab,
-        /// <summary>A 擒拿 grab's throw lands.</summary>
+        /// <summary>A 擒拿 grab's throw lands (and 龙爪手's knockdown strike).</summary>
         Throw,
+        /// <summary>Two pure energy moves meet and cancel out (狮吼功 into 狮吼功).</summary>
+        EnergyCancel,
+        /// <summary>A held fighter breaks out of a grab with a grab of their own, or slips a 龙爪手 that ran out of taps.</summary>
+        GrabBreak,
     }
 
     /// <summary>The sounds the game can make for a strike (synthesised in game until there are real sound files).</summary>
@@ -116,6 +120,8 @@ namespace Shaolin36.Core.Feel
             ["just_dodge"] = FeelEvent.JustDodge,
             ["grab"] = FeelEvent.Grab,
             ["throw"] = FeelEvent.Throw,
+            ["energy_cancel"] = FeelEvent.EnergyCancel,
+            ["grab_break"] = FeelEvent.GrabBreak,
         };
 
         public static readonly string[] Columns = { "event", "hitstop", "shake", "push", "spark", "sound" };

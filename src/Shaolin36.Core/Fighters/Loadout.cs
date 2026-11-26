@@ -42,6 +42,24 @@ namespace Shaolin36.Core.Fighters
 
         public bool IsEmpty(Slot slot) => this[slot] == null;
 
+        /// <summary>
+        /// Put <paramref name="with"/> on every slot that holds <paramref name="old"/> (the pause menu's swap between a category's
+        /// two moves). False if no slot held it.
+        /// </summary>
+        public bool Replace(Technique old, Technique with)
+        {
+            if (old == null) throw new ArgumentNullException(nameof(old));
+            if (with == null) throw new ArgumentNullException(nameof(with));
+            bool any = false;
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                if (_slots[i] != old) continue;
+                _slots[i] = with;
+                any = true;
+            }
+            return any;
+        }
+
         private static int Index(Slot slot)
         {
             if (!Slots.IsValid(slot)) throw new ArgumentOutOfRangeException(nameof(slot), slot, "not one of the 8 slots");

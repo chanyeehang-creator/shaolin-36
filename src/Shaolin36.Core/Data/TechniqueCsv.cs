@@ -19,7 +19,7 @@ namespace Shaolin36.Core.Data
         };
 
         /// <summary>Columns a sheet may leave out; an empty cell means the default (no empowered version).</summary>
-        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "seal", "heal", "lunge", "hold", "knockdown", "hits_down", "early_block", "hit_recovery" };
+        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "seal", "heal", "lunge", "hold", "knockdown", "hits_down", "early_block", "hit_recovery", "jump", "cripple", "auto_chain", "guard", "grab_hits", "buff", "buff_damage_pct" };
 
         /// <summary>Most a hit can push the defender back, in centimetres.</summary>
         public const int MaxKnockback = 500;
@@ -46,7 +46,8 @@ namespace Shaolin36.Core.Data
                 ["neigong"] = Category.Neigong, ["内功"] = Category.Neigong,
                 ["qinggong"] = Category.Qinggong, ["轻功"] = Category.Qinggong,
                 ["dianxue"] = Category.Dianxue, ["点穴"] = Category.Dianxue,
-                ["huajin"] = Category.Huajin, ["化劲"] = Category.Huajin,
+                ["fangshen"] = Category.Fangshen, ["防身"] = Category.Fangshen,
+                ["huajin"] = Category.Fangshen, ["化劲"] = Category.Fangshen,
                 ["qinna"] = Category.Qinna, ["擒拿"] = Category.Qinna,
                 ["qigong"] = Category.Qigong, ["气功"] = Category.Qigong,
             };
@@ -57,6 +58,7 @@ namespace Shaolin36.Core.Data
                 ["light"] = Weight.Light, ["轻"] = Weight.Light,
                 ["medium"] = Weight.Medium, ["中"] = Weight.Medium,
                 ["heavy"] = Weight.Heavy, ["重"] = Weight.Heavy,
+                ["energy"] = Weight.Energy, ["气"] = Weight.Energy,
             };
 
         public sealed class Result
@@ -151,7 +153,7 @@ namespace Shaolin36.Core.Data
                 if (!CategoryNames.TryGetValue(Cell("category"), out var category))
                     rowErrors.Add($"unknown category '{Cell("category")}'");
                 if (!WeightNames.TryGetValue(Cell("weight"), out var weight))
-                    rowErrors.Add($"unknown weight '{Cell("weight")}' (light, medium or heavy)");
+                    rowErrors.Add($"unknown weight '{Cell("weight")}' (light, medium, heavy or energy)");
 
                 bool weapon = Bool("weapon");
                 int startup = Int("startup");
@@ -185,6 +187,13 @@ namespace Shaolin36.Core.Data
                 bool hitsDown = Cell("hits_down").Length != 0 && Bool("hits_down");
                 int earlyBlock = Cell("early_block").Length == 0 ? 0 : Int("early_block");
                 int hitRecovery = Cell("hit_recovery").Length == 0 ? 0 : Int("hit_recovery");
+                bool jump = Cell("jump").Length != 0 && Bool("jump");
+                int cripple = Cell("cripple").Length == 0 ? 0 : Int("cripple");
+                bool autoChain = Cell("auto_chain").Length != 0 && Bool("auto_chain");
+                bool guard = Cell("guard").Length != 0 && Bool("guard");
+                int grabHits = Cell("grab_hits").Length == 0 ? 0 : Int("grab_hits");
+                int buff = Cell("buff").Length == 0 ? 0 : Int("buff");
+                int buffPct = Cell("buff_damage_pct").Length == 0 ? 100 : Int("buff_damage_pct");
 
                 if (startup < 1) rowErrors.Add("'startup' must be at least 1 frame");
                 if (active < 1) rowErrors.Add("'active' must be at least 1 frame");
@@ -195,9 +204,9 @@ namespace Shaolin36.Core.Data
                 if (next.Length > 0 && chain == 0) rowErrors.Add($"'next' is '{next}' but 'chain_window' is 0, so the string can never continue");
                 if (next.Length == 0 && chain > 0) rowErrors.Add("'chain_window' is set but 'next' is empty");
                 if (next.Length > 0 && next == id) rowErrors.Add("'next' cannot be the technique itself");
-                if (perfectParry > 0 && category != Category.Huajin) rowErrors.Add("only 化劲 (huajin) techniques can have 'perfect_parry'");
+                if (perfectParry > 0 && category != Category.Fangshen) rowErrors.Add("only 防身 (fangshen) techniques can have 'perfect_parry'");
                 if (perfectParry > active) rowErrors.Add($"'perfect_parry' ({perfectParry}) cannot be longer than 'active' ({active}), which is the parry window");
-                if (earlyBlock > 0 && perfectParry == 0) rowErrors.Add("'early_block' is set but 'perfect_parry' is 0: only a 化劲 (huajin) parry has a block window");
+                if (earlyBlock > 0 && perfectParry == 0) rowErrors.Add("'early_block' is set but 'perfect_parry' is 0: only a 防身 (fangshen) parry has a block window");
                 if (earlyBlock + perfectParry > active)
                     rowErrors.Add($"'early_block' + 'perfect_parry' ({earlyBlock} + {perfectParry}) cannot be longer than 'active' ({active}), which is the parry window");
                 if (hitRecovery > 0 && reach == 0) rowErrors.Add("'hit_recovery' is set but 'reach' is 0, so the move never hits");
@@ -239,6 +248,24 @@ namespace Shaolin36.Core.Data
                 if (hold > 0 && lunge > 0) rowErrors.Add("a grab can't have 'lunge' yet (use 'advance' to step in)");
                 if (hold > 0 && empowerQi > 0) rowErrors.Add("a grab has no empowered version yet: leave 'empower_qi' 0");
                 if (empowerQi > 0 && empowerPct == 0) rowErrors.Add("'empower_damage_pct' must be above 0");
+                if (jump && dash == 0) rowErrors.Add("'jump' is set but 'dash' is 0: a jump is a dash that leaps, so it needs a distance");
+                if (jump && escape) rowErrors.Add("a jump can't 'escape' a combo");
+                if (cripple > MaxSeal) rowErrors.Add($"'cripple' ({cripple}) must be {MaxSeal} frames or less");
+                if (cripple > 0 && category != Category.Dianxue) rowErrors.Add("only 点穴 (dianxue) techniques can have 'cripple'");
+                if (cripple > 0 && reach == 0) rowErrors.Add("'cripple' is set but 'reach' is 0, so the move never hits");
+                if (autoChain && next.Length == 0) rowErrors.Add("'auto_chain' is set but 'next' is empty");
+                if (guard && category != Category.Fangshen) rowErrors.Add("only 防身 (fangshen) techniques can 'guard'");
+                if (guard && perfectParry > 0) rowErrors.Add("a guard has no parry: leave 'perfect_parry' 0");
+                if (guard && reach > 0) rowErrors.Add("a guard can't also be a strike: 'guard' needs 'reach' 0");
+                if (grabHits > 10) rowErrors.Add($"'grab_hits' ({grabHits}) must be 10 or fewer");
+                if (grabHits > 0 && hold == 0) rowErrors.Add("'grab_hits' is set but 'hold' is 0: only a grab can strike while it holds");
+                if (buff > MaxSeal) rowErrors.Add($"'buff' ({buff}) must be {MaxSeal} frames or less");
+                if (buff > 0 && category != Category.Qigong) rowErrors.Add("only 气功 (qigong) techniques can have 'buff'");
+                if (buff > 0 && recovery == 0) rowErrors.Add("a buff lands on its first recovery frame, so it needs 'recovery' 1 or more");
+                if (buff > 0 && reach > 0) rowErrors.Add("a buff can't also be a strike: 'buff' needs 'reach' 0");
+                if (buff == 0 && buffPct != 100) rowErrors.Add("'buff_damage_pct' is set but 'buff' is 0, so the buff never happens");
+                if (buff > 0 && (buffPct == 0 || buffPct > 1000)) rowErrors.Add("'buff_damage_pct' must be between 1 and 1000");
+                if (weight == Weight.Energy && weapon) rowErrors.Add("a pure energy move can't be a weapon");
 
                 if (rowErrors.Count > 0)
                 {
@@ -249,7 +276,8 @@ namespace Shaolin36.Core.Data
                 if (next.Length > 0) chains.Add((lineNo, id, next));
                 techniques.Add(new Technique(id, displayName, category, weight, weapon,
                     startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
-                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape, seal, heal, lunge, hold, knockdown, hitsDown, earlyBlock, hitRecovery));
+                    hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape, seal, heal, lunge, hold, knockdown, hitsDown, earlyBlock, hitRecovery,
+                    jump, cripple, autoChain, guard, grabHits, buff, buffPct));
             }
 
             foreach (var (line, id, next) in chains)
