@@ -1,7 +1,28 @@
 # First playable test: how to play it
 
-You (the orange capsule, with the camera behind you) against an opponent (the dark red capsule) on a square floor in full 3D. **New in this build: the opponent has a brain.** It walks in to reach you, attacks with the same 罗汉拳, 铁砂掌 and 化绵掌 you start with, parries strikes it sees coming, steps aside, punishes your mistakes and backs off when it's out of breath (section 5, "The opponent brain"). The old training dummy that only repeats 罗汉拳 is still there, picked from the loadout screen.
+**New in this build: the demo roguelike run.** The game now opens on a 10-fight run (section "The demo run" below). Press **F4** at any time between fights to switch to the old practice arena (you against an opponent brain or the training dummy, with the loadout menu), and F4 again to go back to the run.
 
+You (the orange capsule, with the camera behind you) against an opponent (the dark red capsule) on a square floor in full 3D. The opponent has a brain: it walks in to reach you, attacks, parries strikes it sees coming, steps aside, punishes your mistakes and backs off when it's out of breath (section 5, "The opponent brain").
+
+## The demo run
+
+A quick test of the roguelike loop. Every number below is in `game\data\run.csv` (open it in Excel, save as CSV UTF-8).
+
+1. **Choose your first move:** 罗汉拳 or 虎形拳 (↑/↓ or W/S, then any button or Enter).
+2. **Choose its button:** press the button you want it on. It stays there all run. You start with **100 HP, 80 stamina and 80 max Qi** (0 Qi to begin with).
+3. **Fight.** The screen before each fight shows the enemy: its brain, HP, stamina, Qi and its moves. Press any button to start.
+4. **Win: pick a reward.** You heal **50% of your max HP**, and your Qi carries over to the next fight (stamina is always full at the start of a fight). Then you choose 1 of **3 rewards**, each a different kind, picked at random from:
+   - **Power up a move you know:** the game picks one of your moves and either **more damage** (+15% each time) or **less stamina** (-15% each time) on every hit of its string. Each move takes **at most 4** power-ups.
+   - **Max HP +20** (up to 200; you gain the 20 HP too).
+   - **Max stamina +10** (up to 130).
+   - **Max Qi +20** (up to 130).
+   - **Learn a new move:** the game picks one of the 7 categories (外功 too), then a move from it that you don't know yet. You then press an **empty** button for it. A move is never replaced, so once all 8 buttons are full, new moves stop being offered.
+5. **The enemies grow:** enemy 1 knows only 罗汉拳 (plus walking and quick step), has 80 HP and the easiest brain. Each new enemy has **one more move** (2, 3, 4 ... up to 8), a new random set of them, and **10 more HP**. From enemy 3 on its 外功 can be 虎形拳 instead of 罗汉拳. Every enemy has 100 stamina and starts with 100 of 100 Qi. The brain gets smarter: 弟子 (novice) for fights 1 to 3, 武僧 (monk) for 4 to 7, 方丈 (master) for 8 to 10. **Enemy 10 is the boss, with 200 HP.**
+6. **Lose once and the run is over:** press any button to start again from the beginning.
+
+During a fight, Tab / Esc / pad Start pauses (your stats and power-ups are on the pause screen). Paused, **Enter gives the run up** and starts over. There is no restart key or "opponent stands still" in the run. The HUD's button line shows `+N` after a move with N power-ups.
+
+The run sheet's keys: `fights`, `player_hp`, `player_stamina`, `player_qi`, `hp_up`/`hp_cap`, `stamina_up`/`stamina_cap`, `qi_up`/`qi_cap`, `upgrade_max`, `upgrade_damage_pct`, `upgrade_stamina_pct`, `win_heal_pct`, `offers`, `enemy_hp`, `enemy_hp_step`, `boss_hp`, `enemy_stamina`, `enemy_qi`, `enemy_qi_start`, `enemy_moves_max`, `enemy_tiger_from`, and the lists `starters`, `enemy_first`, `enemy_waigong` and `brains` (one brain per fight).
 ## 1. Get the new version on your PC
 
 You already have the repo at `D:\GitHub\shaolin-36` in GitHub Desktop.
@@ -36,7 +57,7 @@ If that line says "unknown layout", or a button does the wrong thing, send Claud
 
 ## 4. Controls
 
-Every fight button is a **slot**. Slots don't mean anything on their own: whatever technique you put on a slot is what that button does.
+Every fight button is a **slot**. Slots don't mean anything on their own: whatever technique you put on a slot is what that button does. The table's starting set is the **practice arena's** (F4); in the demo run you pick your own buttons.
 
 | Slot | Gamepad (Dual Action) | Keyboard + mouse | Starts with | Its other move (switch in the pause menu) |
 | --- | --- | --- | --- | --- |
@@ -59,6 +80,7 @@ Every fight button is a **slot**. Slots don't mean anything on their own: whatev
 | Half speed on/off | | F1 |
 | Floating text on/off | | F2 |
 | Feel kit on/off (hit-stop, sparks, sound, camera) | | F3 |
+| Demo run / practice arena | | F4 |
 
 On the **pause menu**, the top seven rows are the categories. Highlight one and press ←/→ (or any button) to switch between its two moves: the new one goes on the same button. The next row, **Opponent's moves**, is "the same as yours" by default, so your opponent always fights with whatever you picked (←/→ switches it back to the starting set). Below that is the button list as before: move up and down to pick a technique (W/S, ↑/↓ or the D-pad), then press the button you want it on. Want 化绵掌 on ✕ instead of L1? Highlight 化绵掌 and press ✕. If something was already on that button, the two swap. Below the techniques, the **Opponent** row picks who you fight: press any button or ←/→ on it to go through 弟子 (novice), 武僧 (monk), 方丈 (master) and the old training dummy. Changing it starts a new duel. Select or T makes the opponent stand still (and fight again). The last row restarts the duel.
 
@@ -302,7 +324,9 @@ Switch them in the pause menu (Tab, Esc or pad Start). The numbers are in `techn
 
 ## 7. The questions for this build
 
-0. **The second moves:** switch each category in the pause menu and try it against an opponent using the same move. Which numbers feel off (虎形拳's leaps, 狮吼功's ring and Qi cost, 纵云梯's distance, 无相劫指's lock time, 硬气功's stamina per block, 龙爪手's tap window, 易筋经.s 1.5x)?
+**First, the demo run:** play a few runs. Is the climb from enemy 1 to the boss about right? Which rewards feel worth taking and which never get picked? Are 15% per power-up and the 50% heal too much or too little? Does an enemy with a random set of moves read as a different opponent each time?
+
+0. **The second moves:** switch each category in the pause menu and try it against an opponent using the same move. Which numbers feel off (虎形拳's leaps, 狮吼功's ring and Qi cost, 纵云梯's distance, 无相劫指's lock time, 硬气功's stamina per block, 龙爪手's tap window, 易筋经's 1.5x)?
 1. **Does it feel like a fight now?** Against the monk, does the opponent close in, attack and defend in a way you can read? Anything it does that looks robotic or unfair?
 2. **Difficulty:** is the novice easy enough to learn on, and the master hard but beatable? Which numbers would you change first (reaction, parry chance, how often it attacks)?
 3. **Guessing:** can you spot its guessed parries and punish them? Does it guess too often or too rarely?

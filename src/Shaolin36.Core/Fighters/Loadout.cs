@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Shaolin36.Core.Data;
 
 namespace Shaolin36.Core.Fighters
@@ -14,6 +15,7 @@ namespace Shaolin36.Core.Fighters
     public sealed class Loadout
     {
         private readonly Technique?[] _slots = new Technique?[Slots.Count];
+        private readonly Dictionary<Technique, MoveUpgrade> _upgrades = new Dictionary<Technique, MoveUpgrade>();
 
         /// <param name="book">Where string follow-ups are looked up. Needed as soon as a technique with a next hit is chained; chaining without it throws.</param>
         public Loadout(TechniqueBook? book = null) => Book = book;
@@ -58,6 +60,39 @@ namespace Shaolin36.Core.Fighters
                 any = true;
             }
             return any;
+        }
+
+        /// <summary>
+        /// Run upgrades on <paramref name="technique"/> (the move on a slot; they cover every hit of its string). They stay with the
+        /// technique, whichever slot it sits on.
+        /// </summary>
+        public MoveUpgrade UpgradesOf(Technique technique) =>
+            _upgrades.TryGetValue(technique ?? throw new ArgumentNullException(nameof(technique)), out var u) ? u : MoveUpgrade.None;
+
+        /// <summary>Set the run upgrades on <paramref name="technique"/>.</summary>
+        public void SetUpgrades(Technique technique, MoveUpgrade upgrade)
+        {
+            if (technique == null) throw new ArgumentNullException(nameof(technique));
+            if (upgrade == null) throw new ArgumentNullException(nameof(upgrade));
+            _upgrades[technique] = upgrade;
+        }
+
+        /// <summary><paramref name="damage"/> from a hit of <paramref name="slotMove"/>'s string, with its damage upgrades (rounded half up).</summary>
+        public int UpgradedDamage(Technique slotMove, int damage)
+        {
+            var u = UpgradesOf(slotMove);
+            return u.DamagePct == 100 ? damage : (damage * u.DamagePct + 50) / 100;
+        }
+
+        /// <summary>
+        /// Stamina a hit of <paramref name="slotMove"/>'s string costs, with its stamina upgrades (rounded half up, and never
+        /// below 1 when it cost something to begin with).
+        /// </summary>
+        public int UpgradedStaminaCost(Technique slotMove, int cost)
+        {
+            var u = UpgradesOf(slotMove);
+            if (u.StaminaPct == 100 || cost == 0) return cost;
+            return Math.Max(1, (cost * u.StaminaPct + 50) / 100);
         }
 
         private static int Index(Slot slot)

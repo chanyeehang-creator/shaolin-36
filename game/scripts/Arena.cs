@@ -7,6 +7,7 @@ using Shaolin36.Core.Combat;
 using Shaolin36.Core.Data;
 using Shaolin36.Core.Feel;
 using Shaolin36.Core.Fighters;
+using Shaolin36.Core.Runs;
 using Side = Shaolin36.Core.Combat.Side;
 
 namespace Shaolin36.Game;
@@ -123,8 +124,10 @@ public partial class Arena : Node3D
 
     /// <param name="techniques">Every technique from the sheet.</param>
     /// <param name="feel">The feel sheet: hit-stop, sparks, sound and camera for each kind of strike.</param>
-    /// <param name="brains">The brain sheet: how each opponent plays. The arena starts against the "monk" row.</param>
-    public Arena(Rules rules, IReadOnlyList<Technique> techniques, FeelSheet feel, BrainSheet brains)
+    /// <param name="brains">The brain sheet: how each opponent plays. Practice starts against the "monk" row.</param>
+    /// <param name="runSheet">The run sheet: the demo roguelike run the arena opens with (F4 switches to practice and back).</param>
+    /// <param name="runSeed">The run's seed (the game rolls one; the core's choices all follow from it).</param>
+    public Arena(Rules rules, IReadOnlyList<Technique> techniques, FeelSheet feel, BrainSheet brains, RunSheet runSheet, int runSeed)
     {
         _rules = rules;
         _feel = feel;
@@ -159,6 +162,7 @@ public partial class Arena : Node3D
         _doubleTap = new DoubleTap(rules.QuickStepTapWindow);
         foreach (var (_, first, second) in MoveSets) { Find(first); Find(second); }
 
+        _run = new Run(runSheet, rules, _book, _starters, runSeed);
         NewDuel();
     }
 
@@ -174,26 +178,29 @@ public partial class Arena : Node3D
         _dodgeSlowTicks = 0;
         _cameraPlaced = false;
         _doubleTap?.Reset();
-        _duel = Duel.Start(_rules, _playerLoadout, _dummyLoadout);
+        _overFrames = 0;
+        _duel = RunFighting ? _run.StartFight() : Duel.Start(_rules, _playerLoadout, _dummyLoadout);
         _healSeenTick[0] = _healSeenTick[1] = -1;
         if (_healVoices[0] != null) { StopHealChannel(Side.One); StopHealChannel(Side.Two); }
         // A new seed each duel, counted up from 1: the brain's choices change from duel to duel but every run is repeatable.
         _duelNumber++;
-        _brain = UsingDummy ? null : new Brain(_brains.Styles[_opponentMode], _duelNumber) { Active = _opponentActive };
+        _brain = RunFighting ? new Brain(RunBrainStyle, _run.Enemy!.BrainSeed)
+            : UsingDummy ? null : new Brain(_brains.Styles[_opponentMode], _duelNumber) { Active = _opponentActive };
         // A brain opponent loses you when you jump over it (纵云梯) and finds you again after standing still its relock time.
         _duel.Two.CanLoseLock = _brain != null;
         _duel.Two.RelockFrames = _brain?.Style.Relock ?? 0;
         _dummy.Attacks = _opponentActive;
+        if (RunFighting) _brain!.Active = true;
         _clock = new FeelClock(_duel, _feel) { HitStopOn = _feelOn };
         _combo = 0;
         _comboBy = null;
         ClearFloats();
     }
 
-    private bool UsingDummy => _opponentMode >= _brains.Styles.Count;
+    private bool UsingDummy => !RunFighting && _opponentMode >= _brains.Styles.Count;
 
     /// <summary>The opponent's name for the screen: the brain row's name, or "Training dummy".</summary>
-    private string OpponentName => UsingDummy ? "Training dummy" : _brains.Styles[_opponentMode].Name;
+    private string OpponentName => RunFighting ? RunBrainStyle.Name : UsingDummy ? "Training dummy" : _brains.Styles[_opponentMode].Name;
 
     /// <summary>This tick's buttons and stick for the opponent. Not called during hit-stop, so its timers stay in step with the fight.</summary>
     private BrainInput OpponentInput()
@@ -307,7 +314,7 @@ public partial class Arena : Node3D
         _menuBack = new ColorRect { Color = new Color(0, 0, 0, 0.8f), Position = new Vector2(100, 120), Size = new Vector2(940, 500), Visible = false };
         foreach (var c in new Control[] { _status, _event, _pad, _help, legend, _menuBack, _menu }) hud.AddChild(c);
 
-        _event.Text = "Walk any way with W/A/S/D or the left stick: the camera stays behind you, locked on to your opponent. Fight with your slot buttons. Tab / Start pauses: switch each category between its two moves (your opponent copies you), or pick the opponent. T / Select makes it stand still.";
+        _event.Text = _runMode ? "Demo run: choose your first move. (F4 switches to the practice arena.)" : "Walk any way with W/A/S/D or the left stick: the camera stays behind you, locked on to your opponent. Fight with your slot buttons. Tab / Start pauses: switch each category between its two moves (your opponent copies you), or pick the opponent. T / Select makes it stand still.";
         RefreshMenu();
     }
 
@@ -421,6 +428,13 @@ public partial class Arena : Node3D
 
         var command = Controls.CommandOf(e);
         var slot = Controls.SlotPressed(e);
+
+        if (command == Command.ModeToggle)
+        {
+            ToggleRunMode();
+            return;
+        }
+        if (_runMode && RunInput(e, command, slot)) return;
 
         if (command == Command.DummyToggle)
         {
@@ -570,6 +584,11 @@ public partial class Arena : Node3D
 
     private void RefreshMenu()
     {
+        if (_runMode)
+        {
+            RefreshRunScreen();
+            return;
+        }
         _menu.Visible = _menuOpen;
         _menuBack.Visible = _menuOpen;
         if (!_menuOpen) return;
@@ -618,7 +637,8 @@ public partial class Arena : Node3D
     {
         _physicsFrame++;
         bool halfSpeed = _slowMotion || _dodgeSlowTicks > 0;
-        if (!_menuOpen && !(halfSpeed && _physicsFrame % 2 == 1))
+        if (_duel.IsOver) _overFrames++;
+        if (!_menuOpen && !RunScreenUp && !(halfSpeed && _physicsFrame % 2 == 1))
         {
             if (_dodgeSlowTicks > 0) _dodgeSlowTicks--;
             Step();
@@ -683,7 +703,13 @@ public partial class Arena : Node3D
         ExhaustionChanged(Side.One, oneWasExhausted);
         ExhaustionChanged(Side.Two, twoWasExhausted);
 
-        if (_duel.IsOver)
+        if (_duel.IsOver && _runMode)
+        {
+            _event.Text += _duel.Two.IsDown
+                ? $"\n[font_size=28][b]You win fight {_run.FightNumber}![/b][/font_size]  Press any button to go on."
+                : "\n[font_size=28][b]You were defeated.[/b][/font_size]  Press any button.";
+        }
+        else if (_duel.IsOver)
         {
             var winner = _duel.Two.IsDown ? "You win" : "Your opponent wins";
             _event.Text += $"\n[font_size=28][b]{winner}![/b][/font_size]  Press Enter, or Start on the pad, to fight again.";
@@ -707,7 +733,7 @@ public partial class Arena : Node3D
         var f = _duel.One;
         foreach (var s in Slots.All)
         {
-            var t = _playerLoadout[s];
+            var t = PlayerLoadout[s];
             if (!input.IsPressed(s) || t == null) continue;
             if (f.IsSealedFrom(t)) Float(Side.One, t.Category == Category.Qinggong ? "轻功 locked!" : "外功 sealed!", SealColor);
             else if (f.Qi < t.QiCost) Float(Side.One, $"Need {t.QiCost} Qi", QiColor);
@@ -762,7 +788,7 @@ public partial class Arena : Node3D
     {
         foreach (var s in Slots.All)
         {
-            var t = _playerLoadout[s];
+            var t = PlayerLoadout[s];
             if (input.IsPressed(s) && t != null && !_duel.One.CanAfford(t)) return true;
         }
         return false;
@@ -1089,13 +1115,15 @@ public partial class Arena : Node3D
         _status.Text =
             $"[b]You[/b]    HP {Bar(_duel.One)}{SealIcon(_duel.One)}{LockIcon(_duel.One)}{BuffIcon(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
             $"[b]Foe[/b]   HP {Bar(_duel.Two)}{SealIcon(_duel.Two)}{LockIcon(_duel.Two)}{BuffIcon(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
-            $"Distance {_duel.DistanceCm} cm   ·   {OpponentName}: {(_opponentActive ? Thinking() : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_clock.IsFrozen ? " [color=#ffd11a](hit-stop)[/color]" : "")}   ·   feel kit {(_feelOn ? "on" : "[color=#ffd11a]off[/color]")} (F3){(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
+            (_runMode ? RunStatusLine() : "") +
+            $"Distance {_duel.DistanceCm} cm   ·   {OpponentName}: {(_opponentActive || RunFighting ? Thinking() : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_clock.IsFrozen ? " [color=#ffd11a](hit-stop)[/color]" : "")}   ·   feel kit {(_feelOn ? "on" : "[color=#ffd11a]off[/color]")} (F3){(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
+        if (RunScreenUp) _status.Text = ""; // a run screen is up: no duel to show
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  ✕ 轻功 (aim with a direction; the dash breaks combos, 纵云梯 jumps over)  ·  ○ 点穴  ·  R1 炼气  ·  R2 擒拿 (beats parry and guard; grabbed: press a grab to break out)  ·  L1 防身 (硬气功: hold)  ·  Knocked down: any button rises, a direction rolls  ·  Pause menu (switch each category's move): Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
-            "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
-                .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
+            (_runMode ? "Demo run (F4: practice arena)  ·  " : "Practice arena (F4: back to the demo run)  ·  ") + "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  ✕ 轻功 (aim with a direction; the dash breaks combos, 纵云梯 jumps over)  ·  ○ 点穴  ·  R1 炼气  ·  R2 擒拿 (beats parry and guard; grabbed: press a grab to break out)  ·  L1 防身 (硬气功: hold)  ·  Knocked down: any button rises, a direction rolls  ·  " + (_runMode ? "Pause: Tab / Esc / pad Start  ·  " : "Pause menu (switch each category's move): Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  ") + "Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Buttons: " + string.Join("   ", Slots.All.Where(s => PlayerLoadout[s] != null)
+                .Select(s => $"{Slots.Label(s)} {PlayerLoadout[s]!.Name}{UpgradeMark(PlayerLoadout, PlayerLoadout[s]!)} ({Controls.LabelOf(s)})"));
     }
 
     /// <summary>A floor point in metres in the scene (core X and Z are the scene's X and Z).</summary>

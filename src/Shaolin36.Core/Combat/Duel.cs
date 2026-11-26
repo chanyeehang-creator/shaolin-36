@@ -310,15 +310,23 @@ namespace Shaolin36.Core.Combat
         /// <param name="oneQi">Qi fighter One starts with; null for the rules sheet's qi_start. A run passes what it carried over.</param>
         /// <param name="twoQi">Qi fighter Two starts with; null for qi_start.</param>
         public Duel(Rules rules, Loadout one, Loadout two, int onePositionCm, int twoPositionCm, int? oneQi = null, int? twoQi = null)
+            : this(rules, one, two, onePositionCm, twoPositionCm, FighterStats.FromRules(rules, oneQi), FighterStats.FromRules(rules, twoQi))
+        {
+        }
+
+        /// <summary>A duel where each fighter brings its own max HP, stamina and Qi and what it has left (a run's fights).</summary>
+        public Duel(Rules rules, Loadout one, Loadout two, int onePositionCm, int twoPositionCm, FighterStats oneStats, FighterStats twoStats)
         {
             if (rules == null) throw new ArgumentNullException(nameof(rules));
+            if (oneStats == null) throw new ArgumentNullException(nameof(oneStats));
+            if (twoStats == null) throw new ArgumentNullException(nameof(twoStats));
             Rules = rules;
             _fighters = new[]
             {
-                new Fighter(one, rules.HpMax, onePositionCm, rules.InputBuffer, StaminaRules.FromRules(rules),
-                    rules.QiMax, oneQi ?? rules.QiStart, QuickStepRules.FromRules(rules), DownRules.FromRules(rules)),
-                new Fighter(two, rules.HpMax, twoPositionCm, rules.InputBuffer, StaminaRules.FromRules(rules),
-                    rules.QiMax, twoQi ?? rules.QiStart, QuickStepRules.FromRules(rules), DownRules.FromRules(rules)),
+                new Fighter(one, oneStats.MaxHp, onePositionCm, rules.InputBuffer, StaminaRules.FromRules(rules).WithMax(oneStats.MaxStamina),
+                    oneStats.MaxQi, oneStats.Qi, QuickStepRules.FromRules(rules), DownRules.FromRules(rules), oneStats.Hp),
+                new Fighter(two, twoStats.MaxHp, twoPositionCm, rules.InputBuffer, StaminaRules.FromRules(rules).WithMax(twoStats.MaxStamina),
+                    twoStats.MaxQi, twoStats.Qi, QuickStepRules.FromRules(rules), DownRules.FromRules(rules), twoStats.Hp),
             };
             One.GrabStrikeGap = Two.GrabStrikeGap = rules.GrabStrikeGap;
             One.Facing = Two.Position - One.Position;
@@ -336,6 +344,14 @@ namespace Shaolin36.Core.Combat
             if (rules == null) throw new ArgumentNullException(nameof(rules));
             int left = -(rules.StartDistance / 2);
             return new Duel(rules, one, two, left, left + rules.StartDistance, oneQi, twoQi);
+        }
+
+        /// <summary>A duel with the fighters start_distance apart, each with its own <see cref="FighterStats"/>.</summary>
+        public static Duel Start(Rules rules, Loadout one, Loadout two, FighterStats oneStats, FighterStats twoStats)
+        {
+            if (rules == null) throw new ArgumentNullException(nameof(rules));
+            int left = -(rules.StartDistance / 2);
+            return new Duel(rules, one, two, left, left + rules.StartDistance, oneStats, twoStats);
         }
 
         /// <summary>Ticks run so far. The next tick is numbered this.</summary>
