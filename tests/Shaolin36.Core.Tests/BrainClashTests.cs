@@ -118,16 +118,37 @@ public class BrainClashTests
     }
 
     [Fact]
-    public void Seals_and_grabs_are_never_clashed()
+    public void It_perfect_clashes_your_fengxue_wind_up()
     {
-        var brain = new Brain(Style(clash: 100, perfect: 100), 1);
-        var sealed_ = YouStrike(brain, Slot.R1);
-        Assert.All(sealed_.Hits, h => Assert.Equal(ClashOutcome.NoClash, h.Clash));
+        // Chan: 封穴 is light and clashable, so a fighter who reads its wind-up can clash it back. 30-frame wind-up, clash window
+        // frames 24-29, perfect 24-25. With a quick reaction (10) its 罗汉拳 hit 1 (13 frames) makes the perfect frames.
+        var brain = new Brain(Style(reaction: 10, clash: 100, perfect: 100), 1);
+        var d = YouStrike(brain, Slot.R1);
+        var hit = d.Hits.First();
+        Assert.Equal(Side.Two, hit.Attacker);
+        Assert.Equal(ClashOutcome.PerfectClash, hit.Clash);
+        Assert.InRange(hit.DefenderMoveFrame, 24, 25);
+    }
 
+    [Fact]
+    public void In_the_plain_frames_its_medium_jab_breaks_through_your_light_fengxue()
+    {
+        // The master's reaction (12): too late for the perfect frames, in time for the plain ones (26-29). Medium beats light.
+        var brain = new Brain(Style(reaction: 12, clash: 100, perfect: 100), 1);
+        var d = YouStrike(brain, Slot.R1);
+        var hit = d.Hits.First();
+        Assert.Equal(Side.Two, hit.Attacker);
+        Assert.Equal(ClashOutcome.StrikerWins, hit.Clash);
+        Assert.True(hit.Damage > 0);
+    }
+
+    [Fact]
+    public void Grabs_are_never_clashed()
+    {
         var grabber = Starter();
         grabber.Assign(Slot.R2, Book.Find("qinna_shou")!);
-        var brain2 = new Brain(Style(clash: 100, perfect: 100), 1);
-        var grabbed = YouStrike(brain2, Slot.R2, apart: 95, you: grabber);
+        var brain = new Brain(Style(clash: 100, perfect: 100), 1);
+        var grabbed = YouStrike(brain, Slot.R2, apart: 95, you: grabber);
         Assert.All(grabbed.Hits, h => Assert.Equal(ClashOutcome.NoClash, h.Clash));
     }
 
@@ -150,7 +171,8 @@ public class BrainClashTests
             for (int seed = 1; seed <= 200; seed++)
             {
                 var d = YouStrike(new Brain(sheet.Find(id)!, seed), Slot.Triangle, ticks: 40);
-                if (d.Hits.Any(h => h.Attacker == Side.Two && h.Clash != ClashOutcome.NoClash)) n++;
+                // A clash it timed never loses (a 封穴 thrown on its own into your palm's window can, and doesn't count).
+                if (d.Hits.Any(h => h.Attacker == Side.Two && h.Clash != ClashOutcome.NoClash && h.Clash != ClashOutcome.TargetWins)) n++;
             }
             return n;
         }

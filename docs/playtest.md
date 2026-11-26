@@ -105,7 +105,7 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 **铁砂掌 (iron palm), on △:** one heavy palm strike instead of a string.
 
 - Wind-up 36 frames (0.6 s), hit 4 frames, recovery 36 frames (0.6 s): 76 frames in all, about 1.3 s. Easy to see coming and very punishable if it misses.
-- Costs 20 stamina, deals 15 damage, freezes the dummy for 40 frames, reaches 130 cm. It's heavy, so it wins normal clashes against 罗汉拳 hits 1 to 3.
+- Costs 20 stamina, deals 15 damage, freezes the dummy for 40 frames, reaches 130 cm. It's heavy, so it wins normal clashes against every 罗汉拳 hit.
 - **With 30 Qi or more, it powers up automatically:** it spends 30 Qi ("Qi 铁砂掌!" and "-30 Qi" float up), deals **double damage (30)**, and has **hyper armor** until it lands: the capsule winds up in deep gold instead of yellow, and if the dummy hits you then, you still lose the HP ("Armor!") but your palm keeps going. The armor ends once the palm has struck, so the 0.6 s recovery is still open.
 - Armor doesn't beat 化绵掌: a perfect parry still staggers it. Clashes still work the normal way.
 - Under 30 Qi it's the plain palm and your Qi is kept.
@@ -113,7 +113,7 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 **点穴 封穴 (seal), on ○:** one finger strike that seals your opponent's 外功.
 
 - Wind-up 30 frames (0.5 s, standing still), then a **140 cm lunge** over 8 frames (0.13 s) with the hit going along with your body, then recovery 60 frames (1 s) if it misses: 98 frames in all. **If it hits, you're free 24 frames (0.4 s) after the hit**, a few frames before their 30-frame hitstun ends, so a landed 封穴 doesn't leave you open; a miss (or a block) does. The lunge sits between the quick step (70 / 90 cm) and the 轻功 dash (200 cm), so 封穴 connects from up to 255 cm away. The wind-up is long enough to parry or step on reaction, and a miss leaves you open for a second (a hit during the recovery interrupts it like any move).
-- Costs 25 stamina (a 罗汉拳 hit costs 8), deals only 4 damage, freezes for 30 frames, reaches 115 cm from your body, and can't clash.
+- Costs 25 stamina (a 罗汉拳 hit costs 8), deals only 4 damage, freezes for 30 frames, reaches 115 cm from your body. It's light and can be clashed (Chan): read its long wind-up and clash it back.
 - **On a landed hit the target can't use 外功 (罗汉拳) for 5 s.** 铁砂掌 is 内功 (a heavy strike), so it still works. A purple **【封】** icon and the seconds left show by their HP bar. 铁砂掌, parry, 轻功, quick step, 点穴 and 仙辽术 still work. A blocked, parried or dodged 点穴 seals nothing.
 
 **仙辽术 (healing qigong), on R1:** spend 10 Qi to heal 10 HP.
@@ -143,7 +143,7 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 
 **The opponent grabs too:** at each choice in grab reach it rolls the brain sheet's `grab` chance first (novice 10, monk 20, master 30). It never tries to parry your grab; it steps or dashes if it reacts in time, but at 10 frames most grabs are too fast to react to.
 
-**Clashes (拼招):** if your hit lands in the last frames of the dummy's wind-up, the moves clash. Same weight: both bounce off (grey). Heavier move: it breaks through. Lighter move: it gets knocked aside. Hit the very first frames of that window and it's a **PERFECT CLASH**: the dummy is staggered whatever the weights. The 罗汉拳 finisher (hit 4) is heavy, so it wins normal clashes against hits 1 to 3.
+**Clashes (拼招):** if your hit lands in the last frames of the dummy's wind-up, the moves clash. Same weight: both bounce off (grey). Heavier move: it breaks through. Lighter move: it gets knocked aside. Hit the very first frames of that window and it's a **PERFECT CLASH**: the dummy is staggered whatever the weights. Weights (Chan's): 罗汉拳 hit 1 medium, hits 2 and 3 light, hit 4 medium; 铁砂掌 heavy (with or without Qi); 封穴 light. So hit 1 against the finisher bounces off, and hit 1 breaks through a 封穴 wind-up.
 
 **Feel kit (Stage 2):** every strike now lands with a short freeze (**hit-stop**), a burst of sparks with a flash of light, a sound, and a camera shake. The big moments also push the camera in a little. Press **F3** to switch it all off and on, so you can feel the difference.
 
@@ -201,7 +201,7 @@ Things worth knowing when you fight it:
 
 - **Every duel starts 300 cm apart** and the brain waits half a second (30 frames) before it moves, so a new duel or a restart never opens with you getting hit. Walking in at 200 cm per second, it needs about 1.4 s in all to reach you. (The old training dummy never walks, so walk up to it.)
 - **罗汉拳 hit 1 lands 13 frames (0.22 s) after you press**, faster than any of the brains can react (12 frames to see it plus 2 to open a parry is already 14). So your opening jab only gets parried when the brain **guesses**. Its slow moves are different: your 铁砂掌 winds up for 36 frames (0.6 s), and every brain sees that coming in time.
-- **It clashes on reaction, so only slow strikes.** Your 铁砂掌's clash window is frames 28-35 of its 36-frame wind-up (perfect on 28-29). Its quickest clashable move is 罗汉拳 hit 1 (13 frames), and 罗汉拳 is lighter, so it has to hit the perfect frames: it must press by frame 16. The master sees your palm on frame 12 and can; the monk (18) and the novice (24) see it too late. The top line shows "clashing into it (拼招)" while it waits for its frame. 封穴 and 擒拿手 can't be clashed.
+- **It clashes on reaction, so only slow strikes.** Your 铁砂掌's clash window is frames 28-35 of its 36-frame wind-up (perfect on 28-29). Its quickest clashable move is 罗汉拳 hit 1 (13 frames), and 罗汉拳 is lighter, so it has to hit the perfect frames: it must press by frame 16. The master sees your palm on frame 12 and can; the monk (18) and the novice (24) see it too late. Your 封穴 (30-frame wind-up, window frames 24-29, perfect 24-25) is light, so the master's medium 罗汉拳 breaks through it in the plain frames: a hit, not just a bounce. The top line shows "clashing into it (拼招)" while it waits for its frame. 擒拿手 can't be clashed.
 - **A wrong guess is your chance.** When it throws 化绵掌 and nothing comes, it's stuck for 29 frames (0.48 s) and paid 10 stamina. Wait for the parry colours to pass, then hit it.
 - **After it blocks one hit, it can block the next only if the gap is long enough.** A block costs 5 frames of recovery, a new parry takes 2 frames to open and its window starts with 3 block frames. 罗汉拳 hit 3 lands 9 frames after hit 2, so a parry re-pressed straight after a block is in time to block it. The same is true for you when it attacks you.
 - **It gets tired like you do.** Every parry costs it 10 stamina and every strike its own cost. When it backs off to breathe, chase it.

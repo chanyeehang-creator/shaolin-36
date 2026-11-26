@@ -310,8 +310,8 @@ public class ClashParryDuelTests
 
     /// <summary>
     /// The opponent starts the 罗汉拳 finisher; you start hit 1 some frames later. Hitting the
-    /// first frames of its clash window is a perfect clash; the rest of the window is a normal
-    /// clash you lose because the finisher is heavy; earlier is a plain hit. Worked out from
+    /// first frames of its clash window is a perfect clash; the rest of the window is a same-weight
+    /// clash (Chan's weights: hit 1 and the finisher are both medium), so both recoil; earlier is a plain hit. Worked out from
     /// the sheet so it holds after tuning.
     /// </summary>
     [Fact]
@@ -346,7 +346,7 @@ public class ClashParryDuelTests
         for (int i = 0; i < finisher.PerfectClashFrames; i++)
             Assert.Equal(ClashOutcome.PerfectClash, Contact(windowDelay + i));
         for (int i = finisher.PerfectClashFrames; i < finisher.ClashWindowFrames; i++)
-            Assert.Equal(ClashOutcome.TargetWins, Contact(windowDelay + i));
+            Assert.Equal(ClashOutcome.BothRecoil, Contact(windowDelay + i));
         Assert.Equal(ClashOutcome.NoClash, Contact(windowDelay - 1));
     }
 

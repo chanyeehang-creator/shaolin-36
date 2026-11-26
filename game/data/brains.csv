@@ -22,7 +22,7 @@
 # clash       = the chance it answers a strike it sees coming with a clash (拼招), rolled before parry: it times one of its own strikes to land in
 #               your move's clash window. perfect is then the chance it aims for the perfect frames (your move breaks, it gains Qi); otherwise it
 #               aims for the plain frames with a move at least as heavy as yours. It must see your move in time, so it clashes slow strikes:
-#               your 铁砂掌 (36-frame wind-up, window frames 28-35) against its 罗汉拳 hit 1 (13). 封穴 and 擒拿手 can't be clashed.
+#               your 铁砂掌 (36-frame wind-up, window frames 28-35) or 封穴 (30, window 24-29) against its 罗汉拳 hit 1 (13). 擒拿手 can't be clashed.
 #               The novice (reaction 24) sees 铁砂掌 too late to clash it, so it practically never clashes; the master (12) can always try.
 id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,heal,grab,clash,note
 novice,弟子 (novice),24,30,35,30,60,15,20,10,40,20,15,5,20,10,5,Slow to react and rarely parries: for learning the duel
