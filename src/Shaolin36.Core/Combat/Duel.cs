@@ -687,7 +687,7 @@ namespace Shaolin36.Core.Combat
         /// <summary>A strike passed through <paramref name="dodger"/>'s invincible frames: a just dodge, unless the dash was a combo escape.</summary>
         private void JustDodge(Side attacker, Technique move, bool empowered, Fighter dodger, List<HitEvent> into)
         {
-            // A dash out of hitstun, or a rise or roll from a knockdown, slips the strike but earns nothing.
+            // A dash out of hitstun, a rise or roll from a knockdown, or a quick step, slips the strike but earns nothing.
             // 纵云梯's leap has invincible frames but no just dodge.
             if (dodger.EscapedHitstun || !dodger.State.IsInMove() || dodger.Technique!.IsJump) return;
             int qi = dodger.GainQi(Rules.JustDodgeQi);

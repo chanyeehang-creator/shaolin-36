@@ -5,13 +5,16 @@ namespace Shaolin36.Core.Fighters
 {
     /// <summary>
     /// The quick step's numbers (from the rules sheet): a short, fast step in one of four directions that
-    /// anyone can do at any time they're free. Not a roll or a dash: no invincible frames and no perfect-timing
-    /// dodge, just a quick way to change distance or get off the line of a strike.
+    /// anyone can do at any time they're free. Not a roll or a dash: a few invincible frames while it slides (fewer
+    /// than the 轻功 dash's, and none in its recovery), but no just dodge: a strike it slips earns nothing.
     /// </summary>
     public sealed class QuickStepRules
     {
-        public QuickStepRules(int distanceCm, int moveFrames, int recoveryFrames, int stamina, int? sideDistanceCm = null)
+        public QuickStepRules(int distanceCm, int moveFrames, int recoveryFrames, int stamina, int? sideDistanceCm = null, int invincibleFrames = 0)
         {
+            if (invincibleFrames < 0 || invincibleFrames > moveFrames)
+                throw new ArgumentOutOfRangeException(nameof(invincibleFrames), invincibleFrames, "between 0 and the slide's frames: the recovery is never invincible");
+            InvincibleFrames = invincibleFrames;
             SideDistanceCm = sideDistanceCm ?? distanceCm;
             if (SideDistanceCm < 0) throw new ArgumentOutOfRangeException(nameof(sideDistanceCm), sideDistanceCm, "the distance cannot be negative");
             if (distanceCm < 0) throw new ArgumentOutOfRangeException(nameof(distanceCm), distanceCm, "the distance cannot be negative");
@@ -29,7 +32,7 @@ namespace Shaolin36.Core.Fighters
         {
             if (rules == null) throw new ArgumentNullException(nameof(rules));
             return new QuickStepRules(rules.QuickStepDistance, rules.QuickStepFrames, rules.QuickStepRecovery, rules.QuickStepStamina,
-                rules.QuickStepSideDistance);
+                rules.QuickStepSideDistance, rules.QuickStepInvincible);
         }
 
         /// <summary>How far a forward or back step goes, in centimetres.</summary>
@@ -43,6 +46,9 @@ namespace Shaolin36.Core.Fighters
 
         /// <summary>Frames after the slide before the fighter is free again.</summary>
         public int RecoveryFrames { get; }
+
+        /// <summary>The step's first this many frames are invincible (at most <see cref="MoveFrames"/>).</summary>
+        public int InvincibleFrames { get; }
 
         /// <summary>Stamina paid when the step starts.</summary>
         public int Stamina { get; }

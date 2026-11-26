@@ -372,7 +372,8 @@ namespace Shaolin36.Core.Fighters
 
         /// <summary>True while strikes pass through this fighter: the invincible frames at the start of a move such as a 轻功 dash.</summary>
         public bool IsInvincible =>
-            State.IsInMove() && Technique!.IsInvincible(MoveFrame) || State == FighterState.Rising || State == FighterState.Rolling;
+            State.IsInMove() && Technique!.IsInvincible(MoveFrame) || State == FighterState.Rising || State == FighterState.Rolling
+            || State == FighterState.QuickStep && QuickStepFrame < QuickStepRules!.InvincibleFrames;
 
         /// <summary>True while in the air in a 纵云梯 leap (its startup and active frames): passes over the other fighter.</summary>
         public bool IsAirborne => State.IsInMove() && Technique!.IsJump && MoveFrame < Technique.DashFrames;

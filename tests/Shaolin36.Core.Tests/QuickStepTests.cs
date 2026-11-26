@@ -8,7 +8,8 @@ namespace Shaolin36.Core.Tests;
 
 /// <summary>
 /// The quick step: double-tap one of the four directions for a short, fast step that way, relative to the lock-on.
-/// Anyone can do it whenever they're free. It costs a little stamina and has no invincible frames.
+/// Anyone can do it whenever they're free. It costs a little stamina. Its slide has quick_step_invincible invincible frames
+/// (Chan: the whole slide, fewer than the 轻功 dash's), its recovery none, and a strike it slips earns nothing (no just dodge).
 /// </summary>
 public class QuickStepTests
 {
@@ -221,10 +222,10 @@ public class QuickStepTests
         Assert.Equal(-70, d.One.XCm);
     }
 
-    // ---------- No invincibility ----------
+    // ---------- Invincible slide, open recovery ----------
 
     [Fact]
-    public void A_strike_that_reaches_you_mid_step_lands_and_stops_the_step()
+    public void With_no_invincible_frames_a_strike_that_reaches_you_mid_step_lands_and_stops_the_step()
     {
         var d = NewDuel(90);
         d.Step(None, Square);
@@ -239,6 +240,65 @@ public class QuickStepTests
         d.Step(None, None);
         Assert.Equal(x, d.One.XCm); // the rest of the step is dropped
         Assert.Equal(0, d.QuickStepLeftCm(Side.One));
+    }
+
+    /// <summary>The jab from 110 cm lands on tick 10; One quick-steps forward (to 80 cm, still in reach) on <paramref name="stepTick"/>.</summary>
+    private static (Duel duel, int qiBefore) StepIntoJab(int stepTick, int invincible)
+    {
+        var d = NewDuel(110, RulesWith(("quick_step_invincible", invincible.ToString())));
+        int qi = d.One.Qi;
+        for (int t = 0; t < 16; t++) d.Step(None, t == 0 ? Square : None, t == stepTick ? Step(F) : Stand, Stand);
+        return (d, qi);
+    }
+
+    [Fact]
+    public void A_strike_landing_in_the_invincible_slide_passes_through_and_earns_nothing()
+    {
+        // Stepped on tick 5: the jab lands on the step's 6th frame, inside its 8 invincible frames.
+        var (d, qi) = StepIntoJab(stepTick: 5, invincible: 8);
+        Assert.Empty(d.Hits); // no hit, and no just dodge either
+        Assert.Equal(qi, d.One.Qi);
+        Assert.Equal(d.One.MaxHp, d.One.Hp);
+    }
+
+    [Fact]
+    public void A_strike_landing_in_the_step_recovery_hits()
+    {
+        // Stepped on tick 0: the jab lands on the step's 11th frame, in its recovery (frames 9 to 14).
+        var (d, _) = StepIntoJab(stepTick: 0, invincible: 8);
+        var hit = Assert.Single(d.Hits);
+        Assert.True(hit.Landed);
+    }
+
+    [Fact]
+    public void Only_the_first_quick_step_invincible_frames_are_invincible()
+    {
+        var d = NewDuel(200, RulesWith(("quick_step_invincible", "5")));
+        d.Step(None, None, Step(B), Stand);
+        var seen = new List<bool> { d.One.IsInvincible };
+        for (int t = 1; t < 14; t++)
+        {
+            d.Step(None, None);
+            seen.Add(d.One.IsInvincible);
+        }
+        Assert.Equal(new[] { true, true, true, true, true, false, false, false, false, false, false, false, false, false }, seen);
+    }
+
+    [Fact]
+    public void The_recovery_is_never_invincible()
+    {
+        var r = RulesCsv.Parse(Make.RulesText(("exhausted_until", "50"), ("qi_start", "0"), ("input_buffer", "6"),
+            ("quick_step_frames", "8"), ("quick_step_invincible", "9")));
+        Assert.Contains(r.Errors, e => e.Contains("quick_step_invincible"));
+    }
+
+    [Fact]
+    public void On_the_sheet_the_whole_slide_is_invincible_and_shorter_than_the_dash()
+    {
+        var rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
+        var dash = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques.First(t => t.Id == "qinggong_dash");
+        Assert.Equal(rules.QuickStepFrames, rules.QuickStepInvincible); // Chan: the whole step but not the recovery
+        Assert.True(rules.QuickStepInvincible < dash.InvincibleFrames);
     }
 
     // ---------- What it's for ----------
@@ -292,10 +352,10 @@ public class QuickStepTests
     }
 
     [Fact]
-    public void Stepping_too_late_still_gets_you_hit()
+    public void Stepping_just_before_the_punch_slips_it_on_the_invincible_frames()
     {
-        // 罗汉拳 hit 1 comes out on frame 13; stepping on frame 10 isn't enough.
-        Assert.Single(DodgeLuohan(StepDirection.Right, stepTick: 10).Hits);
+        // 罗汉拳 hit 1 comes out on frame 13; a step on frame 10 hasn't moved far enough, but the slide is invincible.
+        Assert.Empty(DodgeLuohan(StepDirection.Right, stepTick: 10).Hits);
     }
 
     [Fact]

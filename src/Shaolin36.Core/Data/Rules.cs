@@ -26,7 +26,7 @@ namespace Shaolin36.Core.Data
             "quick_step_side_distance", "opponent_ready", "just_dodge_qi",
             "down_min", "down_max", "rise_frames", "roll_frames", "roll_distance",
             "block_stamina_light", "block_stamina_medium", "block_stamina_heavy", "block_heavy_damage_pct",
-            "cripple_walk_pct", "grab_strike_gap", "grab_break_recoil", "grab_break_push", "relock_turn_frames",
+            "cripple_walk_pct", "grab_strike_gap", "grab_break_recoil", "grab_break_push", "relock_turn_frames", "quick_step_invincible",
         };
 
         private readonly Dictionary<string, int> _values;
@@ -104,6 +104,8 @@ namespace Shaolin36.Core.Data
 
         /// <summary>How far a left or right quick step goes, in centimetres.</summary>
         public int QuickStepSideDistance => V("quick_step_side_distance");
+        /// <summary>Quick step: its first this many frames are invincible (never more than quick_step_frames: the recovery never is).</summary>
+        public int QuickStepInvincible => V("quick_step_invincible");
 
         /// <summary>Frames a quick step slides over.</summary>
         public int QuickStepFrames => V("quick_step_frames");
@@ -273,6 +275,8 @@ namespace Shaolin36.Core.Data
                 Check(values["grab_break_recoil"] >= 1, "grab_break_recoil", "must be at least 1 frame");
                 Check(values["grab_break_push"] <= 300, "grab_break_push", "must be 300 cm or less");
                 Check(values["quick_step_frames"] >= 1, "quick_step_frames", "must be at least 1 frame");
+                Check(values["quick_step_invincible"] <= values["quick_step_frames"], "quick_step_invincible",
+                    $"({values["quick_step_invincible"]}) cannot be more than 'quick_step_frames' ({values["quick_step_frames"]}): the recovery is never invincible");
                 Check(values["quick_step_tap_window"] >= 1 && values["quick_step_tap_window"] <= 30, "quick_step_tap_window",
                     "must be between 1 and 30 frames (half a second)");
             }
