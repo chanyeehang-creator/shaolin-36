@@ -73,7 +73,7 @@ public partial class Arena : Node3D
         ("点穴", "fengxue", "wuxiang_zhi_1"),
         ("防身", "timed_parry", "yingqi_gong"),
         ("擒拿", "qinna_shou", "longzhua_shou"),
-        ("气功", "xianliao_shu", "lianqi"),
+        ("炼气", "xianliao_shu", "yijinjing"),
     };
 
     /// <summary>Menu rows above the technique list: one per move set, then the opponent-moves row.</summary>
@@ -718,7 +718,7 @@ public partial class Arena : Node3D
 
     private static string Seconds(int frames) => $"{frames / (double)Sim.TicksPerSecond:0.0}s";
 
-    /// <summary>Say so when a 气功 heal lands, or when a hit cancels one before it does.</summary>
+    /// <summary>Say so when a 炼气 heal lands, or when a hit cancels one before it does.</summary>
     private readonly int[] _healSeenTick = { -1, -1 };
 
     private void HealsThisTick(Side side, Technique? before, IReadOnlyList<HitEvent> hits)
@@ -733,7 +733,7 @@ public partial class Arena : Node3D
         {
             PlayHealDone(side);
             _event.Text = $"[color=#ffd640][b]{f.Technique!.Name}[/b][/color] {(you ? "Your" : "Your opponent's")} damage is x{f.BuffDamagePct / 100.0:0.0#} for {Seconds(f.BuffFramesLeft)}.";
-            if (_floatingText) Float(side, $"炼气 x{f.BuffDamagePct / 100.0:0.0#}!", QiColor);
+            if (_floatingText) Float(side, $"易筋经 x{f.BuffDamagePct / 100.0:0.0#}!", QiColor);
             return;
         }
         if (f.HealedThisTick > 0)
@@ -752,7 +752,7 @@ public partial class Arena : Node3D
             _event.Text += you
                 ? $"\n[color=#ff6666][b]{before.Name} broken![/b][/color] The hit stopped it; the {before.QiCost} Qi is gone."
                 : $"\n[color=#7dffb0][b]You broke its {before.Name}![/b][/color] Nothing from it, and its {before.QiCost} Qi is gone.";
-            if (_floatingText) Float(side, before.IsHeal ? "Heal broken!" : "炼气 broken!", DamageOnYouColor);
+            if (_floatingText) Float(side, before.IsHeal ? "Heal broken!" : "易筋经 broken!", DamageOnYouColor);
             return;
         }
     }
@@ -934,7 +934,7 @@ public partial class Arena : Node3D
     private static readonly Color QiColor = new(1.00f, 0.84f, 0.25f);
     /// <summary>The 点穴 seal: its icon by the HP bar and its floating text.</summary>
     private static readonly Color SealColor = new(0.77f, 0.55f, 1.00f);
-    /// <summary>A 气功 heal: its channel colour and its "+10 HP".</summary>
+    /// <summary>A 炼气 heal: its channel colour and its "+10 HP".</summary>
     private static readonly Color HealColor = new(0.49f, 1.00f, 0.69f);
     /// <summary>Wind-up of a Qi-empowered move with hyper armor: deep gold instead of yellow.</summary>
     private static readonly Color ArmorColor = new(0.85f, 0.55f, 0.05f);
@@ -1093,7 +1093,7 @@ public partial class Arena : Node3D
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  ✕ 轻功 (aim with a direction; the dash breaks combos, 纵云梯 jumps over)  ·  ○ 点穴  ·  R1 气功  ·  R2 擒拿 (beats parry and guard; grabbed: press a grab to break out)  ·  L1 防身 (硬气功: hold)  ·  Knocked down: any button rises, a direction rolls  ·  Pause menu (switch each category's move): Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  ✕ 轻功 (aim with a direction; the dash breaks combos, 纵云梯 jumps over)  ·  ○ 点穴  ·  R1 炼气  ·  R2 擒拿 (beats parry and guard; grabbed: press a grab to break out)  ·  L1 防身 (硬气功: hold)  ·  Knocked down: any button rises, a direction rolls  ·  Pause menu (switch each category's move): Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
@@ -1188,7 +1188,7 @@ public partial class Arena : Node3D
     private static string LockIcon(Fighter f) =>
         f.IsCrippled ? $" [bgcolor=#3a2352][color=#c58cff][b]【困】[/b][/color][/bgcolor][color=#c58cff]{Seconds(f.CrippledFrames)}[/color]" : "";
 
-    /// <summary>炼气's damage buff by the HP bar: 【气 x1.2】 and the seconds left.</summary>
+    /// <summary>易筋经's damage buff by the HP bar: 【气 x1.5】 and the seconds left.</summary>
     private static string BuffIcon(Fighter f) =>
         f.IsBuffed ? $" [bgcolor=#4a3a10][color=#ffd640][b]【气 x{f.BuffDamagePct / 100.0:0.0#}】[/b][/color][/bgcolor][color=#ffd640]{Seconds(f.BuffFramesLeft)}[/color]" : "";
 
@@ -1225,7 +1225,7 @@ public partial class Arena : Node3D
             case BrainIntent.Clawing: return "[color=#e67333]holding you in 龙爪手: press your grab to break out![/color]";
             case BrainIntent.Searching: return "[color=#ccffff]lost you after your jump: hit it from behind![/color]";
             case BrainIntent.Turning: return "[color=#ccffff]found you, turning round[/color]";
-            case BrainIntent.Buffing: return "[color=#ffd640]channelling 炼气: hit it to break it![/color]";
+            case BrainIntent.Buffing: return "[color=#ffd640]channelling 易筋经: hit it to break it![/color]";
             default: return "still";
         }
     }

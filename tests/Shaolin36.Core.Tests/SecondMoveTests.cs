@@ -8,7 +8,7 @@ using Xunit;
 namespace Shaolin36.Core.Tests;
 
 /// <summary>
-/// The second move in each category (Chan's brief): 虎形拳, 狮吼功, 纵云梯, 无相劫指, 硬气功, 龙爪手 and 炼气, and the grab
+/// The second move in each category (Chan's brief): 虎形拳, 狮吼功, 纵云梯, 无相劫指, 硬气功, 龙爪手 and 易筋经, and the grab
 /// break-out. Played on the real sheets.
 /// </summary>
 public class SecondMoveTests
@@ -37,7 +37,7 @@ public class SecondMoveTests
         return l;
     }
 
-    /// <summary>The second set on the same buttons: 虎形拳 □, 狮吼功 △, 无相劫指 ○, 纵云梯 ✕, 硬气功 L1, 炼气 R1, 龙爪手 R2.</summary>
+    /// <summary>The second set on the same buttons: 虎形拳 □, 狮吼功 △, 无相劫指 ○, 纵云梯 ✕, 硬气功 L1, 易筋经 R1, 龙爪手 R2.</summary>
     private static Loadout Second()
     {
         var l = new Loadout(Book);
@@ -46,7 +46,7 @@ public class SecondMoveTests
         l.Assign(Slot.Circle, T("wuxiang_zhi_1"));
         l.Assign(Slot.Cross, T("zongyun_ti"));
         l.Assign(Slot.L1, T("yingqi_gong"));
-        l.Assign(Slot.R1, T("lianqi"));
+        l.Assign(Slot.R1, T("yijinjing"));
         l.Assign(Slot.R2, T("longzhua_shou"));
         return l;
     }
@@ -124,12 +124,12 @@ public class SecondMoveTests
         Assert.True(claw.Damage * claw.GrabHits > T("qinna_shou").Damage);
         Assert.Equal("小擒拿手 (grab)", T("qinna_shou").Name);
 
-        var qi = T("lianqi");
+        var qi = T("yijinjing");
         var heal = T("xianliao_shu");
-        Assert.Equal(Category.Qigong, qi.Category);
+        Assert.Equal(Category.Lianqi, qi.Category);
         Assert.Equal(10, qi.QiCost);
         Assert.Equal(600, qi.BuffFrames); // Chan: 10 s
-        Assert.Equal(120, qi.BuffDamagePct);
+        Assert.Equal(150, qi.BuffDamagePct);
         Assert.Equal(heal.TotalFrames, qi.TotalFrames);
     }
 
@@ -502,12 +502,12 @@ public class SecondMoveTests
         Assert.Equal(3, l.Count(h => h.Grab == GrabPhase.Strike));
     }
 
-    // ---------- 炼气 ----------
+    // ---------- 易筋经 ----------
 
     [Fact]
-    public void Lianqi_buffs_all_damage_by_a_fifth_for_5_seconds_after_the_channel()
+    public void Yijinjing_buffs_all_damage_by_half_for_10_seconds_after_the_channel()
     {
-        var qi = T("lianqi");
+        var qi = T("yijinjing");
         var d = DuelOf(Second(), First(), 300, oneQi: 10);
         int done = qi.StartupFrames + qi.ActiveFrames;
         RunTo(d, done - 1, one: At(0, Slot.R1));
@@ -522,14 +522,14 @@ public class SecondMoveTests
         d.One.Position = d.Two.Position - FloorPoint.FromCm(100, 0);
         var hits = RunTo(d, done + 40, one: At(done + 20, Slot.Square));
         var hit = Assert.Single(hits);
-        Assert.Equal((T("luohan_quan_1").Damage * 120 + 50) / 100, hit.Damage);
+        Assert.Equal((T("luohan_quan_1").Damage * 150 + 50) / 100, hit.Damage);
 
         RunTo(d, done + qi.BuffFrames + 1);
         Assert.False(d.One.IsBuffed);
     }
 
     [Fact]
-    public void Lianqi_hit_before_it_finishes_gives_no_buff()
+    public void Yijinjing_hit_before_it_finishes_gives_no_buff()
     {
         var d = DuelOf(Second(), First(), 100, oneQi: 10);
         RunTo(d, 120, one: At(0, Slot.R1), two: At(40, Slot.Square));

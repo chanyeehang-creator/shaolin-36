@@ -199,7 +199,7 @@ namespace Shaolin36.Core.Data
         public int SealFrames { get; }
 
         /// <summary>
-        /// 气功: HP restored when the move finishes its active frames (the channel), never above max HP (0 = no heal).
+        /// 炼气: HP restored when the move finishes its active frames (the channel), never above max HP (0 = no heal).
         /// Interrupted before then, it heals nothing and the Qi it cost is gone.
         /// </summary>
         public int Heal { get; }
@@ -280,10 +280,10 @@ namespace Shaolin36.Core.Data
 
         public bool IsMultiGrab => IsGrab && GrabHits > 0;
 
-        /// <summary>气功 (炼气): when the channel finishes, every hit the fighter deals does <see cref="BuffDamagePct"/> damage for this many frames.</summary>
+        /// <summary>炼气 (易筋经): when the channel finishes, every hit the fighter deals does <see cref="BuffDamagePct"/> damage for this many frames.</summary>
         public int BuffFrames { get; }
 
-        /// <summary>Damage of the fighter's hits while the buff runs, as a percentage (120 = 1.2x).</summary>
+        /// <summary>Damage of the fighter's hits while the buff runs, as a percentage (150 = 1.5x).</summary>
         public int BuffDamagePct { get; }
 
         public bool IsBuff => BuffFrames > 0;

@@ -1,5 +1,5 @@
 # Technique sheet. Frames are 1/60 s sim ticks. Stage 1 starting values: tune freely, then run scripts/test.sh.
-# category: waigong/外功 neigong/内功 qinggong/轻功 dianxue/点穴 fangshen/防身 (was huajin/化劲, still accepted) qinna/擒拿 qigong/气功
+# category: waigong/外功 neigong/内功 qinggong/轻功 dianxue/点穴 fangshen/防身 (was huajin/化劲, still accepted) qinna/擒拿 lianqi/炼气 (was qigong/气功, still accepted)
 # weight: light/medium/heavy, or energy for pure energy (狮吼功; see below) (Chan's weights: 罗汉拳 medium, light, light, medium; 铁砂掌 heavy with or without Qi; 封穴 light). clash_window = last N frames of startup; perfect_clash = first N frames of that window.
 # hitstun = frames the defender is frozen after the hit. reach = centimetres.
 # 罗汉拳 rhythm (Chan's 2nd playtest, then 30% faster after hit-stop arrived): 0.22 s wind-up, hit 1, 0.37 s, hit 2, 0.15 s, hit 3, 0.37 s, hit 4.
@@ -30,7 +30,7 @@
 #           A dash out of hitstun still has its invincible frames but never earns a just dodge (just_dodge_qi in rules.csv).
 # seal (点穴 only) = frames a landed hit stops the defender starting 外功 moves (罗汉拳; 铁砂掌 is 内功, so it isn't sealed). Blocked, parried or dodged: no seal.
 #           Seals refresh, they don't stack. The defender can still parry, dash, quick step and use other categories.
-# heal (气功 only) = HP restored when the channel (the active frames) finishes, never above hp_max. Hit before then: no heal, Qi gone.
+# heal (炼气 only) = HP restored when the channel (the active frames) finishes, never above hp_max. Hit before then: no heal, Qi gone.
 # 点穴 封穴 (Chan's brief; the name from the build plan): one finger strike, small damage, seals 外功 for 5 s. Balanced by a long 0.5 s wind-up
 #           (parry or step on reaction), 25 stamina (vs 8 for a 罗汉拳 hit) and a 1 s recovery on a miss (Chan: recovery, not a skill cooldown;
 #           a hit during it interrupts it like any move). On a hit (Chan's balance patch) it's free 24 frames (0.4 s) after the hit,
@@ -66,7 +66,7 @@ timed_parry,化绵掌 (timed parry),fangshen,light,false,2,17,10,0,0,10,0,0,fals
 tiesha_zhang,铁砂掌 (iron palm),neigong,heavy,false,36,4,36,8,2,20,0,15,true,40,130,,0,0,30,200,true,50,60,20
 qinggong_dash,轻功 冲步 (dash),qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,100,false,0,,0,200,10,true
 fengxue,点穴 封穴 (seal),dianxue,light,false,30,8,60,6,2,25,0,4,true,30,115,,0,0,0,100,false,10,50,0,0,0,false,300,0,140,,,,,24
-xianliao_shu,仙辽术 (healing qigong),qigong,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,0,100,false,0,,0,0,0,false,0,10
+xianliao_shu,仙辽术 (healing 炼气),lianqi,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,0,100,false,0,,0,0,0,false,0,10
 qinna_shou,小擒拿手 (grab),qinna,light,false,10,4,32,0,0,15,0,14,false,0,100,,0,0,0,100,false,130,60,15,0,0,false,0,0,0,30,true,false
 # ---- Second move in each category (Chan's brief). Pick between the two in the pause menu.
 # 虎形拳 (外功): 3 medium hits, each a leap, 26 damage (罗汉拳 31). Hit 1 leaps 125 cm (封穴's lunge is 140), hits 2-3 45 cm (罗汉拳 steps 10-15).
@@ -95,5 +95,5 @@ yingqi_gong,硬气功 (iron shirt guard),fangshen,light,false,1,1,8,0,0,0,0,0,fa
 #           no tap in time and they slip free while you play the 0.5 s recovery. Held by any grab, press a grab of your own to break out (both recoil):
 #           any time in 小擒拿手's hold, but only before 龙爪手's 1st and 2nd strikes (the 3rd window is too late).
 longzhua_shou,龙爪手 (dragon claw),qinna,light,false,12,4,30,0,0,18,0,7,false,0,100,,0,0,,,,100,60,15,,,,,,,45,true,false,,,,,,,3,,
-# 炼气 (气功): same channel as 仙辽术 (0.5 s wind-up, 1 s channel, 0.33 s finish) for 10 Qi; when it finishes, all your damage is 1.2x for 10 s (Chan's tuning; was 5 s). Hit before then: lost.
-lianqi,炼气 (refine Qi),qigong,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,,,,,,,,,,,,,,,,,,,,,,,600,120
+# 易筋经 (炼气): same channel as 仙辽术 (0.5 s wind-up, 1 s channel, 0.33 s finish) for 10 Qi; when it finishes, all your damage is 1.5x for 10 s (Chan: was 1.2x for 5 s). Hit before then: lost.
+yijinjing,易筋经 (sinew-changing classic),lianqi,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,,,,,,,,,,,,,,,,,,,,,,,600,150

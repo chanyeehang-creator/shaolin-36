@@ -49,7 +49,7 @@ namespace Shaolin36.Core.Brains
         Resting,
         /// <summary>Caught in a combo: dashed out of the hitstun.</summary>
         Escaping,
-        /// <summary>Out of reach and hurt: channelling a 气功 heal.</summary>
+        /// <summary>Out of reach and hurt: channelling a 炼气 heal.</summary>
         Healing,
         /// <summary>Close in: going for a 擒拿 grab.</summary>
         Grabbing,
@@ -61,7 +61,7 @@ namespace Shaolin36.Core.Brains
         BreakingOut,
         /// <summary>Holding you in 龙爪手 and tapping for its strikes.</summary>
         Clawing,
-        /// <summary>Out of reach: channelling 炼气 for its damage buff.</summary>
+        /// <summary>Out of reach: channelling 易筋经 for its damage buff.</summary>
         Buffing,
         /// <summary>Lost you after your 纵云梯 jump: standing still to find you again.</summary>
         Searching,
@@ -85,10 +85,10 @@ namespace Shaolin36.Core.Brains
     /// on a slot it dashes to the side timed so the strike's hit frame falls in its invincible frames, otherwise it quick-steps;</item>
     /// <item>caught in a combo, once it has been in hitstun for its reaction time, dashes back out of it with its 轻功 dash
     /// (<see cref="BrainStyle.Step"/> chance, once per combo);</item>
-    /// <item>hurt by at least a heal's worth, with a 气功 heal it can pay for, and at least <see cref="HealMarginCm"/> beyond the other
+    /// <item>hurt by at least a heal's worth, with a 炼气 heal it can pay for, and at least <see cref="HealMarginCm"/> beyond the other
     /// fighter's longest reach while they aren't in a move, heals (<see cref="BrainStyle.Heal"/> chance, rolled every think_every frames);</item>
     /// <item>backs off to breathe when (and, hurt with a heal it can pay for, far enough to heal: <see cref="HealMarginCm"/> past your longest reach) its stamina is under <see cref="BrainStyle.RestBelow"/>;</item>
-    /// <item>punishes when it sees the other fighter recovering, staggered, recoiling or winding up / channelling a 气功 heal in reach (<see cref="BrainStyle.Punish"/>);</item>
+    /// <item>punishes when it sees the other fighter recovering, staggered, recoiling or winding up / channelling a 炼气 heal in reach (<see cref="BrainStyle.Punish"/>);</item>
     /// <item>otherwise walks in until its attacks reach (with <see cref="BrainStyle.Step"/> chance per choice it dashes in from far
     /// off, or quick-steps in), then every <see cref="BrainStyle.ThinkEvery"/> frames
     /// grabs with a 擒拿 grab in reach (<see cref="BrainStyle.Grab"/>), attacks (<see cref="BrainStyle.Aggression"/>), parries on a guess (<see cref="BrainStyle.Guess"/>),
@@ -109,7 +109,7 @@ namespace Shaolin36.Core.Brains
         /// <summary>While resting, it backs away until it is this far off.</summary>
         public const int RestDistanceCm = 250;
 
-        /// <summary>It only starts a 气功 heal this far beyond the other fighter's longest reach (reach plus step-in).</summary>
+        /// <summary>It only starts a 炼气 heal this far beyond the other fighter's longest reach (reach plus step-in).</summary>
         public const int HealMarginCm = 60;
 
         private struct Seen
@@ -418,7 +418,7 @@ namespace Shaolin36.Core.Brains
                 }
             }
 
-            // 3b. Hurt, with Qi for a 气功 heal, and well out of the other fighter's reach: maybe heal.
+            // 3b. Hurt, with Qi for a 炼气 heal, and well out of the other fighter's reach: maybe heal.
             if (--_healTicksLeft <= 0)
             {
                 _healTicksLeft = Style.ThinkEvery;
@@ -430,7 +430,7 @@ namespace Shaolin36.Core.Brains
                     bool safe = distance >= LongestReach(foe) + HealMarginCm && !foe.State.IsInMove();
                     if (hurt && safe && me.CanUse(heal) && _dice.Chance(Style.Heal)) return Press(healSlot.Value, BrainIntent.Healing);
                 }
-                // 炼气: out of reach, not buffed yet, with the Qi for it: channel the damage buff.
+                // 易筋经: out of reach, not buffed yet, with the Qi for it: channel the damage buff.
                 var buffSlot = BuffSlot(me);
                 if (buffSlot != null)
                 {
@@ -455,7 +455,7 @@ namespace Shaolin36.Core.Brains
             }
 
             // 5. The other fighter is open (recovering, staggered or recoiling): punish.
-            // A 气功 heal in its wind-up or channel is open too: hit it before the heal lands.
+            // A 炼气 heal in its wind-up or channel is open too: hit it before the heal lands.
             // Nothing it has can hit a fighter on the floor or getting up (invincible): wait for them to stand.
             bool foeDown = foe.State.IsGroundState();
             bool healing = seen.Technique != null && seen.Technique.IsHeal && seen.State != FighterState.Recovery;
@@ -596,7 +596,7 @@ namespace Shaolin36.Core.Brains
             return null;
         }
 
-        /// <summary>The first slot holding a 气功 damage buff (炼气), or null.</summary>
+        /// <summary>The first slot holding a 炼气 damage buff (易筋经), or null.</summary>
         private static Slot? BuffSlot(Fighter me)
         {
             foreach (var s in Slots.All)
@@ -607,7 +607,7 @@ namespace Shaolin36.Core.Brains
             return null;
         }
 
-        /// <summary>The first slot holding a 气功 heal, or null.</summary>
+        /// <summary>The first slot holding a 炼气 heal, or null.</summary>
         private static Slot? HealSlot(Fighter me)
         {
             foreach (var s in Slots.All)

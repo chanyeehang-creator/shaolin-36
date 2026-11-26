@@ -83,7 +83,7 @@ namespace Shaolin36.Core.Brains
 
         /// <summary>
         /// Chance, rolled every think_every frames while it is hurt by at least a heal's worth and well out of your reach,
-        /// that it channels its 气功 heal (仙辽术). Hit it during the wind-up or channel to cancel the heal.
+        /// that it channels its 炼气 heal (仙辽术). Hit it during the wind-up or channel to cancel the heal.
         /// </summary>
         public int Heal { get; }
 

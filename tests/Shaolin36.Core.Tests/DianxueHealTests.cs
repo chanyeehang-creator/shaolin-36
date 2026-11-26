@@ -58,7 +58,7 @@ public class DianxueHealTests
     [Fact]
     public void Xianliao_shu_spends_10_qi_to_heal_10_hp_and_never_hits()
     {
-        Assert.Equal(Category.Qigong, Heal.Category);
+        Assert.Equal(Category.Lianqi, Heal.Category);
         Assert.Equal(10, Heal.QiCost);
         Assert.Equal(10, Heal.Heal);
         Assert.Equal(0, Heal.ReachCm);
@@ -70,9 +70,9 @@ public class DianxueHealTests
     [Theory]
     [InlineData("x,x,waigong,light,false,10,3,10,0,0,5,0,4,false,10,100,,0,0,60,0", "only 点穴")]
     [InlineData("x,x,dianxue,light,false,10,3,10,0,0,5,0,4,false,10,0,,0,0,60,0", "never hits")]
-    [InlineData("x,x,waigong,light,false,10,3,10,0,0,5,0,0,false,0,0,,0,0,0,10", "only 气功")]
-    [InlineData("x,x,qigong,light,false,10,3,10,0,0,5,0,0,false,0,100,,0,0,0,10", "can't also be a strike")]
-    [InlineData("x,x,qigong,light,false,10,3,0,0,0,5,0,0,false,0,0,,0,0,0,10", "needs 'recovery'")]
+    [InlineData("x,x,waigong,light,false,10,3,10,0,0,5,0,0,false,0,0,,0,0,0,10", "only 炼气")]
+    [InlineData("x,x,lianqi,light,false,10,3,10,0,0,5,0,0,false,0,100,,0,0,0,10", "can't also be a strike")]
+    [InlineData("x,x,lianqi,light,false,10,3,0,0,0,5,0,0,false,0,0,,0,0,0,10", "needs 'recovery'")]
     [InlineData("x,x,waigong,light,false,10,3,10,0,0,5,0,4,false,10,100,,0,0,99999,0", "'seal'")]
     public void Bad_seal_and_heal_cells_are_reported(string row, string expected)
     {
