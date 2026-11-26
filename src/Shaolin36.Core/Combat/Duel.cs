@@ -276,7 +276,7 @@ namespace Shaolin36.Core.Combat
     /// both invincible (a strike passing through is spent, but it's no just dodge). The roll slides roll_distance over
     /// roll_frames, the way the stick was held relative to the lock-on (see <see cref="RollStep"/>).
     ///
-    /// 气功 heal: see <see cref="Fighter"/>. A heal has no reach, so it never hits; hitting the healer during its wind-up or
+    /// 炼气 heal: see <see cref="Fighter"/>. A heal has no reach, so it never hits; hitting the healer during its wind-up or
     /// channel knocks it out of the move like any other, and the heal is lost.
     ///
     /// Walking: each tick, a fighter who is idle walks the way their <see cref="MoveInput"/> says,

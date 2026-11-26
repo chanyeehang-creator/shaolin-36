@@ -49,7 +49,8 @@ namespace Shaolin36.Core.Data
                 ["fangshen"] = Category.Fangshen, ["防身"] = Category.Fangshen,
                 ["huajin"] = Category.Fangshen, ["化劲"] = Category.Fangshen,
                 ["qinna"] = Category.Qinna, ["擒拿"] = Category.Qinna,
-                ["qigong"] = Category.Qigong, ["气功"] = Category.Qigong,
+                ["lianqi"] = Category.Lianqi, ["炼气"] = Category.Lianqi,
+                ["qigong"] = Category.Lianqi, ["气功"] = Category.Lianqi,
             };
 
         private static readonly Dictionary<string, Weight> WeightNames =
@@ -232,7 +233,7 @@ namespace Shaolin36.Core.Data
                 if (lunge > 0 && reach == 0) rowErrors.Add("'lunge' is set but 'reach' is 0, so the move never hits");
                 if (lunge > 0 && dash > 0) rowErrors.Add("a move can have 'dash' or 'lunge', not both");
                 if (heal > MaxHeal) rowErrors.Add($"'heal' ({heal}) must be {MaxHeal} HP or less");
-                if (heal > 0 && category != Category.Qigong) rowErrors.Add("only 气功 (qigong) techniques can have 'heal'");
+                if (heal > 0 && category != Category.Lianqi) rowErrors.Add("only 炼气 (lianqi) techniques can have 'heal'");
                 if (heal > 0 && recovery == 0) rowErrors.Add("a heal lands on its first recovery frame, so it needs 'recovery' 1 or more");
                 if (heal > 0 && reach > 0) rowErrors.Add("a heal can't also be a strike: 'heal' needs 'reach' 0");
                 if (hold > MaxHold) rowErrors.Add($"'hold' ({hold}) must be {MaxHold} frames or less");
@@ -260,7 +261,7 @@ namespace Shaolin36.Core.Data
                 if (grabHits > 10) rowErrors.Add($"'grab_hits' ({grabHits}) must be 10 or fewer");
                 if (grabHits > 0 && hold == 0) rowErrors.Add("'grab_hits' is set but 'hold' is 0: only a grab can strike while it holds");
                 if (buff > MaxSeal) rowErrors.Add($"'buff' ({buff}) must be {MaxSeal} frames or less");
-                if (buff > 0 && category != Category.Qigong) rowErrors.Add("only 气功 (qigong) techniques can have 'buff'");
+                if (buff > 0 && category != Category.Lianqi) rowErrors.Add("only 炼气 (lianqi) techniques can have 'buff'");
                 if (buff > 0 && recovery == 0) rowErrors.Add("a buff lands on its first recovery frame, so it needs 'recovery' 1 or more");
                 if (buff > 0 && reach > 0) rowErrors.Add("a buff can't also be a strike: 'buff' needs 'reach' 0");
                 if (buff == 0 && buffPct != 100) rowErrors.Add("'buff_damage_pct' is set but 'buff' is 0, so the buff never happens");

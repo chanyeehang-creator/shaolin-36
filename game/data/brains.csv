@@ -15,7 +15,7 @@
 #               too fast to react to (罗汉拳 hit 1 lands in 13 frames, quicker than anyone reacts). A wrong guess costs it 10 stamina and leaves it open: bait it and punish.
 # heavy       = when it attacks, the chance it picks a heavy technique (such as 铁砂掌) over a lighter one. With enough Qi it always uses the empowered one.
 # heal        = rolled every think_every frames while it is hurt by at least a heal's worth and 60 cm beyond your longest reach (封穴's lunge reaches 255 cm, so that's 315 cm; resting, it backs off that far to heal) (you not mid-move):
-#               the chance it channels its 气功 heal (仙辽术, 10 Qi for 10 HP). Hit it in the 1.5 s before the heal lands to cancel it.
+#               the chance it channels its 炼气 heal (仙辽术, 10 Qi for 10 HP). Hit it in the 1.5 s before the heal lands to cancel it.
 # It uses 点穴 封穴 like its other light attacks (but not on you while you're already sealed), and while you have it sealed it can't use 外功 either.
 # grab        = at each choice in reach of its 擒拿 grab (you not in hitstun), the chance it grabs, rolled before aggression. A grab beats a parry,
 #               so it's how it cracks a guard; it never parries your grab (it steps or dashes instead). Stay out of 115 cm or hit it as it reaches in.
@@ -30,7 +30,7 @@
 #               this many frames (0-600) it locks back on and turns round, which takes a moment (rules.csv relock_turn_frames).
 #               Hitting it or knocking it down relocks it at once. Novice 3 s, monk 1.5 s, master as soon as it stops (Chan).
 # With 硬气功 on its 防身 slot instead of 化绵掌, parry is the chance it raises and holds the guard against a strike it sees coming, and guess
-#               the chance it raises it on a guess. 炼气 uses the heal chance: out of reach, unbuffed and with 10 Qi, it channels it.
+#               the chance it raises it on a guess. 易筋经 uses the heal chance: out of reach, unbuffed and with 10 Qi, it channels it.
 id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,heal,grab,clash,break,relock,note
 novice,弟子 (novice),24,30,35,30,60,15,20,10,40,20,15,5,20,0,5,0,180,Slow to react and rarely parries: for learning the duel
 monk,武僧 (monk),18,20,50,60,80,40,35,20,50,25,25,15,40,20,15,40,90,The baseline opponent: reacts like a person and parries about 2 strikes in 5

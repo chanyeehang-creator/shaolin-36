@@ -46,7 +46,7 @@ Every fight button is a **slot**. Slots don't mean anything on their own: whatev
 | ✕ | 2 (bottom) | K or Space | 轻功 dash | 纵云梯 |
 | L1 | 5 | Q or right click | 防身 化绵掌 | 硬气功 (hold) |
 | L2 | 7 | Left Shift | | |
-| R1 | 6 | E | 气功 仙辽术 | 炼气 |
+| R1 | 6 | E | 炼气 仙辽术 | 易筋经 |
 | R2 | 8 | F | 擒拿 小擒拿手 (grab) | 龙爪手 |
 
 | Other | Gamepad | Keyboard |
@@ -116,7 +116,7 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 - Costs 25 stamina (a 罗汉拳 hit costs 8), deals only 4 damage, freezes for 30 frames, reaches 115 cm from your body. It's light and can be clashed (Chan): read its long wind-up and clash it back.
 - **On a landed hit the target can't use 外功 (罗汉拳) for 5 s.** 铁砂掌 is 内功 (a heavy strike), so it still works. A purple **【封】** icon and the seconds left show by their HP bar. 铁砂掌, parry, 轻功, quick step, 点穴 and 仙辽术 still work. A blocked, parried or dodged 点穴 seals nothing.
 
-**仙辽术 (healing qigong), on R1:** spend 10 Qi to heal 10 HP.
+**仙辽术 (healing 炼气), on R1:** spend 10 Qi to heal 10 HP.
 
 - Wind-up 30 frames (0.5 s), channel 60 frames (1 s, the capsule glows green), then the heal lands ("+10 HP"), then 20 frames (0.33 s) to finish. 1.8 s in all.
 - Placeholder sounds (made in code until there are real ones): a soft rising hum through the wind-up and channel, and a bright chime when the heal lands. A broken heal cuts the hum. F3 turns them off with the rest of the feel kit.
@@ -294,7 +294,7 @@ Switch them in the pause menu (Tab, Esc or pad Start). The numbers are in `techn
 - **硬气功 (防身, L1).** Press and **hold**: the guard is up from the first frame and stays while you hold. Light and medium strikes deal nothing; heavy (铁砂掌) and energy (狮吼功) deal half. No hitstun, no knockback, no knockdown, no 点穴 seal or lock gets through. Raising it is free; each block costs stamina (6 light, 10 medium, 16 heavy), and at 0 stamina the guard drops and you're exhausted. No parry. Grabs go through it, and it stays facing the way it was raised, so a quick step or 纵云梯 round to its back gets through. Let go: 8 frames to lower it.
 - **龙爪手 (擒拿, R2).** A grab like 小擒拿手 (0.2 s reach-in, 100 cm). Once it catches, **tap R2** to strike, up to 3 times, 7 damage each (21 in all; 小擒拿手's throw does 14). The 3rd knocks down and sends them 100 cm. Taps closer than 0.2 s apart wait their turn. Each window is 0.75 s: tap nothing and they slip free while you finish your recovery.
 - **Breaking out of a grab (new, any grab).** Grabbed? Press **your own grab button** (whichever grab you have) to break out: both of you reel back 0.33 s and step back 40 cm each, Street Fighter style (from touching range you end up about 160 cm apart). Against 小擒拿手 you can do it any time before the throw; against 龙爪手 only before its 1st or 2nd strike: the 3rd window is too late. The novice has no grab, so it never breaks out; the monk sometimes does in time; the master usually does.
-- **炼气 (气功, R1).** The same channel as 仙辽术 (0.5 s wind-up, 1 s channel, 0.33 s finish) for 10 Qi. When it finishes, all your damage is x1.2 for **10 s** (【气 x1.2】 by the HP bar). Hit before then, nothing, and the Qi is gone.
+- **易筋经 (炼气, R1).** The same channel as 仙辽术 (0.5 s wind-up, 1 s channel, 0.33 s finish) for 10 Qi. When it finishes, all your damage is x1.5 for **10 s** (【气 x1.5】 by the HP bar). Hit before then, nothing, and the Qi is gone.
 
 **Every block works the same** (化绵掌's block frames or 硬气功): light and medium strikes deal nothing, heavy and energy strikes deal half, and a blocked 点穴 applies no seal or lock. A 化绵掌 perfect parry still stops everything except energy.
 
@@ -302,7 +302,7 @@ Switch them in the pause menu (Tab, Esc or pad Start). The numbers are in `techn
 
 ## 7. The questions for this build
 
-0. **The second moves:** switch each category in the pause menu and try it against an opponent using the same move. Which numbers feel off (虎形拳's leaps, 狮吼功's ring and Qi cost, 纵云梯's distance, 无相劫指's lock time, 硬气功's stamina per block, 龙爪手's tap window, 炼气's 1.2x)?
+0. **The second moves:** switch each category in the pause menu and try it against an opponent using the same move. Which numbers feel off (虎形拳's leaps, 狮吼功's ring and Qi cost, 纵云梯's distance, 无相劫指's lock time, 硬气功's stamina per block, 龙爪手's tap window, 易筋经.s 1.5x)?
 1. **Does it feel like a fight now?** Against the monk, does the opponent close in, attack and defend in a way you can read? Anything it does that looks robotic or unfair?
 2. **Difficulty:** is the novice easy enough to learn on, and the master hard but beatable? Which numbers would you change first (reaction, parry chance, how often it attacks)?
 3. **Guessing:** can you spot its guessed parries and punish them? Does it guess too often or too rarely?

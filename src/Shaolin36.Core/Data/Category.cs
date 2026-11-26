@@ -15,8 +15,8 @@ namespace Shaolin36.Core.Data
         Fangshen,
         /// <summary>擒拿: grabs, command grabs, struggle prompts.</summary>
         Qinna,
-        /// <summary>气功: self-buffs and heals. Costs Qi.</summary>
-        Qigong,
+        /// <summary>炼气: self-buffs and heals. Costs Qi.</summary>
+        Lianqi,
     }
 
     /// <summary>

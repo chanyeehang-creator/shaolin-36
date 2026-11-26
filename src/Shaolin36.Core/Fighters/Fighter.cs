@@ -69,7 +69,7 @@ namespace Shaolin36.Core.Fighters
     /// 点穴 seal: while <see cref="SealedFrames"/> is above 0 (set by <see cref="Seal"/> when a 点穴 hit lands), no 外功
     /// (waigong) technique can be started or chained. Other categories still work. A 外功 move already under way carries on.
     ///
-    /// 气功 heal: a technique with <see cref="Data.Technique.Heal"/> restores that much HP (never above max) on the tick
+    /// 炼气 heal: a technique with <see cref="Data.Technique.Heal"/> restores that much HP (never above max) on the tick
     /// its active frames end (its first recovery frame), and <see cref="HealedThisTick"/> says how much. Knocked out
     /// of the move before then (a hit during the wind-up or the channel), it heals nothing; its Qi is spent anyway.
     ///
@@ -98,7 +98,7 @@ namespace Shaolin36.Core.Fighters
     /// last one ends it. Held by any grab, pressing a slot with a grab of your own asks to break out (<see cref="GrabBreakWith"/>);
     /// the <see cref="Combat.Duel"/> decides if it is still in time.
     ///
-    /// 炼气 buff (<see cref="Data.Technique.IsBuff"/>): when the channel finishes, the fighter's hits deal
+    /// 易筋经 buff (<see cref="Data.Technique.IsBuff"/>): when the channel finishes, the fighter's hits deal
     /// <see cref="BuffDamagePct"/> damage for <see cref="BuffFramesLeft"/> frames (<see cref="Boost"/>).
     /// </summary>
     public sealed class Fighter
@@ -218,7 +218,7 @@ namespace Shaolin36.Core.Fighters
             if (frames > CrippledFrames) CrippledFrames = frames;
         }
 
-        /// <summary>Frames left of a 炼气 damage buff. 0 when none.</summary>
+        /// <summary>Frames left of a 易筋经 damage buff. 0 when none.</summary>
         public int BuffFramesLeft { get; private set; }
 
         /// <summary>Damage of this fighter's hits while <see cref="BuffFramesLeft"/> is above 0, as a percentage.</summary>
@@ -226,10 +226,10 @@ namespace Shaolin36.Core.Fighters
 
         public bool IsBuffed => BuffFramesLeft > 0;
 
-        /// <summary>True on the tick a 炼气 buff took hold.</summary>
+        /// <summary>True on the tick a 易筋经 buff took hold.</summary>
         public bool BuffedThisTick { get; private set; }
 
-        /// <summary><paramref name="damage"/> with this fighter's 炼气 buff on it, if one is running (rounded half up).</summary>
+        /// <summary><paramref name="damage"/> with this fighter's 易筋经 buff on it, if one is running (rounded half up).</summary>
         public int Boost(int damage) => IsBuffed ? (damage * BuffDamagePct + 50) / 100 : damage;
 
         /// <summary>How many hits of the current string have landed (for 无相劫指: both must land to lock movement).</summary>
@@ -313,7 +313,7 @@ namespace Shaolin36.Core.Fighters
             ClearBuffer();
         }
 
-        /// <summary>HP a 气功 heal restored on the latest tick (0 on every other tick).</summary>
+        /// <summary>HP a 炼气 heal restored on the latest tick (0 on every other tick).</summary>
         public int HealedThisTick { get; private set; }
 
         /// <summary>
@@ -905,14 +905,14 @@ namespace Shaolin36.Core.Fighters
                 {
                     var t = Technique!;
                     State = PhaseAt(t, MoveFrame);
-                    // A 气功 heal lands as its channel (the active frames) ends.
+                    // A 炼气 heal lands as its channel (the active frames) ends.
                     if (t.IsHeal && MoveFrame == t.StartupFrames + t.ActiveFrames && !IsDown)
                     {
                         int healed = Math.Min(t.Heal, MaxHp - Hp);
                         Hp += healed;
                         HealedThisTick = healed;
                     }
-                    // A 炼气 buff takes hold as its channel ends.
+                    // A 易筋经 buff takes hold as its channel ends.
                     if (t.IsBuff && MoveFrame == t.StartupFrames + t.ActiveFrames && !IsDown)
                     {
                         BuffFramesLeft = t.BuffFrames;
