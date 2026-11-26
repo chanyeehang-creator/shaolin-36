@@ -1,6 +1,9 @@
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using Shaolin36.Core;
 using Shaolin36.Core.Brains;
+using Shaolin36.Core.Combat;
 using Shaolin36.Core.Data;
 using Shaolin36.Core.Fighters;
 using Shaolin36.Core.Runs;
@@ -8,9 +11,10 @@ using Shaolin36.Core.Runs;
 namespace Shaolin36.Game;
 
 /// <summary>
-/// The demo roguelike run (Chan's test run) on top of the arena: the screens between fights (pick 罗汉拳 or 虎形拳, pick a
-/// button, the next enemy, the rewards, the end of the run) and the hand-off of each duel to and from the core's
-/// <see cref="Run"/>. The arena opens on the run; F4 switches to the practice arena and back.
+/// The demo roguelike run (Chan's chamber-and-door design) on top of the arena: the screens (read a scroll, pick a button, the
+/// chamber's enemy, the rewards, the end of the run), roaming a cleared chamber with a wooden dummy to try moves on and doors
+/// to walk through, and the hand-off of each duel to and from the core's <see cref="Run"/>. The arena opens on the run; F4
+/// switches to the practice arena and back.
 /// </summary>
 public partial class Arena
 {
@@ -25,19 +29,34 @@ public partial class Arena
     private string _runNote = "";
     /// <summary>Physics frames since the duel ended, so the button that landed the KO doesn't also skip the next screen.</summary>
     private int _overFrames;
+    /// <summary>The door meshes standing in the chamber while you roam.</summary>
+    private readonly List<Node3D> _doorNodes = new();
+    /// <summary>The door you're standing in, or -1.</summary>
+    private int _atDoor = -1;
 
     /// <summary>Frames after a KO before a press goes on (0.75 s).</summary>
     private const int KoPause = 45;
+    /// <summary>The wall the doors stand along: this far along X from the centre, in cm.</summary>
+    private const int DoorWallCm = 600;
+    /// <summary>Space between doors along the wall, in cm.</summary>
+    private const int DoorGapCm = 260;
+    /// <summary>Stand within this many cm of a door to go through it.</summary>
+    private const int DoorReachCm = 110;
+    /// <summary>The wooden dummy's HP: it never goes down.</summary>
+    private const int DummyHp = 99999;
 
     private bool RunFighting => _runMode && _runFighting;
 
+    /// <summary>Walking about a chamber with no fight on: the wooden dummy and the doors.</summary>
+    private bool RunRoaming => _runMode && !_runFighting && _run.Phase == RunPhase.Roam;
+
     /// <summary>A run screen covers the floor and the sim is paused.</summary>
-    private bool RunScreenUp => _runMode && !_runFighting;
+    private bool RunScreenUp => _runMode && !_runFighting && !RunRoaming;
 
     private Loadout PlayerLoadout => _runMode ? _run.Player : _playerLoadout;
 
     private BrainStyle RunBrainStyle =>
-        _brains.Find(_run.Enemy!.BrainId) ?? throw new System.Collections.Generic.KeyNotFoundException($"brains.csv has no '{_run.Enemy.BrainId}'");
+        _brains.Find(_run.Enemy!.BrainId) ?? throw new KeyNotFoundException($"brains.csv has no '{_run.Enemy.BrainId}'");
 
     private void ToggleRunMode()
     {
@@ -53,6 +72,7 @@ public partial class Arena
         _runRow = 0;
         _runNote = "";
         NewDuel();
+        RefreshDoors();
         _event.Text = _runMode ? "Back to the demo run." : "Practice arena: Tab / Start for the loadout menu. F4 goes back to the demo run.";
         RefreshMenu();
     }
@@ -66,9 +86,9 @@ public partial class Arena
         // The F1 / F2 / F3 toggles work everywhere.
         if (command == Command.SlowMotion || command == Command.FloatingText || command == Command.FeelKit) return false;
 
-        if (_runFighting)
+        if (_runFighting || RunRoaming)
         {
-            if (_duel.IsOver)
+            if (_runFighting && _duel.IsOver)
             {
                 bool press = slot != null || command == Command.Restart || command == Command.Menu;
                 if (press && _overFrames >= KoPause) FinishRunFight();
@@ -91,8 +111,15 @@ public partial class Arena
                     _run.Restart();
                     _runRow = 0;
                     _runNote = "You gave the run up. A new run:";
+                    RefreshDoors();
                     RefreshMenu();
                 }
+                return true;
+            }
+            if (RunRoaming && (command == Command.Restart || command == Command.DummyToggle))
+            {
+                if (_atDoor >= 0) GoThrough(_atDoor);
+                else _event.Text = "Walk up to a door, then press Enter (pad: Select) to go through.";
                 return true;
             }
             // No restarting a duel or freezing the enemy in a run.
@@ -124,7 +151,7 @@ public partial class Arena
             case RunPhase.ChooseStarter:
                 var starter = _run.Starters[_runRow];
                 _run.ChooseStarter(_runRow);
-                _runNote = $"You learnt {starter.Name}.";
+                _runNote = $"You read the scroll of {starter.Name}.";
                 break;
             case RunPhase.PlaceMove:
                 if (slot == null)
@@ -156,7 +183,148 @@ public partial class Arena
                 break;
         }
         _runRow = 0;
+        if (_run.Phase == RunPhase.Roam) StartRoam();
     }
+
+    // ------------------------------------------------------------ roaming and doors
+
+    /// <summary>Into a cleared chamber (or chamber 0): the wooden dummy, the doors, free walking.</summary>
+    private void StartRoam()
+    {
+        _menuOpen = false;
+        _pending = 0;
+        _atDoor = -1;
+        NewDuel();
+        RefreshDoors();
+        _event.Text = (_runNote.Length > 0 ? _runNote + "\n" : "") + (_run.Chamber == 0
+            ? "Chamber 0: no enemy here. Try your move on the wooden dummy, then walk up to a door and press Enter (pad: Select)."
+            : $"Chamber {_run.Chamber} cleared. Try your moves on the wooden dummy, then walk up to a door and press Enter (pad: Select).");
+        RefreshMenu();
+    }
+
+    /// <summary>The chamber with no fight: you (HP and Qi as they are; nothing done here carries over) and a dummy that never goes down.</summary>
+    private Duel RoamDuel()
+    {
+        var dummy = new Loadout(_book);
+        return Duel.Start(_rules, _run.Player, dummy, _run.PlayerStats, new FighterStats(DummyHp, DummyHp, _run.Sheet.EnemyStamina, 0, 0));
+    }
+
+    private void GoThrough(int door)
+    {
+        var d = _run.Doors[door];
+        _run.EnterDoor(door);
+        _runNote = $"Through the {DoorName(d)} door.";
+        _runRow = 0;
+        RefreshDoors();
+        RefreshMenu();
+    }
+
+    /// <summary>Build the door meshes for the doors on offer while roaming; clear them otherwise.</summary>
+    private void RefreshDoors()
+    {
+        foreach (var n in _doorNodes) n.QueueFree();
+        _doorNodes.Clear();
+        _atDoor = -1;
+        if (!RunRoaming || !IsInsideTree()) return;
+        for (int i = 0; i < _run.Doors.Count; i++)
+        {
+            var d = _run.Doors[i];
+            var at = DoorPoint(i);
+            var color = RarityColor(d.Rarity);
+            var door = new Node3D { Position = new Vector3(at.X / (100f * FloorPoint.UnitsPerCm), 0, at.Z / (100f * FloorPoint.UnitsPerCm)) };
+            var mat = new StandardMaterial3D { AlbedoColor = color, EmissionEnabled = true, Emission = color * 0.35f };
+            // Two posts and a lintel, facing back toward the middle of the floor.
+            door.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.25f, 2.6f, 0.25f) }, Position = new Vector3(0, 1.3f, -0.8f), MaterialOverride = mat });
+            door.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.25f, 2.6f, 0.25f) }, Position = new Vector3(0, 1.3f, 0.8f), MaterialOverride = mat });
+            door.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.25f, 0.3f, 1.85f) }, Position = new Vector3(0, 2.6f, 0), MaterialOverride = mat });
+            // The way in: a glowing pad on the floor.
+            door.AddChild(new MeshInstance3D
+            {
+                Mesh = new BoxMesh { Size = new Vector3(1.6f, 0.02f, 1.6f) },
+                Position = new Vector3(-0.6f, 0.01f, 0),
+                MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(color, 0.45f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded },
+            });
+            door.AddChild(new Label3D
+            {
+                Text = $"{RarityName(d.Rarity)}\n{DoorName(d)}",
+                Position = new Vector3(0, 3.1f, 0),
+                Modulate = color,
+                OutlineModulate = new Color(0, 0, 0),
+                OutlineSize = 10,
+                FontSize = 56,
+                Font = _font,
+                PixelSize = 0.006f,
+                Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                NoDepthTest = true,
+            });
+            AddChild(door);
+            _doorNodes.Add(door);
+        }
+    }
+
+    /// <summary>Where door <paramref name="i"/> stands: along the far wall, spread out and centred.</summary>
+    private FloorPoint DoorPoint(int i)
+    {
+        int count = _run.Doors.Count;
+        int z = (int)((i - (count - 1) / 2.0) * DoorGapCm);
+        return FloorPoint.FromCm(DoorWallCm, z);
+    }
+
+    /// <summary>Each roaming tick: which door you stand in, and say what's behind it when that changes.</summary>
+    private void UpdateDoorHint()
+    {
+        int at = -1;
+        for (int i = 0; i < _run.Doors.Count; i++)
+            if (FloorPoint.DistanceCm(_duel.One.Position, DoorPoint(i)) <= DoorReachCm) at = i;
+        if (at == _atDoor) return;
+        _atDoor = at;
+        if (at < 0) return;
+        var d = _run.Doors[at];
+        _event.Text = $"[color=#{RarityColor(d.Rarity).ToHtml(false)}][b]{RarityName(d.Rarity)} door: {DoorName(d)}[/b][/color] to chamber {_run.Chamber + 1}. {DoorWhat(d)}\n[b]Press Enter (pad: Select) to go through.[/b]";
+    }
+
+    private static Color RarityColor(Rarity r) => r switch
+    {
+        Rarity.Common => new Color(0.85f, 0.85f, 0.85f),
+        Rarity.Uncommon => new Color(0.35f, 0.95f, 0.45f),
+        Rarity.Rare => new Color(0.35f, 0.65f, 1.00f),
+        Rarity.SuperRare => new Color(1.00f, 0.80f, 0.20f),
+        _ => new Color(1.00f, 0.30f, 0.25f),
+    };
+
+    private static string RarityName(Rarity r) => r switch
+    {
+        Rarity.Common => "Common",
+        Rarity.Uncommon => "Uncommon",
+        Rarity.Rare => "Rare",
+        Rarity.SuperRare => "Super rare",
+        _ => "Boss",
+    };
+
+    private string DoorName(Door d) => d.Kind switch
+    {
+        DoorKind.NewCategory => $"{CategoryName(d.Category!.Value)} (new)",
+        DoorKind.SameCategory => $"more {CategoryName(d.Category!.Value)}",
+        DoorKind.Medicine => "Medicine",
+        DoorKind.SkillEnhance => "Skill Enhance",
+        DoorKind.Elixirs => "Elixirs · mini boss",
+        DoorKind.AncientScroll => "Ancient Scroll · mini boss",
+        _ => "the Boss",
+    };
+
+    /// <summary>What winning behind a door gives.</summary>
+    private string DoorWhat(Door d) => d.Kind switch
+    {
+        DoorKind.NewCategory => $"Win: learn one of {_run.Sheet.SkillChoices} {CategoryName(d.Category!.Value)} moves.",
+        DoorKind.SameCategory => $"Win: learn another {CategoryName(d.Category!.Value)} move.",
+        DoorKind.Medicine => "Win: raise your max HP, stamina or Qi.",
+        DoorKind.SkillEnhance => "Win: power up one of your moves.",
+        DoorKind.Elixirs => "A stronger mini boss. Win: raise two of max HP, stamina and Qi.",
+        DoorKind.AncientScroll => $"A stronger mini boss. Win: power up {_run.Sheet.ScrollPicks} of your moves.",
+        _ => $"The last fight: {_run.Sheet.BossHp} HP.",
+    };
+
+    // ------------------------------------------------------------ fights
 
     private void StartRunFight()
     {
@@ -165,32 +333,37 @@ public partial class Arena
         _pending = 0;
         NewDuel();
         var e = _run.Enemy!;
-        _event.Text = $"[b]Fight {e.Number} of {_run.Sheet.Fights}{(e.IsBoss ? " · BOSS" : "")}[/b] against {RunBrainStyle.Name}. Fight!";
+        _event.Text = $"[b]Chamber {e.Number} of {_run.Sheet.Fights}{(e.IsBoss ? " · BOSS" : e.IsMiniboss ? " · MINI BOSS" : "")}[/b] against {RunBrainStyle.Name}. Fight!";
         RefreshMenu();
     }
 
     private void FinishRunFight()
     {
         bool won = _duel.Two.IsDown;
-        int fight = _run.FightNumber;
+        int chamber = _run.Chamber;
         _run.EndFight(_duel);
         _runFighting = false;
         _runRow = 0;
-        _runNote = won
-            ? _run.Phase == RunPhase.Victory ? "" : $"You won fight {fight}! Healed {_run.LastHeal} HP (now {_run.Hp}/{_run.MaxHp}). Your {_run.Qi} Qi carries over."
+        _runNote = won && _run.Phase != RunPhase.Victory
+            ? $"You won chamber {chamber}! Healed {_run.LastHeal} HP (now {_run.Hp}/{_run.MaxHp}). Your {_run.Qi} Qi carries over."
             : "";
-        RefreshMenu();
+        if (_run.Phase == RunPhase.Roam) StartRoam();
+        else RefreshMenu();
     }
 
     /// <summary>
-    /// Headless check of the run glue: picks the first starter onto □, starts fight 1 through the arena (the run's duel and
-    /// brain) and plays it for <paramref name="ticks"/> ticks with a training dummy's presses. Returns the hits landed.
+    /// Headless check of the run glue: reads the first scroll onto □, goes through the first door, starts chamber 1's fight
+    /// through the arena (the run's duel and brain) and plays it for <paramref name="ticks"/> ticks with a training dummy's
+    /// presses. Returns the hits landed.
     /// </summary>
     public int SimulateRun(int ticks, out string summary)
     {
         _runMode = true;
         _run.ChooseStarter(0);
         _run.Place(Slot.Square);
+        NewDuel(); // chamber 0: the wooden dummy
+        int doors = _run.Doors.Count;
+        _run.EnterDoor(0);
         _runFighting = true;
         NewDuel();
         var player = TrainingDummy.FromRules(_rules, Slot.Square);
@@ -198,13 +371,13 @@ public partial class Arena
         {
             if (_clock.IsFrozen)
             {
-                _clock.Step(Shaolin36.Core.Fighters.SlotInput.None, Shaolin36.Core.Fighters.SlotInput.None);
+                _clock.Step(SlotInput.None, SlotInput.None);
                 continue;
             }
             var opponent = OpponentInput();
             _clock.Step(player.Think(_duel.One), opponent.Slots, MoveInput.WalkForward, opponent.Move);
         }
-        summary = $"run fight 1: you {_duel.One.Hp}/{_duel.One.MaxHp} HP, {RunBrainStyle.Name} {_duel.Two.Hp}/{_duel.Two.MaxHp} HP";
+        summary = $"{doors} doors out of chamber 0; chamber 1: you {_duel.One.Hp}/{_duel.One.MaxHp} HP, {RunBrainStyle.Name} {_duel.Two.Hp}/{_duel.Two.MaxHp} HP";
         return _duel.Hits.Count;
     }
 
@@ -218,22 +391,22 @@ public partial class Arena
         if (!show) return;
 
         var sb = new System.Text.StringBuilder();
-        if (_runFighting)
+        if (_runFighting || RunRoaming)
         {
             sb.Append("[font_size=26][b]Paused[/b][/font_size]\n\n");
             AppendPlayer(sb);
-            sb.Append("\nTab, Esc or Start goes back to the fight.   [color=#ff6666]Enter: give this run up and start over.[/color]");
+            sb.Append("\nTab, Esc or Start goes back.   [color=#ff6666]Enter: give this run up and start over.[/color]");
             _menu.Text = sb.ToString();
             return;
         }
 
-        sb.Append($"[font_size=26][b]Demo run[/b][/font_size]   attempt {_run.Attempt}   ·   fight {_run.FightNumber} of {_run.Sheet.Fights}\n");
+        sb.Append($"[font_size=26][b]Demo run[/b][/font_size]   attempt {_run.Attempt}   ·   chamber {_run.Chamber} of {_run.Sheet.Fights}\n");
         if (_runNote.Length > 0) sb.Append(_runNote).Append('\n');
         sb.Append('\n');
         switch (_run.Phase)
         {
             case RunPhase.ChooseStarter:
-                sb.Append("[b]Choose your first move[/b] (↑/↓, then any button or Enter):\n");
+                sb.Append("[b]Two 外功 scrolls lie before you. Read one[/b] (↑/↓, then any button or Enter):\n");
                 for (int i = 0; i < _run.Starters.Count; i++) Row(sb, i, $"外功 · {_run.Starters[i].Name}");
                 break;
             case RunPhase.PlaceMove:
@@ -246,33 +419,35 @@ public partial class Arena
                 break;
             case RunPhase.Fight:
                 var e = _run.Enemy!;
-                sb.Append($"[b]Next: fight {e.Number}{(e.IsBoss ? " · [color=#ff6666]BOSS[/color]" : "")}[/b] against {RunBrainStyle.Name}\n");
+                var tag = e.IsBoss ? " · [color=#ff6666]BOSS[/color]" : e.IsMiniboss ? " · [color=#ffcc33]MINI BOSS[/color]" : "";
+                sb.Append($"[b]Chamber {e.Number}{tag}[/b] ({DoorName(_run.Door!)}) against {RunBrainStyle.Name}\n");
                 sb.Append($"   HP {e.Stats.MaxHp}   ·   stamina {e.Stats.MaxStamina}   ·   Qi {e.Stats.Qi}/{e.Stats.MaxQi}\n");
                 sb.Append("   Its moves: ").Append(string.Join(", ", Slots.All.Where(s => e.Loadout[s] != null).Select(s => e.Loadout[s]!.Name)))
-                  .Append(" (and walking and quick step)\n\n");
+                  .Append(" (and walking and quick step)\n   ").Append(DoorWhat(_run.Door!)).Append("\n\n");
                 AppendPlayer(sb);
                 sb.Append("\n[b]Press any button (or Enter) to fight.[/b]");
                 break;
             case RunPhase.Reward:
-                sb.Append("[b]Choose a reward[/b] (↑/↓, then any button or Enter):\n");
+                var picks = _run.PicksLeft > 1 ? $" ({_run.PicksLeft} different moves to power up)" : "";
+                sb.Append($"[b]{DoorName(_run.Door!)}: choose a reward{picks}[/b] (↑/↓, then any button or Enter):\n");
                 for (int i = 0; i < _run.Offers.Count; i++) Row(sb, i, OfferText(_run.Offers[i]));
                 sb.Append('\n');
                 AppendPlayer(sb);
                 break;
             case RunPhase.Victory:
-                sb.Append($"[font_size=30][color=#7dffb0][b]Run complete![/b][/color][/font_size]  You beat all {_run.Sheet.Fights} opponents.\n\n");
+                sb.Append($"[font_size=30][color=#7dffb0][b]Run complete![/b][/color][/font_size]  You cleared all {_run.Sheet.Fights} chambers.\n\n");
                 AppendPlayer(sb);
                 sb.Append("\nPress any button (or Enter) to start a new run.");
                 break;
             case RunPhase.Defeat:
-                sb.Append($"[font_size=30][color=#ff6666][b]Defeated at fight {_run.FightNumber}.[/b][/color][/font_size]  The run is over.\n\n");
+                sb.Append($"[font_size=30][color=#ff6666][b]Defeated in chamber {_run.Chamber}.[/b][/color][/font_size]  The run is over.\n\n");
                 AppendPlayer(sb);
-                sb.Append("\nPress any button (or Enter) to start again from the beginning.");
+                sb.Append("\nPress any button (or Enter) to start again from scratch.");
                 break;
         }
         sb.Append("\n\n[color=#aaaaaa]F4: practice arena[/color]");
         _menu.Text = sb.ToString();
-        if (_runFighting == false && _runNote.Length > 0) _event.Text = _runNote;
+        if (_runNote.Length > 0) _event.Text = _runNote;
     }
 
     private void Row(System.Text.StringBuilder sb, int i, string text) =>
@@ -303,9 +478,13 @@ public partial class Arena
                 return o.Upgrade == UpgradeKind.Damage
                     ? $"Power up {o.Move!.Name}: more damage (x{u.DamagePct / 100.0:0.00} → x{next.DamagePct / 100.0:0.00}), power-up {next.Levels}/{_run.Sheet.UpgradeMax}"
                     : $"Power up {o.Move!.Name}: less stamina (x{u.StaminaPct / 100.0:0.00} → x{next.StaminaPct / 100.0:0.00}), power-up {next.Levels}/{_run.Sheet.UpgradeMax}";
-            case OfferKind.MaxHp: return $"Max HP +{o.Amount} ({_run.MaxHp} → {_run.MaxHp + o.Amount})";
-            case OfferKind.MaxStamina: return $"Max stamina +{o.Amount} ({_run.MaxStamina} → {_run.MaxStamina + o.Amount})";
-            case OfferKind.MaxQi: return $"Max Qi +{o.Amount} ({_run.MaxQi} → {_run.MaxQi + o.Amount})";
+            case OfferKind.Stats:
+                var parts = new List<string>();
+                if (o.Hp > 0) parts.Add($"max HP +{o.Hp} ({_run.MaxHp} → {_run.MaxHp + o.Hp})");
+                if (o.Stamina > 0) parts.Add($"max stamina +{o.Stamina} ({_run.MaxStamina} → {_run.MaxStamina + o.Stamina})");
+                if (o.Qi > 0) parts.Add($"max Qi +{o.Qi} ({_run.MaxQi} → {_run.MaxQi + o.Qi})");
+                var text = string.Join(" and ", parts);
+                return text.Length > 0 ? char.ToUpperInvariant(text[0]) + text.Substring(1) : text;
             case OfferKind.NewMove: return $"Learn {CategoryName(o.Move!.Category)} · {o.Move!.Name} (goes on an empty button)";
             default: return o.Kind.ToString();
         }
@@ -326,9 +505,13 @@ public partial class Arena
         return levels == 0 ? "" : $" +{levels}";
     }
 
-    /// <summary>The run's line at the top of the HUD during a fight.</summary>
-    private string RunStatusLine() =>
-        _runFighting && _run.Enemy != null
-            ? $"[b]Fight {_run.Enemy.Number}/{_run.Sheet.Fights}{(_run.Enemy.IsBoss ? " · BOSS" : "")}[/b]   ·   "
-            : "";
+    /// <summary>The run's line at the top of the HUD during a fight or while roaming.</summary>
+    private string RunStatusLine()
+    {
+        if (_runFighting && _run.Enemy != null)
+            return $"[b]Chamber {_run.Enemy.Number}/{_run.Sheet.Fights}{(_run.Enemy.IsBoss ? " · BOSS" : _run.Enemy.IsMiniboss ? " · MINI BOSS" : "")}[/b]   ·   ";
+        if (RunRoaming)
+            return $"[b]Chamber {_run.Chamber}{(_run.Chamber == 0 ? "" : " (cleared)")}[/b] · {_run.Doors.Count} door{(_run.Doors.Count == 1 ? "" : "s")}   ·   ";
+        return "";
+    }
 }

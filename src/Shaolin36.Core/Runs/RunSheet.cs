@@ -19,12 +19,17 @@ namespace Shaolin36.Core.Runs
             "fights", "player_hp", "player_stamina", "player_qi",
             "hp_up", "hp_cap", "stamina_up", "stamina_cap", "qi_up", "qi_cap",
             "upgrade_max", "upgrade_damage_pct", "upgrade_stamina_pct",
-            "win_heal_pct", "offers",
+            "win_heal_pct",
+            "rarity_common", "rarity_uncommon", "rarity_rare", "super_rare_from", "super_rare_to", "super_rare_pct",
+            "skill_choices", "scroll_picks", "miniboss_hp_bonus",
             "enemy_hp", "enemy_hp_step", "boss_hp", "enemy_stamina", "enemy_qi", "enemy_qi_start", "enemy_moves_max", "enemy_tiger_from",
         };
 
         /// <summary>Every text key the sheet must have: technique and brain ids, separated by spaces.</summary>
-        public static readonly string[] TextKeys = { "starters", "enemy_first", "enemy_waigong", "brains" };
+        public static readonly string[] TextKeys =
+        {
+            "starters", "enemy_first", "enemy_waigong", "brains", "first_doors_a", "first_doors_b", "three_doors", "miniboss_brain",
+        };
 
         private readonly Dictionary<string, int> _numbers;
         private readonly Dictionary<string, string[]> _texts;
@@ -69,8 +74,24 @@ namespace Shaolin36.Core.Runs
         public int UpgradeStaminaPct => N("upgrade_stamina_pct");
         /// <summary>HP healed after each win, in percent of max HP.</summary>
         public int WinHealPct => N("win_heal_pct");
-        /// <summary>Rewards offered after each win (the player picks one).</summary>
-        public int Offers => N("offers");
+        /// <summary>Chance out of 100 that a door is common (Medicine or Skill Enhance).</summary>
+        public int RarityCommon => N("rarity_common");
+        /// <summary>Chance out of 100 that a door is uncommon (a new category).</summary>
+        public int RarityUncommon => N("rarity_uncommon");
+        /// <summary>Chance out of 100 that a door is rare (another move from a category you know).</summary>
+        public int RarityRare => N("rarity_rare");
+        /// <summary>The first chamber a super rare door (Elixirs or Ancient Scroll, a mini boss) can lead to.</summary>
+        public int SuperRareFrom => N("super_rare_from");
+        /// <summary>The last chamber it can lead to: if it hasn't shown up before, it always does here.</summary>
+        public int SuperRareTo => N("super_rare_to");
+        /// <summary>Chance out of 100 it shows up among the doors to each chamber before <see cref="SuperRareTo"/>.</summary>
+        public int SuperRarePct => N("super_rare_pct");
+        /// <summary>New moves offered after a category door (the player learns one).</summary>
+        public int SkillChoices => N("skill_choices");
+        /// <summary>Moves the Ancient Scroll powers up (each a different one).</summary>
+        public int ScrollPicks => N("scroll_picks");
+        /// <summary>A mini boss has this much more HP than that chamber's enemy.</summary>
+        public int MinibossHpBonus => N("miniboss_hp_bonus");
         /// <summary>The first enemy's HP.</summary>
         public int EnemyHp => N("enemy_hp");
         /// <summary>HP each later enemy adds.</summary>
@@ -93,6 +114,20 @@ namespace Shaolin36.Core.Runs
         public IReadOnlyList<string> EnemyWaigong => _texts["enemy_waigong"];
         /// <summary>The brain id for each fight, in order.</summary>
         public IReadOnlyList<string> Brains => _texts["brains"];
+        /// <summary>The mini boss's brain id.</summary>
+        public string MinibossBrain => _texts["miniboss_brain"].FirstOrDefault() ?? "";
+
+        /// <summary>The categories the first door to chamber 1 is rolled from (the defensive one).</summary>
+        public IReadOnlyList<Category> FirstDoorsA => Categories("first_doors_a");
+        /// <summary>The categories the second door to chamber 1 is rolled from.</summary>
+        public IReadOnlyList<Category> FirstDoorsB => Categories("first_doors_b");
+
+        /// <summary>The chambers you choose from 3 doors to get into (2 elsewhere; 1, the boss's, into the last).</summary>
+        public IReadOnlyList<int> ThreeDoors =>
+            _texts["three_doors"].Select(t => int.TryParse(t, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : -1).ToList();
+
+        private IReadOnlyList<Category> Categories(string key) =>
+            _texts[key].Select(t => Enum.TryParse<Category>(t, true, out var c) ? (Category?)c : null).Where(c => c != null).Select(c => c!.Value).ToList();
 
         /// <summary>
         /// Problems with this sheet against the techniques and brains it names: unknown ids, a brain list that doesn't match the
@@ -115,6 +150,20 @@ namespace Shaolin36.Core.Runs
             if (EnemyWaigong.Count == 0) errors.Add("enemy_waigong: name at least one technique");
             foreach (var id in Brains)
                 if (brains.Find(id) == null) errors.Add($"brains: no brain '{id}' in brains.csv");
+            if (brains.Find(MinibossBrain) == null) errors.Add($"miniboss_brain: no brain '{MinibossBrain}' in brains.csv");
+            foreach (var key in new[] { "first_doors_a", "first_doors_b" })
+            {
+                foreach (var t in _texts[key])
+                    if (!Enum.TryParse<Category>(t, true, out _)) errors.Add($"{key}: '{t}' is not a category (waigong neigong qinggong dianxue fangshen qinna lianqi)");
+                if (_texts[key].Length == 0) errors.Add($"{key}: name at least one category");
+            }
+            foreach (var n in ThreeDoors)
+                if (n < 1 || n > Fights) errors.Add($"three_doors: chambers are 1 to {Fights}");
+            if (RarityCommon + RarityUncommon + RarityRare != 100) errors.Add("rarity_common + rarity_uncommon + rarity_rare: must add up to 100");
+            if (SuperRarePct > 100) errors.Add("super_rare_pct: at most 100");
+            if (SuperRareFrom < 2 || SuperRareTo < SuperRareFrom || SuperRareTo >= Fights) errors.Add($"super_rare_from / super_rare_to: between 2 and {Fights - 1}, from no later than to");
+            if (SkillChoices < 1) errors.Add("skill_choices: at least 1");
+            if (ScrollPicks < 1) errors.Add("scroll_picks: at least 1");
             if (Fights < 1) errors.Add("fights: at least 1");
             if (Brains.Count != Fights) errors.Add($"brains: name one brain per fight ({Fights}), got {Brains.Count}");
             if (PlayerHp < 1) errors.Add("player_hp: at least 1");
@@ -122,7 +171,6 @@ namespace Shaolin36.Core.Runs
             if (HpCap < PlayerHp) errors.Add("hp_cap: below player_hp");
             if (StaminaCap < PlayerStamina) errors.Add("stamina_cap: below player_stamina");
             if (QiCap < PlayerQi) errors.Add("qi_cap: below player_qi");
-            if (Offers < 1) errors.Add("offers: at least 1");
             if (WinHealPct > 100) errors.Add("win_heal_pct: at most 100");
             if (UpgradeStaminaPct * UpgradeMax > 100) errors.Add("upgrade_stamina_pct x upgrade_max: more than 100% off");
             if (EnemyHp < 1 || BossHp < 1) errors.Add("enemy_hp and boss_hp: at least 1");

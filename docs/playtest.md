@@ -8,21 +8,22 @@ You (the orange capsule, with the camera behind you) against an opponent (the da
 
 A quick test of the roguelike loop. Every number below is in `game\data\run.csv` (open it in Excel, save as CSV UTF-8).
 
-1. **Choose your first move:** 罗汉拳 or 虎形拳 (↑/↓ or W/S, then any button or Enter).
-2. **Choose its button:** press the button you want it on. It stays there all run. You start with **100 HP, 80 stamina and 80 max Qi** (0 Qi to begin with).
-3. **Fight.** The screen before each fight shows the enemy: its brain, HP, stamina, Qi and its moves. Press any button to start.
-4. **Win: pick a reward.** You heal **50% of your max HP**, and your Qi carries over to the next fight (stamina is always full at the start of a fight). Then you choose 1 of **3 rewards**, each a different kind, picked at random from:
-   - **Power up a move you know:** the game picks one of your moves and either **more damage** (+15% each time) or **less stamina** (-15% each time) on every hit of its string. Each move takes **at most 4** power-ups.
-   - **Max HP +20** (up to 200; you gain the 20 HP too).
-   - **Max stamina +10** (up to 130).
-   - **Max Qi +20** (up to 130).
-   - **Learn a new move:** the game picks one of the 7 categories (外功 too), then a move from it that you don't know yet. You then press an **empty** button for it. A move is never replaced, so once all 8 buttons are full, new moves stop being offered.
-5. **The enemies grow:** enemy 1 knows only 罗汉拳 (plus walking and quick step), has 80 HP and the easiest brain. Each new enemy has **one more move** (2, 3, 4 ... up to 8), a new random set of them, and **10 more HP**. From enemy 3 on its 外功 can be 虎形拳 instead of 罗汉拳. Every enemy has 100 stamina and 100 max Qi, and starts each fight with 0 Qi. The brain gets smarter: 弟子 (novice) for fights 1 to 3, 武僧 (monk) for 4 to 7, 方丈 (master) for 8 to 10. **Enemy 10 is the boss, with 200 HP.**
-6. **Lose once and the run is over:** press any button to start again from the beginning.
+1. **Read a scroll:** 罗汉拳 or 虎形拳 (↑/↓ or W/S, then any button or Enter), then press the button you want it on. It stays there all run. You start with **100 HP, 80 stamina and 80 max Qi** (0 Qi to begin with).
+2. **Chamber 0 has no enemy:** walk around freely and try your move on the wooden dummy (it never falls or hits back; nothing you do to it carries over). At the far side are the **doors**. Walk onto a door's glowing floor pad and press **Enter** (pad: **Select**) to go through. Each door's name and rarity float above it, coloured by rarity.
+3. **Fight the chamber's enemy.** The screen before each fight shows the door you took and the enemy: its brain, HP, stamina, Qi and its moves. Press any button to start. Win and you heal **30% of your max HP**; your Qi carries over (stamina is always full at the start of a fight). Then you take the door's reward and roam the cleared chamber the same way, until you pick the next door.
+4. **The doors into chamber 1** are always two new categories: one from 轻功, 防身 or 炼气, the other from 内功, 擒拿 or 点穴. Win and you pick 1 of 2 moves from that category, then press an **empty** button for it.
+5. **Every other door rolls a rarity.** Two doors in one choice are never the same kind. There are 2 doors out of most chambers, **3 out of chambers 4 and 8** (into 5 and 9), and **1, the boss door, out of chamber 9**.
+   - **Common (60%):** **Medicine** (choose 1: max HP +20 up to 200, max stamina +10 up to 130, or max Qi +20 up to 130), or **Skill Enhance** (choose 1 of your moves and how it goes up: **more damage**, +15% each time, or **less stamina**, -15% each time; each move takes at most 4).
+   - **Uncommon (30%):** a move from a category you don't know yet (pick 1 of 2).
+   - **Rare (10%):** another move from a category you already know (pick 1 of 2).
+   - **Super rare, once a run:** it can show on the doors into chambers 5 and 6 (35% each) and is certain on the doors into chamber 7 if it hasn't shown yet. It leads to a **mini boss** (+40 HP and the 方丈 brain). **Elixirs:** win two of max HP, stamina and Qi as a pair. **Ancient Scroll:** two Skill Enhances on two different moves.
+   - A move is never replaced. When there's no new move to learn or all 8 buttons are full, uncommon and rare doors become Skill Enhance. Skill Enhance and the Ancient Scroll only show while some move is below 4 power-ups.
+6. **The enemies grow:** enemy 1 knows only 罗汉拳 (plus walking and quick step), has 80 HP and the easiest brain. Each new enemy has **one more move** (2, 3, 4 ... up to 8), a new random set of them, and **10 more HP**. From enemy 3 on its 外功 can be 虎形拳 instead of 罗汉拳. Every enemy has 100 stamina and 100 max Qi, and starts each fight with 0 Qi. The brain gets smarter: 弟子 (novice) for chambers 1 to 3, 武僧 (monk) for 4 to 7, 方丈 (master) for 8 to 10. **Chamber 10 is the boss, with 200 HP.**
+7. **Lose any fight and the run is over:** press any button to start again from the scroll.
 
-During a fight, Tab / Esc / pad Start pauses (your stats and power-ups are on the pause screen). Paused, **Enter gives the run up** and starts over. There is no restart key or "opponent stands still" in the run. The HUD's button line shows `+N` after a move with N power-ups.
+During a fight or while roaming, Tab / Esc / pad Start pauses (your stats and power-ups are on the pause screen). Paused, **Enter gives the run up** and starts over. There is no restart key or "opponent stands still" in the run. The HUD's button line shows `+N` after a move with N power-ups.
 
-The run sheet's keys: `fights`, `player_hp`, `player_stamina`, `player_qi`, `hp_up`/`hp_cap`, `stamina_up`/`stamina_cap`, `qi_up`/`qi_cap`, `upgrade_max`, `upgrade_damage_pct`, `upgrade_stamina_pct`, `win_heal_pct`, `offers`, `enemy_hp`, `enemy_hp_step`, `boss_hp`, `enemy_stamina`, `enemy_qi`, `enemy_qi_start`, `enemy_moves_max`, `enemy_tiger_from`, and the lists `starters`, `enemy_first`, `enemy_waigong` and `brains` (one brain per fight).
+The run sheet's keys: `fights`, `player_hp`, `player_stamina`, `player_qi`, `hp_up`/`hp_cap`, `stamina_up`/`stamina_cap`, `qi_up`/`qi_cap`, `upgrade_max`, `upgrade_damage_pct`, `upgrade_stamina_pct`, `win_heal_pct`, `rarity_common`/`rarity_uncommon`/`rarity_rare` (must add up to 100), `super_rare_from`/`super_rare_to`/`super_rare_pct`, `skill_choices`, `scroll_picks`, `miniboss_hp_bonus`, `miniboss_brain`, the door lists `first_doors_a`/`first_doors_b`, `three_doors` (the chambers reached through 3 doors), `enemy_hp`, `enemy_hp_step`, `boss_hp`, `enemy_stamina`, `enemy_qi`, `enemy_qi_start`, `enemy_moves_max`, `enemy_tiger_from`, and the lists `starters`, `enemy_first`, `enemy_waigong` and `brains` (one brain per fight).
 ## 1. Get the new version on your PC
 
 You already have the repo at `D:\GitHub\shaolin-36` in GitHub Desktop.
@@ -324,7 +325,7 @@ Switch them in the pause menu (Tab, Esc or pad Start). The numbers are in `techn
 
 ## 7. The questions for this build
 
-**First, the demo run:** play a few runs. Is the climb from enemy 1 to the boss about right? Which rewards feel worth taking and which never get picked? Are 15% per power-up and the 50% heal too much or too little? Does an enemy with a random set of moves read as a different opponent each time?
+**First, the demo run:** play a few runs. Is the climb from chamber 1 to the boss about right? Which rewards feel worth taking and which never get picked? Do the doors give you real choices? Does the super rare door show up often enough? Are 15% per power-up and the 30% heal too much or too little? Does an enemy with a random set of moves read as a different opponent each time?
 
 0. **The second moves:** switch each category in the pause menu and try it against an opponent using the same move. Which numbers feel off (虎形拳's leaps, 狮吼功's ring and Qi cost, 纵云梯's distance, 无相劫指's lock time, 硬气功's stamina per block, 龙爪手's tap window, 易筋经's 1.5x)?
 1. **Does it feel like a fight now?** Against the monk, does the opponent close in, attack and defend in a way you can read? Anything it does that looks robotic or unfair?

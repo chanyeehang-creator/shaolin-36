@@ -1,7 +1,8 @@
-# Run sheet: the demo roguelike run (Chan's test run). Tune freely, then run scripts/test.sh.
+# Run sheet: the demo roguelike run (Chan's chamber-and-door design). Tune freely, then run scripts/test.sh.
+# Chamber 0 has no enemy; doors lead to chambers 1 to fights (the last is the boss). Each chamber's fight gives its door's reward.
 # Text values are ids from techniques.csv or brains.csv, separated by spaces.
 key,value,note
-fights,10,Fights in a run; the last is the boss
+fights,10,Chambers with a fight in a run; the last is the boss
 player_hp,100,Your starting max HP
 player_stamina,80,Your starting max stamina
 player_qi,80,Your starting max Qi (you start the run with qi_start from rules.csv; Qi carries over between fights)
@@ -14,8 +15,16 @@ qi_cap,130,Max Qi never goes above this
 upgrade_max,4,Power-ups one move can have in all (damage and stamina together)
 upgrade_damage_pct,15,Each "deal more damage" power-up: +this % damage on every hit of the move's string
 upgrade_stamina_pct,15,Each "reduce stamina cost" power-up: -this % stamina on every hit of the move's string (never below 1)
-win_heal_pct,50,After each win you heal this % of your max HP
-offers,3,Rewards offered after each win (pick one). A move power-up / max HP / max stamina / max Qi / a new move: no two of a kind
+win_heal_pct,30,After each win you heal this % of your max HP (Chan: 30)
+rarity_common,60,Chance out of 100 a door is common: Medicine (max HP / stamina / Qi) or Skill Enhance (power up a move)
+rarity_uncommon,30,Chance out of 100 a door is uncommon: a move from a category you don't know yet
+rarity_rare,10,Chance out of 100 a door is rare: another move from a category you know. The three must add up to 100
+super_rare_from,5,The super rare door (a mini boss: Elixirs or Ancient Scroll) can lead to chambers from this one...
+super_rare_to,7,...to this one. Once a run: if it hasn't shown up before this chamber it always shows up here
+super_rare_pct,35,Chance out of 100 it shows up among the doors to each chamber before super_rare_to
+skill_choices,2,Moves offered after a category door (you learn one)
+scroll_picks,2,The Ancient Scroll powers up this many different moves
+miniboss_hp_bonus,40,A mini boss has this much more HP than that chamber's enemy
 enemy_hp,80,The first enemy's HP
 enemy_hp_step,10,Each later enemy has this much more HP
 boss_hp,200,The last enemy (the boss) has this HP instead
@@ -27,4 +36,8 @@ enemy_tiger_from,3,From this fight on the enemy's 外功 can be any of enemy_wai
 starters,luohan_quan_1 huxing_quan_1,The 外功 you choose between at the start
 enemy_first,luohan_quan_1,The early enemies' 外功
 enemy_waigong,luohan_quan_1 huxing_quan_1,The 外功 later enemies pick from
-brains,novice novice novice monk monk monk monk master master master,The brain for each fight in order (弟子 / 武僧 / 方丈)
+brains,novice novice novice monk monk monk monk master master master,The brain for each chamber's fight in order (弟子 / 武僧 / 方丈)
+miniboss_brain,master,The mini boss's brain (better than the chamber's own)
+first_doors_a,qinggong fangshen lianqi,Chamber 1's first door is a new category from these (Chan: the defensive one)
+first_doors_b,neigong qinna dianxue,Chamber 1's second door is a new category from these
+three_doors,5 9,You choose from 3 doors to get into these chambers (2 elsewhere; 1 into the boss's)

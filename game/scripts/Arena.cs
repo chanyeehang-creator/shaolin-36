@@ -179,28 +179,29 @@ public partial class Arena : Node3D
         _cameraPlaced = false;
         _doubleTap?.Reset();
         _overFrames = 0;
-        _duel = RunFighting ? _run.StartFight() : Duel.Start(_rules, _playerLoadout, _dummyLoadout);
+        _duel = RunFighting ? _run.StartFight() : RunRoaming ? RoamDuel() : Duel.Start(_rules, _playerLoadout, _dummyLoadout);
         _healSeenTick[0] = _healSeenTick[1] = -1;
         if (_healVoices[0] != null) { StopHealChannel(Side.One); StopHealChannel(Side.Two); }
         // A new seed each duel, counted up from 1: the brain's choices change from duel to duel but every run is repeatable.
         _duelNumber++;
         _brain = RunFighting ? new Brain(RunBrainStyle, _run.Enemy!.BrainSeed)
-            : UsingDummy ? null : new Brain(_brains.Styles[_opponentMode], _duelNumber) { Active = _opponentActive };
+            : RunRoaming || UsingDummy ? null : new Brain(_brains.Styles[_opponentMode], _duelNumber) { Active = _opponentActive };
         // A brain opponent loses you when you jump over it (纵云梯) and finds you again after standing still its relock time.
         _duel.Two.CanLoseLock = _brain != null;
         _duel.Two.RelockFrames = _brain?.Style.Relock ?? 0;
         _dummy.Attacks = _opponentActive;
         if (RunFighting) _brain!.Active = true;
+        if (RunRoaming) _dummy.Attacks = false; // the chamber's wooden dummy only stands there
         _clock = new FeelClock(_duel, _feel) { HitStopOn = _feelOn };
         _combo = 0;
         _comboBy = null;
         ClearFloats();
     }
 
-    private bool UsingDummy => !RunFighting && _opponentMode >= _brains.Styles.Count;
+    private bool UsingDummy => !_runMode && _opponentMode >= _brains.Styles.Count;
 
     /// <summary>The opponent's name for the screen: the brain row's name, or "Training dummy".</summary>
-    private string OpponentName => RunFighting ? RunBrainStyle.Name : UsingDummy ? "Training dummy" : _brains.Styles[_opponentMode].Name;
+    private string OpponentName => RunFighting ? RunBrainStyle.Name : RunRoaming ? "木人桩 (wooden dummy)" : UsingDummy ? "Training dummy" : _brains.Styles[_opponentMode].Name;
 
     /// <summary>This tick's buttons and stick for the opponent. Not called during hit-stop, so its timers stay in step with the fight.</summary>
     private BrainInput OpponentInput()
@@ -703,10 +704,11 @@ public partial class Arena : Node3D
         ExhaustionChanged(Side.One, oneWasExhausted);
         ExhaustionChanged(Side.Two, twoWasExhausted);
 
+        if (RunRoaming) UpdateDoorHint();
         if (_duel.IsOver && _runMode)
         {
             _event.Text += _duel.Two.IsDown
-                ? $"\n[font_size=28][b]You win fight {_run.FightNumber}![/b][/font_size]  Press any button to go on."
+                ? $"\n[font_size=28][b]You clear chamber {_run.Chamber}![/b][/font_size]  Press any button to go on."
                 : "\n[font_size=28][b]You were defeated.[/b][/font_size]  Press any button.";
         }
         else if (_duel.IsOver)
@@ -1119,6 +1121,10 @@ public partial class Arena : Node3D
             $"Distance {_duel.DistanceCm} cm   ·   {OpponentName}: {(_opponentActive || RunFighting ? Thinking() : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_clock.IsFrozen ? " [color=#ffd11a](hit-stop)[/color]" : "")}   ·   feel kit {(_feelOn ? "on" : "[color=#ffd11a]off[/color]")} (F3){(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
         if (RunScreenUp) _status.Text = ""; // a run screen is up: no duel to show
+        // The status wraps on a narrow window: keep the event line and pad line just under it, never on top of it.
+        float below = 12 + Mathf.Max(88f, _status.GetContentHeight()) + 2;
+        _event.Position = new Vector2(16, below);
+        _pad.Position = new Vector2(16, below + Mathf.Max(70f, _event.GetContentHeight()));
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
             (_runMode ? "Demo run (F4: practice arena)  ·  " : "Practice arena (F4: back to the demo run)  ·  ") + "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  ✕ 轻功 (aim with a direction; the dash breaks combos, 纵云梯 jumps over)  ·  ○ 点穴  ·  R1 炼气  ·  R2 擒拿 (beats parry and guard; grabbed: press a grab to break out)  ·  L1 防身 (硬气功: hold)  ·  Knocked down: any button rises, a direction rolls  ·  " + (_runMode ? "Pause: Tab / Esc / pad Start  ·  " : "Pause menu (switch each category's move): Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  ") + "Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
@@ -1231,6 +1237,7 @@ public partial class Arena : Node3D
     /// <summary>What the opponent brain is up to, in plain words.</summary>
     private string Thinking()
     {
+        if (RunRoaming) return "standing still: try your moves on it";
         if (_brain == null) return "repeating 罗汉拳";
         switch (_brain.Intent)
         {
