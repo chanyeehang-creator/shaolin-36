@@ -379,6 +379,7 @@ public class RunTests
         // Chan: an opening after each of its attacks.
         Assert.Equal(30, run.Enemy.OpeningFrames);
         Assert.Equal(30, Sheet.MinibossOpening);
+        Assert.Equal(15, Sheet.BossOpening); // the boss gets a shorter one (Chan)
     }
 
     [Fact]
