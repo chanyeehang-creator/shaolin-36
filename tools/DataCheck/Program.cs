@@ -3,6 +3,7 @@
 using Shaolin36.Core.Brains;
 using Shaolin36.Core.Data;
 using Shaolin36.Core.Feel;
+using Shaolin36.Core.Poses;
 using Shaolin36.Core.Runs;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -13,9 +14,10 @@ var rulesPath = Path.Combine(dir, "rules.csv");
 var feelPath = Path.Combine(dir, "feel.csv");
 var brainsPath = Path.Combine(dir, "brains.csv");
 var runPath = Path.Combine(dir, "run.csv");
+var posesPath = Path.Combine(dir, "poses.csv");
 int problems = 0;
 
-foreach (var path in new[] { techniquesPath, rulesPath, feelPath, brainsPath, runPath })
+foreach (var path in new[] { techniquesPath, rulesPath, feelPath, brainsPath, runPath, posesPath })
 {
     if (File.Exists(path)) continue;
     Console.Error.WriteLine($"FAIL: {path} not found");
@@ -48,6 +50,16 @@ if (run.Ok && techniques.Ok && brains.Ok)
     problems += runErrors.Count;
 }
 
+var poses = PoseCsv.Parse(File.ReadAllText(posesPath));
+foreach (var error in poses.Errors) Console.Error.WriteLine($"{posesPath}: {error}");
+problems += poses.Errors.Count;
+if (poses.Ok && techniques.Ok)
+{
+    var poseErrors = poses.Sheet!.Check(techniques.Techniques);
+    foreach (var error in poseErrors) Console.Error.WriteLine($"{posesPath}: {error}");
+    problems += poseErrors.Count;
+}
+
 if (problems > 0)
 {
     Console.Error.WriteLine($"FAIL: {problems} problem(s) in {dir}");
@@ -58,6 +70,7 @@ Console.WriteLine($"OK: {techniques.Techniques.Count} techniques in {techniquesP
 Console.WriteLine($"OK: {Rules.Keys.Length} rules in {rulesPath}");
 Console.WriteLine($"OK: {FeelSheet.EventNames.Count} feel events in {feelPath}");
 Console.WriteLine($"OK: {run.Sheet!.Fights} fights in {runPath}");
+Console.WriteLine($"OK: {poses.Sheet!.Count} poses in {posesPath}");
 Console.WriteLine($"OK: {brains.Sheet!.Styles.Count} brains in {brainsPath} ({string.Join(", ", brains.Sheet.Styles.Select(b => b.Id))})");
 
 // Tuning aid: how forgiving each string is.

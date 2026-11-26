@@ -7,6 +7,7 @@ using Shaolin36.Core.Combat;
 using Shaolin36.Core.Data;
 using Shaolin36.Core.Feel;
 using Shaolin36.Core.Fighters;
+using Shaolin36.Core.Poses;
 using Shaolin36.Core.Runs;
 using Side = Shaolin36.Core.Combat.Side;
 
@@ -16,7 +17,7 @@ namespace Shaolin36.Game;
 /// The playable test: you against an opponent brain (or the old training dummy), on a square floor in full 3D.
 /// This node only shows and drives the core: it turns button presses into slot presses and the
 /// stick or WASD into lock-on-relative walking, steps the <see cref="Duel"/> once per 60 Hz physics tick
-/// (through the <see cref="FeelClock"/>, which adds hit-stop), paints the capsules by state and keeps a
+/// (through the <see cref="FeelClock"/>, which adds hit-stop), poses the stick-figure mannequins from the pose sheet, paints them by state and keeps a
 /// third-person camera behind you, locked on to the opponent. The feel kit's sparks, sounds and camera
 /// moves are in ArenaFeel.cs.
 /// </summary>
@@ -37,11 +38,23 @@ public partial class Arena : Node3D
     private static readonly Color GrabColor = new(0.90f, 0.45f, 0.20f);
     /// <summary>Lying knocked down on the floor.</summary>
     private static readonly Color DownColor = new(0.45f, 0.38f, 0.32f);
-    private static readonly Color PlayerColor = new(0.95f, 0.65f, 0.15f);
-    private static readonly Color DummyColor = new(0.55f, 0.15f, 0.15f);
+    // Idle bodies are quiet colours, so the wind-up and hit colours stand out.
+    private static readonly Color PlayerColor = new(0.30f, 0.62f, 0.50f);
+    private static readonly Color DummyColor = new(0.40f, 0.40f, 0.47f);
+
+    // Wind-up colour by weight (light yellow, medium orange, heavy crimson-magenta, so it never reads as the red of a live hit), glowing brighter as the strike nears. Grabs flash white and orange:
+    // no parry or guard stops them. Pure energy (狮吼功) is violet.
+    private static readonly Color LightWindUpColor = new(1.00f, 0.88f, 0.20f);
+    private static readonly Color MediumWindUpColor = new(1.00f, 0.50f, 0.05f);
+    private static readonly Color HeavyWindUpColor = new(0.80f, 0.04f, 0.42f);
+    private static readonly Color EnergyWindUpColor = new(0.42f, 0.25f, 1.00f);
+    private static readonly Color GrabFlashColor = new(1.00f, 1.00f, 1.00f);
+    /// <summary>Ticks each half of a grab's flash lasts (8 ticks = 7.5 flashes a second).</summary>
+    private const int FlashTicks = 4;
 
     private const string Legend =
-        "[color=#ffd11a]■ startup[/color]   [color=#f2261a]■ active (hit)[/color]   [color=#33ff59]■ perfect parry[/color]   " +
+        "Wind-up: [color=#ffe033]■ light[/color] [color=#ff800d]■ medium[/color] [color=#cc0a6b]■ heavy[/color] [color=#6b40ff]■ energy[/color] [color=#e67333]■[/color][color=#ffffff]■[/color] flashing = grab (parry and guard can't stop it)\n" +
+        "[color=#f2261a]■ active (hit)[/color]   [color=#33ff59]■ perfect parry[/color]   " +
         "[color=#33bfff]■ parry[/color]   [color=#4059f2]■ recovery[/color]   [color=#ffffff]■ hit[/color]   " +
         "[color=#d94df2]■ staggered (open!)[/color]   [color=#8c8c99]■ recoil / recovering from a parry[/color]   [color=#b3ffd9]■ quick step[/color]   [color=#7dffb0]■ healing[/color]   [color=#e67333]■ grab / held[/color]   [color=#736152]■ knocked down[/color]";
 
@@ -101,6 +114,7 @@ public partial class Arena : Node3D
 
     private Duel _duel = null!;
     private readonly FeelSheet _feel = null!;
+    private readonly PoseSheet _poses = null!;
     private FeelClock _clock = null!;
     private bool _feelOn = true;
     private byte _pending; // slot presses since the last tick
@@ -113,7 +127,7 @@ public partial class Arena : Node3D
     private int _combo;
     private Side? _comboBy;
 
-    private MeshInstance3D _player = null!, _opponent = null!;
+    private Mannequin _player = null!, _opponent = null!;
     private MeshInstance3D _playerReach = null!, _opponentReach = null!;
     private RichTextLabel _status = null!, _event = null!, _menu = null!;
     private Label _help = null!, _pad = null!;
@@ -126,10 +140,12 @@ public partial class Arena : Node3D
     /// <param name="feel">The feel sheet: hit-stop, sparks, sound and camera for each kind of strike.</param>
     /// <param name="brains">The brain sheet: how each opponent plays. Practice starts against the "monk" row.</param>
     /// <param name="runSheet">The run sheet: the demo roguelike run the arena opens with (F4 switches to practice and back).</param>
+    /// <param name="poses">The pose sheet: the mannequin's key poses for each move and state.</param>
     /// <param name="runSeed">The run's seed (the game rolls one; the core's choices all follow from it).</param>
-    public Arena(Rules rules, IReadOnlyList<Technique> techniques, FeelSheet feel, BrainSheet brains, RunSheet runSheet, int runSeed)
+    public Arena(Rules rules, IReadOnlyList<Technique> techniques, FeelSheet feel, BrainSheet brains, RunSheet runSheet, PoseSheet poses, int runSeed)
     {
         _rules = rules;
+        _poses = poses;
         _feel = feel;
         _brains = brains;
         _opponentMode = System.Math.Max(0, brains.Styles.ToList().FindIndex(b => b.Id == "monk"));
@@ -279,8 +295,8 @@ public partial class Arena : Node3D
         BuildHealSounds();
         BuildFloor();
 
-        _player = Capsule("Player", PlayerColor);
-        _opponent = Capsule("Opponent", DummyColor);
+        _player = Body("Player");
+        _opponent = Body("Opponent");
         _playerReach = ReachBar();
         _opponentReach = ReachBar();
 
@@ -308,7 +324,8 @@ public partial class Arena : Node3D
         var legend = new RichTextLabel
         {
             AnchorTop = 1, AnchorBottom = 1, AnchorRight = 1,
-            OffsetLeft = 16, OffsetRight = -16, OffsetTop = -96, OffsetBottom = -66,
+            OffsetLeft = 16, OffsetRight = -16, OffsetTop = -150, OffsetBottom = -66,
+            VerticalAlignment = VerticalAlignment.Bottom,
             BbcodeEnabled = true,
             ScrollActive = false,
             MouseFilter = Control.MouseFilterEnum.Ignore,
@@ -354,21 +371,9 @@ public partial class Arena : Node3D
         }
     }
 
-    private MeshInstance3D Capsule(string name, Color color)
+    private Mannequin Body(string name)
     {
-        var m = new MeshInstance3D
-        {
-            Name = name,
-            Mesh = new CapsuleMesh { Radius = 0.4f, Height = 2f },
-            MaterialOverride = new StandardMaterial3D { AlbedoColor = color },
-        };
-        // A "nose" on the front of the chest, so you can see which way each fighter faces.
-        m.AddChild(new MeshInstance3D
-        {
-            Mesh = new BoxMesh { Size = new Vector3(0.22f, 0.14f, 0.2f) },
-            Position = new Vector3(0, 0.45f, -0.4f),
-            MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.14f) },
-        });
+        var m = new Mannequin { Name = name };
         AddChild(m);
         return m;
     }
@@ -1152,7 +1157,7 @@ public partial class Arena : Node3D
     /// <summary>The scene rotation (about Y) that points a node's forward (-Z) along <paramref name="facing"/>.</summary>
     private static float Yaw(FloorPoint facing) => Mathf.Atan2(-facing.X, -facing.Z);
 
-    private void Place(MeshInstance3D body, MeshInstance3D reach, Side side, Color idle)
+    private void Place(Mannequin body, MeshInstance3D reach, Side side, Color idle)
     {
         var f = _duel[side];
         var feet = Floor(f.Position);
@@ -1161,12 +1166,17 @@ public partial class Arena : Node3D
         // Placeholder roll away: spin about the body's long axis while lying down.
         float spin = f.State == FighterState.Rolling ? Mathf.Tau * 1.5f * (f.GetUpFrame + 1) / f.GetUpTotalFrames : 0f;
         var basis = new Basis(Vector3.Up, Yaw(f.Facing)) * new Basis(Vector3.Right, lean) * new Basis(Vector3.Up, spin);
-        // Lying down, lift by the capsule's radius so it rests on the floor instead of sinking into it.
-        var lift = new Vector3(0, 0.4f * Mathf.Sin(lean), 0);
+        // Lying down, lift by the body's thickness so it rests on the floor instead of sinking into it.
+        var lift = new Vector3(0, 0.15f * Mathf.Sin(lean), 0);
         // 纵云梯: up and over on the rules' own curve (jump_height at the top; above strike_top nothing can reach you).
         lift.Y += _duel.HeightCm(f) / 100f;
-        body.Transform = new Transform3D(basis, feet + lift + basis * new Vector3(0, 1, 0));
-        ((StandardMaterial3D)body.MaterialOverride).AlbedoColor = ColorOf(f, idle);
+        body.Transform = new Transform3D(basis, feet + lift);
+        body.Show(f, _poses);
+        var cue = WindUpCues.Of(f);
+        var color = cue != WindUpCue.None && !f.HasArmor ? CueColor(cue, _duel.Tick) : ColorOf(f, idle);
+        // The wind-up glows brighter as the strike nears, so you can read when it lands as well as what it is.
+        float glow = cue == WindUpCue.None ? 0f : 0.15f + 0.65f * WindUpCues.Progress(f) / 1000f;
+        body.Paint(color, color, glow);
 
         var t = f.Technique;
         bool show = t != null && t.ReachCm > 0 && !f.IsHolding && (f.State == FighterState.Startup || f.State == FighterState.Active);
@@ -1177,8 +1187,21 @@ public partial class Arena : Node3D
         reach.Transform = new Transform3D(new Basis(Vector3.Up, Yaw(f.Facing)).Scaled(new Vector3(length, 1, length)),
             feet + new Vector3(0, 0.03f, 0));
         ((StandardMaterial3D)reach.MaterialOverride).AlbedoColor =
-            f.State == FighterState.Active ? new Color(ActiveColor, 0.6f) : new Color(StartupColor, 0.35f);
+            f.State == FighterState.Active ? new Color(ActiveColor, 0.6f)
+            : WindUpCues.Of(f) != WindUpCue.None ? new Color(CueColor(WindUpCues.Of(f), _duel.Tick), 0.4f)
+            : new Color(StartupColor, 0.35f);
     }
+
+    /// <summary>The wind-up colour for a cue; a grab flashes, every <see cref="FlashTicks"/> ticks.</summary>
+    private static Color CueColor(WindUpCue cue, long tick) => cue switch
+    {
+        WindUpCue.Light => LightWindUpColor,
+        WindUpCue.Medium => MediumWindUpColor,
+        WindUpCue.Heavy => HeavyWindUpColor,
+        WindUpCue.Energy => EnergyWindUpColor,
+        WindUpCue.Grab => tick / FlashTicks % 2 == 0 ? GrabFlashColor : GrabColor,
+        _ => StartupColor,
+    };
 
     private static Color ColorOf(Fighter f, Color idle)
     {
