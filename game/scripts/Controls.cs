@@ -24,6 +24,8 @@ public enum Command
     FloatingText,
     /// <summary>The feel kit (hit-stop, sparks, sound, camera) on and off (F3), to compare with and without.</summary>
     FeelKit,
+    /// <summary>Switch between the demo run and the practice arena (F4).</summary>
+    ModeToggle,
 }
 
 /// <summary>
@@ -159,6 +161,7 @@ public static class Controls
                     case Key.F1: return key.Echo ? Command.None : Command.SlowMotion;
                     case Key.F2: return key.Echo ? Command.None : Command.FloatingText;
                     case Key.F3: return key.Echo ? Command.None : Command.FeelKit;
+                    case Key.F4: return key.Echo ? Command.None : Command.ModeToggle;
                     case Key.T: return key.Echo ? Command.None : Command.DummyToggle;
                     case Key.W:
                     case Key.Up: return Command.MenuUp;

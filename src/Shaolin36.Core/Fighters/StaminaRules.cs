@@ -37,6 +37,11 @@ namespace Shaolin36.Core.Fighters
                 rules.ExhaustedUntil, rules.ExhaustedDamagePct, rules.ExhaustedWalkPct);
         }
 
+        /// <summary>The same numbers with a different max stamina (a run's own max). exhausted_until stays, capped at the new max.</summary>
+        public StaminaRules WithMax(int max) =>
+            new StaminaRules(max, RegenPerSecond, RegenStillPerSecond, RegenDelayFrames, Math.Min(ExhaustedUntil, max), ExhaustedDamagePct,
+                ExhaustedWalkPct);
+
         /// <summary>Starting and max stamina.</summary>
         public int Max { get; }
 

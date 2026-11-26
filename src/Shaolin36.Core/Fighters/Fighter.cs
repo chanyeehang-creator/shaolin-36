@@ -111,8 +111,9 @@ namespace Shaolin36.Core.Fighters
         /// <param name="maxQi">Max Qi. 0 turns Qi off: nothing is gained and techniques that cost Qi can't start.</param>
         /// <param name="qi">Qi to start with (a <see cref="Combat.Duel"/> passes qi_start, or what a run carried over).</param>
         /// <param name="quickStep">The quick step's numbers. Null means this fighter can't quick-step.</param>
+        /// <param name="hp">HP to start with, from 1 to <paramref name="maxHp"/>; null for full (a run passes what it carried over).</param>
         public Fighter(Loadout? loadout = null, int maxHp = 1, int positionCm = 0, int inputBufferFrames = 0, StaminaRules? stamina = null,
-            int maxQi = 0, int qi = 0, QuickStepRules? quickStep = null, DownRules? down = null)
+            int maxQi = 0, int qi = 0, QuickStepRules? quickStep = null, DownRules? down = null, int? hp = null)
         {
             DownRules = down;
             QuickStepRules = quickStep;
@@ -126,8 +127,9 @@ namespace Shaolin36.Core.Fighters
             if (inputBufferFrames < 0) throw new ArgumentOutOfRangeException(nameof(inputBufferFrames), inputBufferFrames, "the input buffer cannot be negative");
             InputBufferFrames = inputBufferFrames;
             Loadout = loadout ?? new Loadout();
+            if (hp != null && (hp < 1 || hp > maxHp)) throw new ArgumentOutOfRangeException(nameof(hp), hp, $"starting HP must be between 1 and max HP ({maxHp})");
             MaxHp = maxHp;
-            Hp = maxHp;
+            Hp = hp ?? maxHp;
             Position = FloorPoint.FromCm(positionCm, 0);
         }
 
@@ -229,8 +231,16 @@ namespace Shaolin36.Core.Fighters
         /// <summary>True on the tick a 易筋经 buff took hold.</summary>
         public bool BuffedThisTick { get; private set; }
 
-        /// <summary><paramref name="damage"/> with this fighter's 易筋经 buff on it, if one is running (rounded half up).</summary>
-        public int Boost(int damage) => IsBuffed ? (damage * BuffDamagePct + 50) / 100 : damage;
+        /// <summary>
+        /// <paramref name="damage"/> of the current move with its run upgrade (<see cref="Loadout.DamagePct"/> of the move's
+        /// slot), then this fighter's 易筋经 buff on it, if one is running (each rounded half up).
+        /// </summary>
+        public int Boost(int damage)
+        {
+            var slotMove = Slot != null ? Loadout[Slot.Value] : null;
+            if (slotMove != null) damage = Loadout.UpgradedDamage(slotMove, damage);
+            return IsBuffed ? (damage * BuffDamagePct + 50) / 100 : damage;
+        }
 
         /// <summary>How many hits of the current string have landed (for 无相劫指: both must land to lock movement).</summary>
         public int StringHitsLanded { get; private set; }
@@ -831,7 +841,9 @@ namespace Shaolin36.Core.Fighters
         private void Start(Slot slot, Technique technique)
         {
             EscapedHitstun = false;
-            LoseStamina(technique.StaminaCost);
+            // A run upgrade on the slot's move makes every hit of its string cheaper.
+            var slotMove = Loadout[slot];
+            LoseStamina(slotMove != null ? Loadout.UpgradedStaminaCost(slotMove, technique.StaminaCost) : technique.StaminaCost);
             Qi -= technique.QiCost;
             Empowered = technique.CanEmpower && Qi >= technique.EmpowerQi;
             if (Empowered) Qi -= technique.EmpowerQi;

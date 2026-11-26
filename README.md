@@ -12,7 +12,7 @@ Built in **Godot 4.7 (.NET / C#)**. The combat rules live in a plain C# library 
 | `tests/Shaolin36.Core.Tests/` | Unit and scenario tests for the rules (xUnit). |
 | `tools/DataCheck/` | Check script: rejects bad rows in the data sheets before the game loads them. |
 | `game/` | The Godot project (`project.godot`). Shows and drives the core; holds scenes, scripts and assets. |
-| `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet; `rules.csv` holds base stats and the clash and parry numbers; `feel.csv` holds the hit feel (hit-stop, sparks, sound, camera) for each kind of strike; `brains.csv` holds how each opponent brain plays. |
+| `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet; `run.csv` holds the demo run's numbers; `rules.csv` holds base stats and the clash and parry numbers; `feel.csv` holds the hit feel (hit-stop, sparks, sound, camera) for each kind of strike; `brains.csv` holds how each opponent brain plays. |
 | `scripts/` | One-click Play, test and headless boot scripts. |
 | `.github/workflows/` | CI: data check, core tests and a headless Godot boot on every push. |
 
@@ -29,7 +29,7 @@ setx GODOT "C:\path\to\Godot_v4.7.2-stable_mono_win64.exe"
 
 ## Play
 
-Double-click `scripts\play.bat` (Windows) or run `scripts/play.sh`. It builds the C# code and opens the playable test: you against an opponent brain (novice, monk or master, or the old training dummy), on a square floor with the camera behind you, with a move from each of the 7 categories on a button, and a pause menu that switches each category between its two moves (your opponent copies your choice). Step-by-step instructions, the full control table and gamepad setup are in [docs/playtest.md](docs/playtest.md).
+Double-click `scripts\play.bat` (Windows) or run `scripts/play.sh`. It builds the C# code and opens the **demo roguelike run**: pick 罗汉拳 or 虎形拳 and a button for it, then 10 fights against enemies that gain a move and HP each fight (the 10th is a 200 HP boss), with a reward after each win (a move power-up, more max HP, stamina or Qi, or a new move). Its numbers are in `game/data/run.csv`; the rules are `src/Shaolin36.Core/Runs/Run.cs`. F4 switches to the practice arena: you against an opponent brain (novice, monk or master, or the old training dummy), on a square floor with the camera behind you, with a move from each of the 7 categories on a button, and a pause menu that switches each category between its two moves (your opponent copies your choice). Step-by-step instructions, the full control table and gamepad setup are in [docs/playtest.md](docs/playtest.md).
 
 To work in the editor instead, open `game/project.godot` in Godot .NET and press F5.
 
