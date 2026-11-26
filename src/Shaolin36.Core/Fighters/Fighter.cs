@@ -158,6 +158,54 @@ namespace Shaolin36.Core.Fighters
             HoldFramesLeft = frames;
         }
 
+        /// <summary>
+        /// True while this fighter has the other one locked on (the usual case). A fighter that <see cref="CanLoseLock"/> loses
+        /// it when the other lands a 纵云梯 behind them: they keep facing, walking and attacking the way they were until they
+        /// stand still for <see cref="RelockFrames"/>, or are hit, grabbed or knocked down; then they turn back round
+        /// (<see cref="IsTurning"/>) over relock_turn_frames per half turn.
+        /// </summary>
+        public bool IsLockedOn { get; private set; } = true;
+
+        /// <summary>True while turning back round after finding the other fighter again.</summary>
+        public bool IsTurning { get; private set; }
+
+        /// <summary>True if a 纵云梯 over this fighter's head can make them lose the lock-on (the opponent brains; set by the game).</summary>
+        public bool CanLoseLock { get; set; }
+
+        /// <summary>Frames of standing still it takes to find the other fighter again after losing them (0 = at once when they stop).</summary>
+        public int RelockFrames { get; set; }
+
+        /// <summary>Frames in a row stood still since losing the lock-on.</summary>
+        public int StillFrames { get; private set; }
+
+        /// <summary>Lost the other fighter: keep facing this way until found again.</summary>
+        public void LoseLock()
+        {
+            IsLockedOn = false;
+            IsTurning = false;
+            StillFrames = 0;
+        }
+
+        /// <summary>Found the other fighter again: turn back round to them.</summary>
+        public void Relock()
+        {
+            if (IsLockedOn) return;
+            IsLockedOn = true;
+            IsTurning = true;
+            StillFrames = 0;
+        }
+
+        /// <summary>Facing the other fighter again: normal tracking resumes.</summary>
+        public void FinishTurning() => IsTurning = false;
+
+        /// <summary>The Duel calls this each tick while the lock-on is lost: standing still long enough finds the other fighter.</summary>
+        public void CountStill(bool still)
+        {
+            if (IsLockedOn) return;
+            StillFrames = still ? StillFrames + 1 : 0;
+            if (still && StillFrames > RelockFrames) Relock();
+        }
+
         /// <summary>Frames left of 无相劫指's movement lock: no quick step, no 轻功, slower walking. 0 when free.</summary>
         public int CrippledFrames { get; private set; }
 

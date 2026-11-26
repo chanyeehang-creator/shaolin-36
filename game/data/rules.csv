@@ -54,3 +54,4 @@ cripple_walk_pct,50,无相劫指 movement lock: walking speed while locked (no q
 grab_strike_gap,12,龙爪手: fewest frames between two strikes while holding (0.2 s); taps sooner are buffered
 grab_break_recoil,20,Grab break-out (press any grab while held): both fighters recoil this long (0.33 s)
 grab_break_push,40,Grab break-out: each fighter steps back this many cm (Street Fighter style; from touching 80 cm they end about 160 apart)
+relock_turn_frames,18,纵云梯: once an opponent who lost you finds you again it turns back round over this many frames per half turn (0.3 s), not at once

@@ -15,8 +15,9 @@ namespace Shaolin36.Core.Brains
         public const int MaxThinkEvery = 120;
 
         public BrainStyle(string id, string name, int reaction, int thinkEvery, int aggression, int punish, int chain,
-            int parry, int perfect, int step, int circle, int restBelow, int heavy, int guess = 0, int heal = 0, int grab = 0, int clash = 0, int breakOut = 0)
+            int parry, int perfect, int step, int circle, int restBelow, int heavy, int guess = 0, int heal = 0, int grab = 0, int clash = 0, int breakOut = 0, int relock = 0)
         {
+            Relock = relock;
             BreakOut = breakOut;
             Clash = clash;
             Grab = grab;
@@ -105,6 +106,15 @@ namespace Shaolin36.Core.Brains
         /// </summary>
         public int BreakOut { get; }
 
+        /// <summary>Longest relock time the sheet allows: 10 s.</summary>
+        public const int MaxRelock = 600;
+
+        /// <summary>
+        /// After you jump over it (纵云梯) it loses track of you and keeps moving the way it was going. Once it stands still this many
+        /// frames it locks back on and turns round (rules.csv relock_turn_frames per half turn). Getting hit or knocked down relocks it at once.
+        /// </summary>
+        public int Relock { get; }
+
         public override string ToString() => $"{Id} ({Name})";
     }
 
@@ -118,7 +128,7 @@ namespace Shaolin36.Core.Brains
         };
 
         /// <summary>Columns a sheet may leave out (an empty or missing cell is 0).</summary>
-        public static readonly string[] OptionalColumns = { "heal", "grab", "clash", "break" };
+        public static readonly string[] OptionalColumns = { "heal", "grab", "clash", "break", "relock" };
 
         private readonly List<BrainStyle> _styles;
 
@@ -221,11 +231,12 @@ namespace Shaolin36.Core.Brains
                 int grab = Cell("grab").Length == 0 ? 0 : Pct("grab");
                 int clash = Cell("clash").Length == 0 ? 0 : Pct("clash");
                 int breakOut = Cell("break").Length == 0 ? 0 : Pct("break");
+                int relock = Cell("relock").Length == 0 ? 0 : Number("relock", 0, BrainStyle.MaxRelock, " frames");
                 var name = Cell("name");
 
                 if (ok)
                     styles.Add(new BrainStyle(id, name.Length > 0 ? name : id, reaction, thinkEvery, aggression, punish, chain,
-                        parry, perfect, step, circle, restBelow, heavy, guess, heal, grab, clash, breakOut));
+                        parry, perfect, step, circle, restBelow, heavy, guess, heal, grab, clash, breakOut, relock));
             }
 
             if (errors.Count == 0 && styles.Count == 0) errors.Add($"line {lines.Count}: no brain rows, expected at least one");

@@ -63,6 +63,10 @@ namespace Shaolin36.Core.Brains
         Clawing,
         /// <summary>Out of reach: channelling 炼气 for its damage buff.</summary>
         Buffing,
+        /// <summary>Lost you after your 纵云梯 jump: standing still to find you again.</summary>
+        Searching,
+        /// <summary>Found you again after losing you: turning round to face you.</summary>
+        Turning,
     }
 
     /// <summary>
@@ -115,6 +119,7 @@ namespace Shaolin36.Core.Brains
             public int StartTick; // the tick the move (or the stun) started on
         }
 
+        private int _unlockedTicks;
         private readonly Seen[] _history = new Seen[BrainStyle.MaxReaction + 1];
         private int _recorded;
         private readonly Dice _dice;
@@ -250,6 +255,27 @@ namespace Shaolin36.Core.Brains
                 return BrainInput.None;
             }
             _guarding = false;
+
+            // 0f. Lost you after a jump over it: for its reaction time it carries on as if you were still in front,
+            // then it notices, stops and stands still until it locks back on. Turning round, it presses nothing.
+            if (!me.IsLockedOn)
+            {
+                _unlockedTicks++;
+                if (_unlockedTicks > Style.Reaction)
+                {
+                    Intent = BrainIntent.Searching;
+                    return BrainInput.None;
+                }
+            }
+            else
+            {
+                _unlockedTicks = 0;
+                if (me.IsTurning)
+                {
+                    Intent = BrainIntent.Turning;
+                    return BrainInput.None;
+                }
+            }
 
             // 1. In its own string: carry on when the chain window opens.
             if (next.IsInMove())
