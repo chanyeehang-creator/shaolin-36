@@ -27,6 +27,7 @@ namespace Shaolin36.Core.Data
             "down_min", "down_max", "rise_frames", "roll_frames", "roll_distance",
             "block_stamina_light", "block_stamina_medium", "block_stamina_heavy", "block_heavy_damage_pct",
             "cripple_walk_pct", "grab_strike_gap", "grab_break_recoil", "grab_break_push", "relock_turn_frames", "quick_step_invincible",
+            "side_step_lose_frames", "cpu_walk_back_pct", "jump_height", "strike_top",
         };
 
         private readonly Dictionary<string, int> _values;
@@ -168,6 +169,18 @@ namespace Shaolin36.Core.Data
         /// <summary>After finding a lost opponent again (a 纵云梯 over their head), frames a half turn back round takes.</summary>
         public int RelockTurnFrames => V("relock_turn_frames");
 
+        /// <summary>A left or right quick step makes an opponent brain lose you for this many frames (0 = never), then it turns back round.</summary>
+        public int SideStepLoseFrames => V("side_step_lose_frames");
+
+        /// <summary>An opponent brain walks backwards at this % of walk_speed (100 = as fast as forward), so you can catch it.</summary>
+        public int CpuWalkBackPct => V("cpu_walk_back_pct");
+
+        /// <summary>纵云梯: how high the feet rise at the top of the jump, in centimetres.</summary>
+        public int JumpHeight => V("jump_height");
+
+        /// <summary>Strikes reach up to this height in centimetres: a jumper whose feet are this high or higher can't be hit or grabbed.</summary>
+        public int StrikeTop => V("strike_top");
+
         /// <summary>The most frames from the first tap of a direction to the second that still makes a quick step.</summary>
         public int QuickStepTapWindow => V("quick_step_tap_window");
     }
@@ -277,6 +290,10 @@ namespace Shaolin36.Core.Data
                 Check(values["quick_step_frames"] >= 1, "quick_step_frames", "must be at least 1 frame");
                 Check(values["quick_step_invincible"] <= values["quick_step_frames"], "quick_step_invincible",
                     $"({values["quick_step_invincible"]}) cannot be more than 'quick_step_frames' ({values["quick_step_frames"]}): the recovery is never invincible");
+                Check(values["side_step_lose_frames"] <= 300, "side_step_lose_frames", "must be 300 frames (5 s) or fewer");
+                Check(values["cpu_walk_back_pct"] >= 1 && values["cpu_walk_back_pct"] <= 100, "cpu_walk_back_pct", "must be between 1 and 100 (100 = as fast as walking forward)");
+                Check(values["jump_height"] <= 600, "jump_height", "must be 600 cm or less");
+                Check(values["strike_top"] >= 1, "strike_top", "must be at least 1 cm");
                 Check(values["quick_step_tap_window"] >= 1 && values["quick_step_tap_window"] <= 30, "quick_step_tap_window",
                     "must be between 1 and 30 frames (half a second)");
             }

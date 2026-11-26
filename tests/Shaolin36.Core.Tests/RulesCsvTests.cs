@@ -25,6 +25,7 @@ public class RulesCsvTests
         var rules = RulesCsv.Parse(Make.RulesText(("exhausted_until", "50"), ("qi_start", "0"), ("input_buffer", "6"),
             ("clash_recoil_push", Make.RuleValue("clash_recoil_push").ToString()),
             ("grab_break_push", Make.RuleValue("grab_break_push").ToString()),
+            ("jump_height", Make.RuleValue("jump_height").ToString()),
             ("quick_step_invincible", "7"))).Rules!; // at most quick_step_frames, so not its distinct default
         var values = typeof(Rules).GetProperties()
             .Where(p => p.PropertyType == typeof(int))

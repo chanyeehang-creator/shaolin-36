@@ -63,8 +63,9 @@ namespace Shaolin36.Core.Fighters
     /// strikes pass through. The <see cref="Combat.Duel"/> does the sliding.
     ///
     /// Combo escape: a technique that <see cref="Data.Technique.CanEscape"/> (the default 轻功 dash) can be started
-    /// while in hitstun, which ends the hitstun on that tick (<see cref="EscapedHitstun"/>). Nothing else can. Presses of
-    /// other slots during hitstun wait in the buffer as before.
+    /// while in hitstun, which ends the hitstun on that tick (<see cref="EscapedHitstun"/>). So can a 纵云梯 jump for a fighter that
+    /// <see cref="JumpsInHitstun"/>, and a 防身 parry or guard for one that <see cref="DefendsInHitstun"/> (<see cref="CanStartInHitstun"/>).
+    /// Nothing else can. Presses of other slots during hitstun wait in the buffer as before.
     ///
     /// 点穴 seal: while <see cref="SealedFrames"/> is above 0 (set by <see cref="Seal"/> when a 点穴 hit lands), no 外功
     /// (waigong) technique can be started or chained. Other categories still work. A 外功 move already under way carries on.
@@ -180,12 +181,51 @@ namespace Shaolin36.Core.Fighters
         /// <summary>Frames in a row stood still since losing the lock-on.</summary>
         public int StillFrames { get; private set; }
 
+        /// <summary>Frames left of a timed lock-on loss (a side quick step): it finds you when they run out. 0 for the 纵云梯 kind.</summary>
+        public int LostFramesLeft { get; private set; }
+
         /// <summary>Lost the other fighter: keep facing this way until found again.</summary>
         public void LoseLock()
         {
             IsLockedOn = false;
             IsTurning = false;
             StillFrames = 0;
+            LostFramesLeft = 0;
+        }
+
+        /// <summary>
+        /// Lost the other fighter for <paramref name="frames"/> frames (a left or right quick step): it keeps facing this way and finds
+        /// them again when the time runs out, standing still or not. Does nothing if already lost or for 0 frames.
+        /// </summary>
+        public void LoseLockFor(int frames)
+        {
+            if (!IsLockedOn || frames <= 0) return;
+            LoseLock();
+            LostFramesLeft = frames;
+        }
+
+        /// <summary>True if this fighter can raise its 防身 (化绵掌 or 硬气功) while in hitstun: the player and the boss (set by the game).</summary>
+        public bool DefendsInHitstun { get; set; }
+
+        /// <summary>True if this fighter can start a 纵云梯 jump while in hitstun, like the dash escape: the player (set by the game).</summary>
+        public bool JumpsInHitstun { get; set; }
+
+        /// <summary>
+        /// True if, once a 外功 or 点穴 hit of a string connects (landed, blocked, parried or clashed), the next hits of the string
+        /// turn to face the other fighter through their wind-up: the player (set by the game).
+        /// </summary>
+        public bool FacesOnConnect { get; set; }
+
+        /// <summary>Walking backwards at this % of walk_speed (100 = as fast as forward). The opponents walk back slower (set by the game).</summary>
+        public int WalkBackPct { get; set; } = 100;
+
+        /// <summary>True once a 外功 or 点穴 hit of the current string has connected with the other fighter (even blocked).</summary>
+        public bool StringConnected { get; private set; }
+
+        /// <summary>The Duel calls this when a hit of the current move connected (landed, blocked, parried or clashed; not dodged).</summary>
+        public void MarkConnected()
+        {
+            if (State.IsInMove() && (Technique!.Category == Category.Waigong || Technique.Category == Category.Dianxue)) StringConnected = true;
         }
 
         /// <summary>Found the other fighter again: turn back round to them.</summary>
@@ -195,6 +235,7 @@ namespace Shaolin36.Core.Fighters
             IsLockedOn = true;
             IsTurning = true;
             StillFrames = 0;
+            LostFramesLeft = 0;
         }
 
         /// <summary>Facing the other fighter again: normal tracking resumes.</summary>
@@ -204,6 +245,11 @@ namespace Shaolin36.Core.Fighters
         public void CountStill(bool still)
         {
             if (IsLockedOn) return;
+            if (LostFramesLeft > 0)
+            {
+                if (--LostFramesLeft == 0) Relock();
+                return;
+            }
             StillFrames = still ? StillFrames + 1 : 0;
             if (still && StillFrames > RelockFrames) Relock();
         }
@@ -589,9 +635,11 @@ namespace Shaolin36.Core.Fighters
             if (next == null || !CanUse(next)) return;
             int hit = StringHit + 1;
             int landed = StringHitsLanded;
+            bool connected = StringConnected;
             Start(Slot!.Value, next);
             StringHit = hit;
             StringHitsLanded = landed;
+            StringConnected = connected;
         }
 
         /// <summary>On the floor: roll if a direction is held, rise on any button, or rise by itself after down_max.</summary>
@@ -679,20 +727,23 @@ namespace Shaolin36.Core.Fighters
                     ?? throw new InvalidOperationException($"{Technique!.Id} chains into '{Technique.Next}', but the loadout has no technique book to find it in");
                 int hit = StringHit + 1;
                 int landed = StringHitsLanded;
+                bool connected = StringConnected;
                 Start(Slot.Value, book.NextOf(Technique!)!);
                 StringHit = hit;
                 StringHitsLanded = landed;
+                StringConnected = connected;
                 return true;
             }
 
             if (State == FighterState.Hitstun)
             {
-                // Only an escape move (the default 轻功 dash) can break out of hitstun.
+                // Only an escape move (the default 轻功 dash) can break out of hitstun; and for the fighters allowed them,
+                // a 纵云梯 jump (the player) or a 防身 parry or guard (the player and the boss).
                 foreach (var slot in Slots.All)
                 {
                     if (!input.IsPressed(slot)) continue;
                     var escape = Loadout[slot];
-                    if (escape == null || !escape.CanEscape || !CanUse(escape)) continue;
+                    if (escape == null || !CanUse(escape) || !CanStartInHitstun(escape)) continue;
                     StunFramesLeft = 0;
                     Start(slot, escape);
                     EscapedHitstun = true;
@@ -712,6 +763,13 @@ namespace Shaolin36.Core.Fighters
             }
             return false;
         }
+
+        /// <summary>
+        /// True if <paramref name="technique"/> may be started out of hitstun: an escape move (the default 轻功 dash), a 纵云梯 jump
+        /// with <see cref="JumpsInHitstun"/>, or a 防身 parry or guard with <see cref="DefendsInHitstun"/>.
+        /// </summary>
+        public bool CanStartInHitstun(Technique technique) =>
+            technique.CanEscape || JumpsInHitstun && technique.IsJump || DefendsInHitstun && technique.Category == Category.Fangshen;
 
         /// <summary>True if <paramref name="technique"/> can be started as far as stamina and Qi go (a guard never while exhausted).</summary>
         public bool CanAfford(Technique technique) =>
@@ -855,6 +913,7 @@ namespace Shaolin36.Core.Fighters
             HitLanded = false;
             StringHit = 1;
             StringHitsLanded = 0;
+            StringConnected = false;
             GrabHitsDone = 0;
             _grabStrikeCooldown = 0;
             State = PhaseAt(technique, 0);
@@ -965,6 +1024,7 @@ namespace Shaolin36.Core.Fighters
             DashRight = 0;
             HoldFramesLeft = 0;
             StringHitsLanded = 0;
+            StringConnected = false;
             GrabHitsDone = 0;
             _grabStrikeCooldown = 0;
         }
