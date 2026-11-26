@@ -26,7 +26,7 @@ namespace Shaolin36.Core.Data
             "quick_step_side_distance", "opponent_ready", "just_dodge_qi",
             "down_min", "down_max", "rise_frames", "roll_frames", "roll_distance",
             "block_stamina_light", "block_stamina_medium", "block_stamina_heavy", "block_heavy_damage_pct",
-            "cripple_walk_pct", "grab_strike_gap", "grab_break_recoil", "grab_break_push",
+            "cripple_walk_pct", "grab_strike_gap", "grab_break_recoil", "grab_break_push", "relock_turn_frames",
         };
 
         private readonly Dictionary<string, int> _values;
@@ -163,6 +163,9 @@ namespace Shaolin36.Core.Data
         /// <summary>Grab break-out: how far each fighter is pushed apart, in centimetres.</summary>
         public int GrabBreakPush => V("grab_break_push");
 
+        /// <summary>After finding a lost opponent again (a 纵云梯 over their head), frames a half turn back round takes.</summary>
+        public int RelockTurnFrames => V("relock_turn_frames");
+
         /// <summary>The most frames from the first tap of a direction to the second that still makes a quick step.</summary>
         public int QuickStepTapWindow => V("quick_step_tap_window");
     }
@@ -266,6 +269,7 @@ namespace Shaolin36.Core.Data
                 Check(values["roll_distance"] <= 600, "roll_distance", "must be 600 cm or less");
                 Check(values["block_heavy_damage_pct"] <= 100, "block_heavy_damage_pct", "must be 100 or less (100 = the guard doesn't soften heavy hits)");
                 Check(values["cripple_walk_pct"] <= 100, "cripple_walk_pct", "must be 100 or less (100 = normal speed)");
+                Check(values["relock_turn_frames"] >= 1 && values["relock_turn_frames"] <= 120, "relock_turn_frames", "must be between 1 and 120 frames");
                 Check(values["grab_break_recoil"] >= 1, "grab_break_recoil", "must be at least 1 frame");
                 Check(values["grab_break_push"] <= 300, "grab_break_push", "must be 300 cm or less");
                 Check(values["quick_step_frames"] >= 1, "quick_step_frames", "must be at least 1 frame");

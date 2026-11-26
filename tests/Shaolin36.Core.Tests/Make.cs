@@ -46,9 +46,10 @@ internal static class Make
             var key = Rules.Keys[i];
             // A percentage capped at 100 gets a valid value of its own.
             // A push in centimetres would move fighters out of reach in tests that don't expect it: 0.
-            // The quick-step tap window is capped at 30 frames.
+            // The quick-step tap window is capped at 30 frames, the relock turn at 120.
             var value = key == "exhausted_walk_pct" ? "99" : key == "block_heavy_damage_pct" ? "45" : key == "cripple_walk_pct" ? "55"
                 : key == "grab_break_push" ? "0" : key == "clash_recoil_push" ? "0" : key == "quick_step_tap_window" ? "12"
+                : key == "relock_turn_frames" ? "17"
                 : (101 + i).ToString();
             foreach (var (k, v) in overrides) if (k == key) value = v;
             sb.Append(key).Append(',').Append(value).Append(",test\n");

@@ -161,8 +161,11 @@ public class AdvanceTests
     public void Every_waigong_strike_on_the_sheet_steps_in_a_little()
     {
         var sheet = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques;
-        // 虎形拳 leaps (Chan: each hit a leap forward, farther than 罗汉拳), so up to 50.
+        // 虎形拳 leaps (Chan: each hit a leap forward, farther than 罗汉拳), so up to 50; its first hit leaps almost as far
+        // as 封穴's lunge, a little less (Chan).
+        int lunge = sheet.Single(t => t.Id == "fengxue").LungeCm;
         foreach (var t in sheet.Where(t => t.Category == Category.Waigong))
-            Assert.InRange(t.AdvanceCm, 5, t.Id.StartsWith("huxing") ? 50 : 30);
+            Assert.InRange(t.AdvanceCm, 5, t.Id == "huxing_quan_1" ? lunge - 1 : t.Id.StartsWith("huxing") ? 50 : 30);
+        Assert.InRange(sheet.Single(t => t.Id == "huxing_quan_1").AdvanceCm, lunge * 3 / 4, lunge - 1);
     }
 }

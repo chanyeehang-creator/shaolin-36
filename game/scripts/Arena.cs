@@ -180,6 +180,9 @@ public partial class Arena : Node3D
         // A new seed each duel, counted up from 1: the brain's choices change from duel to duel but every run is repeatable.
         _duelNumber++;
         _brain = UsingDummy ? null : new Brain(_brains.Styles[_opponentMode], _duelNumber) { Active = _opponentActive };
+        // A brain opponent loses you when you jump over it (纵云梯) and finds you again after standing still its relock time.
+        _duel.Two.CanLoseLock = _brain != null;
+        _duel.Two.RelockFrames = _brain?.Style.Relock ?? 0;
         _dummy.Attacks = _opponentActive;
         _clock = new FeelClock(_duel, _feel) { HitStopOn = _feelOn };
         _combo = 0;
@@ -1220,6 +1223,8 @@ public partial class Arena : Node3D
             case BrainIntent.Guarding: return "[color=#33bfff]holding its 硬气功 guard: grab it or get behind it[/color]";
             case BrainIntent.BreakingOut: return "[color=#ccffff]breaking out of your grab[/color]";
             case BrainIntent.Clawing: return "[color=#e67333]holding you in 龙爪手: press your grab to break out![/color]";
+            case BrainIntent.Searching: return "[color=#ccffff]lost you after your jump: hit it from behind![/color]";
+            case BrainIntent.Turning: return "[color=#ccffff]found you, turning round[/color]";
             case BrainIntent.Buffing: return "[color=#ffd640]channelling 炼气: hit it to break it![/color]";
             default: return "still";
         }

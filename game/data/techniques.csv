@@ -69,10 +69,12 @@ fengxue,点穴 封穴 (seal),dianxue,light,false,30,8,60,6,2,25,0,4,true,30,115,
 xianliao_shu,仙辽术 (healing qigong),qigong,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,0,100,false,0,,0,0,0,false,0,10
 qinna_shou,小擒拿手 (grab),qinna,light,false,10,4,32,0,0,15,0,14,false,0,100,,0,0,0,100,false,130,60,15,0,0,false,0,0,0,30,true,false
 # ---- Second move in each category (Chan's brief). Pick between the two in the pause menu.
-# 虎形拳 (外功): 3 medium hits, each a leap (35, 45, 45 cm vs 罗汉拳's 10-15), 26 damage (罗汉拳 31). Hit 1 winds up 16 frames (罗汉拳 13), hits 2-3 come out in 10.
-huxing_quan_1,虎形拳 1 扑,waigong,medium,false,16,3,20,5,2,9,0,8,true,26,120,huxing_quan_2,6,0,,,,15,60,35,,,,,,,,,,,,,,,,,,
-huxing_quan_2,虎形拳 2 剪,waigong,medium,false,10,3,18,4,2,9,0,8,true,24,120,huxing_quan_3,6,0,,,,15,60,45,,,,,,,,,,,,,,,,,,
-huxing_quan_3,虎形拳 3 虎扑,waigong,medium,false,10,4,22,4,2,12,0,10,true,26,125,,0,0,,,,70,70,45,,,,,,,,,,,,,,,,,,
+# 虎形拳 (外功): 3 medium hits, each a leap, 26 damage (罗汉拳 31). Hit 1 leaps 125 cm (封穴's lunge is 140), hits 2-3 45 cm (罗汉拳 steps 10-15).
+#           Chan's tuning: an even hit - hit - hit rhythm, about 30% slower than before: chained on the first frame the hits land 17 frames apart
+#           (frames 18, 35, 52; was 16, 29, 42, 13 apart), against 罗汉拳's uneven hit, hithit, hit.
+huxing_quan_1,虎形拳 1 扑,waigong,medium,false,18,3,20,5,2,9,0,8,true,26,120,huxing_quan_2,6,0,,,,15,60,125,,,,,,,,,,,,,,,,,,
+huxing_quan_2,虎形拳 2 剪,waigong,medium,false,14,3,18,4,2,9,0,8,true,24,120,huxing_quan_3,6,0,,,,15,60,45,,,,,,,,,,,,,,,,,,
+huxing_quan_3,虎形拳 3 虎扑,waigong,medium,false,14,4,22,4,2,12,0,10,true,26,125,,0,0,,,,70,70,45,,,,,,,,,,,,,,,,,,
 # 狮吼功 (内功): pure energy (weight energy). Stands still; 0.4 s wind-up, then a 220 cm ring all round (hit_angle empty = 360). Needs and spends 5 Qi.
 #           20 damage and knocks down. No light/medium/heavy move can clash it; two energy moves that meet (clash window or going off) cancel out.
 #           Blocked by 化绵掌 (its perfect frames only block it: energy can't be parried) and by 硬气功 (half damage). 0.6 s recovery: punish a miss.
@@ -93,5 +95,5 @@ yingqi_gong,硬气功 (iron shirt guard),fangshen,light,false,1,1,8,0,0,0,0,0,fa
 #           no tap in time and they slip free while you play the 0.5 s recovery. Held by any grab, press a grab of your own to break out (both recoil):
 #           any time in 小擒拿手's hold, but only before 龙爪手's 1st and 2nd strikes (the 3rd window is too late).
 longzhua_shou,龙爪手 (dragon claw),qinna,light,false,12,4,30,0,0,18,0,7,false,0,100,,0,0,,,,100,60,15,,,,,,,45,true,false,,,,,,,3,,
-# 炼气 (气功): same channel as 仙辽术 (0.5 s wind-up, 1 s channel, 0.33 s finish) for 10 Qi; when it finishes, all your damage is 1.2x for 5 s. Hit before then: lost.
-lianqi,炼气 (refine Qi),qigong,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,,,,,,,,,,,,,,,,,,,,,,,300,120
+# 炼气 (气功): same channel as 仙辽术 (0.5 s wind-up, 1 s channel, 0.33 s finish) for 10 Qi; when it finishes, all your damage is 1.2x for 10 s (Chan's tuning; was 5 s). Hit before then: lost.
+lianqi,炼气 (refine Qi),qigong,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,,,,,,,,,,,,,,,,,,,,,,,600,120

@@ -128,7 +128,7 @@ public class SecondMoveTests
         var heal = T("xianliao_shu");
         Assert.Equal(Category.Qigong, qi.Category);
         Assert.Equal(10, qi.QiCost);
-        Assert.Equal(300, qi.BuffFrames);
+        Assert.Equal(600, qi.BuffFrames); // Chan: 10 s
         Assert.Equal(120, qi.BuffDamagePct);
         Assert.Equal(heal.TotalFrames, qi.TotalFrames);
     }
@@ -143,6 +143,52 @@ public class SecondMoveTests
         var landed = hits.Where(h => h.Attacker == Side.One && h.Landed).ToList();
         Assert.Equal(new[] { "huxing_quan_1", "huxing_quan_2", "huxing_quan_3" }, landed.Select(h => h.Technique.Id));
         Assert.Equal(26, landed.Sum(h => h.Damage));
+    }
+
+    [Fact]
+    public void Huxing_quan_hits_land_on_an_even_beat_slower_than_luohan_quan()
+    {
+        // Chan: hit - hit - hit, the same gap each time and about 30% slower than 罗汉拳's hit, hithit, hit.
+        int[] Beat(string first, int apart)
+        {
+            var d = DuelOf(Second(), Second(), apart);
+            d.One.Loadout.Assign(Slot.Square, T(first));
+            var hits = RunTo(d, 150, one: t => t % 2 == 0 && t < 90 ? P(Slot.Square) : None);
+            var ticks = hits.Where(h => h.Attacker == Side.One && h.Landed).Select(h => h.Tick).ToArray();
+            Assert.True(ticks.Length >= 3, $"{first}: hits at {string.Join(",", ticks)}");
+            return new[] { ticks[1] - ticks[0], ticks[2] - ticks[1] };
+        }
+        var tiger = Beat("huxing_quan_1", 150);
+        var luohan = Beat("luohan_quan_1", 110);
+        Assert.Equal(tiger[0], tiger[1]);
+        Assert.NotEqual(luohan[0], luohan[1]);
+        // The old 虎形拳 landed 13 frames apart; 30% slower is 17.
+        Assert.Equal(17, tiger[0]);
+        Assert.True(luohan[0] > luohan[1], $"luohan gaps {luohan[0]},{luohan[1]}: a pause, then a quick pair");
+    }
+
+    [Fact]
+    public void Huxing_quan_first_leap_reaches_almost_as_far_as_fengxue_lunges()
+    {
+        var hu = T("huxing_quan_1");
+        var seal = T("fengxue");
+        Assert.InRange(hu.AdvanceCm, seal.LungeCm * 3 / 4, seal.LungeCm - 1);
+        var d = DuelOf(Second(), Second(), 220);
+        var hits = RunTo(d, hu.StartupFrames + hu.ActiveFrames, one: At(0, Slot.Square));
+        Assert.Contains(hits, h => h.Attacker == Side.One && h.Landed);
+    }
+
+    [Fact]
+    public void A_leap_into_a_fighter_at_the_arena_edge_stops_at_min_distance()
+    {
+        int half = Rules.ArenaWidth / 2;
+        var d = new Duel(Rules, Second(), Second(), half - 90, half);
+        d.Two.Loadout.Assign(Slot.Square, T("timed_parry"));
+        for (int t = 0; t < 40; t++)
+        {
+            d.Step(t == 0 ? P(Slot.Square) : None, None, MoveInput.None, MoveInput.WalkBack);
+            Assert.True(d.DistanceCm >= Rules.MinDistance - 1, $"tick {d.Tick}: {d.DistanceCm} cm");
+        }
     }
 
     // ---------- 狮吼功 ----------

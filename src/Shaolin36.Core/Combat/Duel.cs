@@ -370,6 +370,8 @@ namespace Shaolin36.Core.Combat
             var broken = new List<HitEvent>(1);
             BreakOut(Side.One, broken);
             BreakOut(Side.Two, broken);
+            KeepLock(One, moveOne);
+            KeepLock(Two, moveTwo);
             Aim(One, Two);
             Aim(Two, One);
             var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + LungeStep(Side.One) + DashStep(Side.One) + RollStep(Side.One) + QuickStepStep(Side.One) + PushStep(Side.One);
@@ -418,6 +420,10 @@ namespace Shaolin36.Core.Combat
             // 龙爪手: a tap while holding strikes.
             if (One.GrabStrikeThisTick && One.State.IsInMove() && Two.State == FighterState.Grabbed) landed.Add(GrabStrike(Side.One));
             if (Two.GrabStrikeThisTick && Two.State.IsInMove() && One.State == FighterState.Grabbed && !IsOver) landed.Add(GrabStrike(Side.Two));
+
+            // Hit, grabbed or knocked down: a fighter who lost you finds you again (and turns back).
+            foreach (var e in landed)
+                if (e.Landed || e.Grab == GrabPhase.Caught || e.KnockedDown) this[e.Defender].Relock();
 
             _hits.AddRange(landed);
             Tick++;
@@ -770,8 +776,7 @@ namespace Shaolin36.Core.Combat
             _dashLeft[i] -= step;
             _dashTicks[i]--;
 
-            var toward = this[OtherSide(side)].Position - f.Position;
-            if (toward.IsZero) toward = f.Facing;
+            var toward = Forward(f, this[OtherSide(side)]);
             double len = toward.Length;
             double fx = toward.X / len, fz = toward.Z / len; // forward
             double rx = -fz, rz = fx;                          // right
@@ -800,6 +805,8 @@ namespace Shaolin36.Core.Combat
             if (_airborne[i] && !air)
             {
                 var other = this[OtherSide(side)];
+                // Landed behind a fighter who can lose you (纵云梯 over their head): they lose the lock-on.
+                if (other.CanLoseLock && !other.IsDown && FloorPoint.Dot(other.Facing, f.Position - other.Position) < 0) other.LoseLock();
                 var apart = f.Position - other.Position;
                 long min = (long)Rules.MinDistance * FloorPoint.UnitsPerCm;
                 if (apart.LengthSquared < min * min)
@@ -837,8 +844,7 @@ namespace Shaolin36.Core.Combat
             _rollLeft[i] -= step;
             _rollTicks[i]--;
 
-            var toward = this[OtherSide(side)].Position - f.Position;
-            if (toward.IsZero) toward = f.Facing;
+            var toward = Forward(f, this[OtherSide(side)]);
             double len = toward.Length;
             double fx = toward.X / len, fz = toward.Z / len; // forward
             double rx = -fz, rz = fx;                          // right
@@ -878,8 +884,7 @@ namespace Shaolin36.Core.Combat
             _quickStepLeft[i] -= step;
             _quickStepTicks[i]--;
 
-            var forward = this[OtherSide(side)].Position - f.Position;
-            if (forward.IsZero) forward = f.Facing;
+            var forward = Forward(f, this[OtherSide(side)]);
             FloorPoint way;
             switch (f.QuickStepDirection)
             {
@@ -917,11 +922,52 @@ namespace Shaolin36.Core.Combat
         /// tick it starts from free, and the whole string keeps that aim: follow-up hits don't turn to
         /// track a target who stepped aside. Turning resumes once the fighter is free (or stunned) again.
         /// </summary>
-        private static void Aim(Fighter me, Fighter other)
+        private void Aim(Fighter me, Fighter other)
         {
+            // Lost you (a 纵云梯 over their head): no turning until they find you again. While you are in the air over a fighter
+            // who can lose you, they don't track you either.
+            // (Landing is settled after the move, so the tick they land counts as still in the air here.)
+            bool otherInAir = other.IsAirborne || _airborne[other == One ? 0 : 1];
+            if (!me.IsLockedOn || me.CanLoseLock && otherInAir) return;
             // A dash keeps the lock-on: it has no strike to aim.
             if (me.State.IsInMove() && !me.IsDashing && (me.MoveFrame > 0 || me.StringHit > 1)) return;
-            me.Facing = other.Position - me.Position;
+            var target = other.Position - me.Position;
+            if (me.IsTurning && !target.IsZero)
+            {
+                // Found you again: turn round at relock_turn_frames per half turn, not all at once.
+                double have = Math.Atan2(me.Facing.Z, me.Facing.X), want = Math.Atan2(target.Z, target.X);
+                double diff = want - have;
+                while (diff > Math.PI) diff -= 2 * Math.PI;
+                while (diff < -Math.PI) diff += 2 * Math.PI;
+                double step = Math.PI / Math.Max(1, Rules.RelockTurnFrames);
+                if (Math.Abs(diff) > step)
+                {
+                    double a = have + Math.Sign(diff) * step;
+                    me.Facing = new FloorPoint(FloorPoint.Round(Math.Cos(a) * 100000), FloorPoint.Round(Math.Sin(a) * 100000));
+                    return;
+                }
+                me.FinishTurning();
+            }
+            me.Facing = target;
+        }
+
+        /// <summary>
+        /// A fighter who lost the lock-on finds you again once they have stood still (idle, no walking or quick step) for their
+        /// relock delay: at once with a delay of 0, otherwise after that many frames.
+        /// </summary>
+        private static void KeepLock(Fighter f, MoveInput input)
+        {
+            if (f.IsLockedOn) return;
+            bool still = f.State == FighterState.Idle && !input.IsWalking && input.QuickStep == StepDirection.None;
+            f.CountStill(still);
+        }
+
+        /// <summary>Which way is "forward" for <paramref name="f"/>: at the other fighter, or the way they face while they've lost you or are turning back.</summary>
+        private static FloorPoint Forward(Fighter f, Fighter other)
+        {
+            if (!f.IsLockedOn || f.IsTurning) return f.Facing;
+            var toward = other.Position - f.Position;
+            return toward.IsZero ? f.Facing : toward;
         }
 
         /// <summary>The floor units <paramref name="f"/> walks this tick (zero unless idle and told to walk).</summary>
@@ -935,8 +981,7 @@ namespace Shaolin36.Core.Combat
             double tilt = Math.Sqrt((double)input.Forward * input.Forward + (double)input.Right * input.Right);
             double scale = speed * Math.Min(tilt, MoveInput.Full) / MoveInput.Full / tilt;
 
-            var toward = other.Position - f.Position;
-            if (toward.IsZero) toward = f.Facing;
+            var toward = Forward(f, other);
             double len = toward.Length;
             double fx = toward.X / len, fz = toward.Z / len; // forward
             double rx = -fz, rz = fx;                          // right
@@ -949,15 +994,16 @@ namespace Shaolin36.Core.Combat
         /// Move both fighters by this tick's steps. If that leaves them closer than min_distance (and closer
         /// than they already were), whoever moved gives ground along the line between them, split if both
         /// moved, but never more than they moved this tick; so walking into the other fighter stops you at
-        /// min_distance, and walking around them slides you round. Then the arena edges stop them.
+        /// min_distance, and walking around them slides you round. The arena edges stop each step first, and again after.
         /// </summary>
         private void Move(FloorPoint stepOne, FloorPoint stepTwo)
         {
             if (stepOne.IsZero && stepTwo.IsZero) return;
             var a0 = One.Position;
             var b0 = Two.Position;
-            var a = a0 + stepOne;
-            var b = b0 + stepTwo;
+            // The arena edges stop the steps first, so a fighter pinned at the edge can't be walked into (a long 虎形拳 leap).
+            var a = ClampToArena(a0 + stepOne);
+            var b = ClampToArena(b0 + stepTwo);
 
             double before = (a0 - b0).Length;
             double after = (a - b).Length;
@@ -967,7 +1013,7 @@ namespace Shaolin36.Core.Combat
             if (after < floor && !flying)
             {
                 double overlap = floor - after;
-                double capOne = stepOne.Length, capTwo = stepTwo.Length;
+                double capOne = (a - a0).Length, capTwo = (b - b0).Length;
                 double backOne, backTwo;
                 if (capOne > 0 && capTwo > 0)
                 {
@@ -983,12 +1029,27 @@ namespace Shaolin36.Core.Combat
                 var apart = a - b;
                 if (apart.IsZero) apart = a0 - b0;
                 if (apart.IsZero) apart = new FloorPoint(-1, 0);
-                a += apart.WithLength(backOne);
-                b -= apart.WithLength(backTwo);
+                a = ClampToArena(a + apart.WithLength(backOne));
+                b = ClampToArena(b - apart.WithLength(backTwo));
+                // A fighter at the arena edge can't give its share: whoever else moved gives the rest (still no more than they moved).
+                double gap = floor - (a - b).Length;
+                if (gap > 0.5)
+                {
+                    a = ClampToArena(a + apart.WithLength(Math.Min(gap, Math.Max(0, capOne - backOne))));
+                    gap = floor - (a - b).Length;
+                    if (gap > 0.5) b = ClampToArena(b - apart.WithLength(Math.Min(gap, Math.Max(0, capTwo - backTwo))));
+                }
+                // Still too close (both pressed in, one against the edge): cancel a step, or both, so nobody ever ends up inside the other.
+                if (floor - (a - b).Length > 0.5)
+                {
+                    if ((a0 - b).Length >= floor - 0.5) a = a0;
+                    else if ((a - b0).Length >= floor - 0.5) b = b0;
+                    else { a = a0; b = b0; }
+                }
             }
 
-            One.Position = ClampToArena(a);
-            Two.Position = ClampToArena(b);
+            One.Position = a;
+            Two.Position = b;
         }
 
         private FloorPoint ClampToArena(FloorPoint p)
