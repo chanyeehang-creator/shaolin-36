@@ -29,6 +29,8 @@ namespace Shaolin36.Core.Feel
             if (hit == null) throw new ArgumentNullException(nameof(hit));
             if (hit.JustDodged) return FeelEvent.JustDodge;
             if (hit.Grab == GrabPhase.Caught) return FeelEvent.Grab;
+            if (hit.Grab == GrabPhase.Broken || hit.Grab == GrabPhase.Released) return FeelEvent.GrabBreak;
+            if (hit.Guarded) return hit.DefenderHpAfter == 0 ? FeelEvent.Ko : FeelEvent.Block;
             switch (hit.Parry)
             {
                 case ParryOutcome.PerfectParry: return FeelEvent.PerfectParry;
@@ -39,13 +41,14 @@ namespace Shaolin36.Core.Feel
                 case ClashOutcome.BothRecoil: return FeelEvent.ClashRecoil;
                 case ClashOutcome.TargetWins: return FeelEvent.ClashLost;
                 case ClashOutcome.PerfectClash: return FeelEvent.PerfectClash;
+                case ClashOutcome.EnergyCancel: return FeelEvent.EnergyCancel;
             }
             if (hit.Landed && hit.DefenderHpAfter == 0) return FeelEvent.Ko;
-            if (hit.Grab == GrabPhase.Thrown) return FeelEvent.Throw;
+            if (hit.Grab == GrabPhase.Thrown || hit.Grab == GrabPhase.Strike && hit.KnockedDown) return FeelEvent.Throw;
             if (hit.Clash == ClashOutcome.StrikerWins) return FeelEvent.ClashBreak;
             if (hit.Empowered) return FeelEvent.EmpoweredHit;
             if (hit.DefenderArmored) return FeelEvent.ArmorHit;
-            return hit.Technique.Weight == Weight.Heavy ? FeelEvent.HeavyHit : FeelEvent.Hit;
+            return hit.Technique.Weight >= Weight.Heavy ? FeelEvent.HeavyHit : FeelEvent.Hit;
         }
     }
 
@@ -106,8 +109,8 @@ namespace Shaolin36.Core.Feel
                 return Array.Empty<HitEvent>();
             }
 
-            var inOne = new SlotInput((byte)(one.Bits | _heldOne));
-            var inTwo = new SlotInput((byte)(two.Bits | _heldTwo));
+            var inOne = new SlotInput((byte)(one.Bits | _heldOne), one.HeldBits);
+            var inTwo = new SlotInput((byte)(two.Bits | _heldTwo), two.HeldBits);
             _heldOne = _heldTwo = 0;
             if (moveOne.QuickStep == StepDirection.None && _heldStepOne != StepDirection.None) moveOne = moveOne.WithQuickStep(_heldStepOne);
             if (moveTwo.QuickStep == StepDirection.None && _heldStepTwo != StepDirection.None) moveTwo = moveTwo.WithQuickStep(_heldStepTwo);

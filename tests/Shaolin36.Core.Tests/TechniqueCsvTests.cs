@@ -100,7 +100,7 @@ public class TechniqueCsvTests
     [InlineData("a,A,waigong,light,false,5,2,8,2,1,3,0,2,true,12,100,b,0,0", "'chain_window' is 0")]
     [InlineData("a,A,waigong,light,false,5,2,8,2,1,3,0,2,true,12,100,,4,0", "'next' is empty")]
     [InlineData("a,A,waigong,light,false,5,2,8,2,1,3,0,2,true,12,100,a,4,0", "cannot be the technique itself")]
-    [InlineData("a,A,waigong,light,false,5,2,8,2,1,3,0,2,true,12,100,,0,1", "only 化劲 (huajin) techniques")]
+    [InlineData("a,A,waigong,light,false,5,2,8,2,1,3,0,2,true,12,100,,0,1", "only 防身 (fangshen) techniques")]
     [InlineData("a,A,huajin,light,false,3,4,8,0,0,3,0,0,false,0,0,,0,5", "'perfect_parry' (5) cannot be longer than 'active' (4)")]
     [InlineData("a,A,waigong,light,false,5,2,8,2,1,3,0,2,true,x,100,,0,0", "'hitstun' must be a whole number")]
     public void Rejects_bad_string_and_parry_values(string row, string expected)

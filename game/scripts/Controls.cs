@@ -122,6 +122,28 @@ public static class Controls
         }
     }
 
+    /// <summary>
+    /// The slots whose key, mouse button, pad button or trigger is down right now, as slot bits (for held moves such as the
+    /// 硬气功 guard). Polled once per sim tick.
+    /// </summary>
+    public static byte SlotsHeld()
+    {
+        byte bits = 0;
+        foreach (var b in Bindings)
+        {
+            bool down = false;
+            foreach (var k in b.Keys) down |= Input.IsPhysicalKeyPressed(k);
+            foreach (var m in b.Mouse) down |= Input.IsMouseButtonPressed(m);
+            foreach (var pad in Input.GetConnectedJoypads())
+            {
+                foreach (var j in b.Pad) down |= Input.IsJoyButtonPressed(pad, j);
+                if (b.PadAxis != null) down |= Input.GetJoyAxis(pad, b.PadAxis.Value) >= Deadzone;
+            }
+            if (down) bits |= (byte)(1 << (int)b.Slot);
+        }
+        return bits;
+    }
+
     /// <summary>The non-fight command this event gives, if any.</summary>
     public static Command CommandOf(InputEvent e)
     {

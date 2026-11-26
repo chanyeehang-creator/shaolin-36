@@ -85,6 +85,21 @@ namespace Shaolin36.Core.Fighters
     /// <see cref="Fighters.DownRules.MaxFrames"/> they rise by themselves. While exhausted they can do neither, and stay down
     /// until stamina is back up to exhausted_until. Rising and rolling are invincible and cost nothing; the button that rises
     /// is used up (it doesn't also start a move). Presses on the floor aren't buffered.
+    ///
+    /// 硬气功 guard (<see cref="Data.Technique.IsGuard"/>): guards from the tick it is pressed; while its slot is held
+    /// (<see cref="SlotInput.IsHeld"/>) it stays on its last active frame, then plays its recovery once let go. It can't
+    /// start while exhausted, and running out of stamina mid-guard drops it.
+    ///
+    /// 无相劫指 double strike (<see cref="Data.Technique.AutoChain"/>): the next hit starts by itself on the first chain frame.
+    /// Its movement lock (<see cref="Cripple"/>): no quick step and no 轻功 while <see cref="CrippledFrames"/> is above 0.
+    ///
+    /// 龙爪手 (<see cref="Data.Technique.IsMultiGrab"/>): while holding, each press of the grab's slot (at least
+    /// <see cref="GrabStrikeGap"/> frames apart) is a strike (<see cref="GrabStrikeThisTick"/>) and restarts the hold; the
+    /// last one ends it. Held by any grab, pressing a slot with a grab of your own asks to break out (<see cref="GrabBreakWith"/>);
+    /// the <see cref="Combat.Duel"/> decides if it is still in time.
+    ///
+    /// 炼气 buff (<see cref="Data.Technique.IsBuff"/>): when the channel finishes, the fighter's hits deal
+    /// <see cref="BuffDamagePct"/> damage for <see cref="BuffFramesLeft"/> frames (<see cref="Boost"/>).
     /// </summary>
     public sealed class Fighter
     {
@@ -143,6 +158,76 @@ namespace Shaolin36.Core.Fighters
             HoldFramesLeft = frames;
         }
 
+        /// <summary>Frames left of 无相劫指's movement lock: no quick step, no 轻功, slower walking. 0 when free.</summary>
+        public int CrippledFrames { get; private set; }
+
+        public bool IsCrippled => CrippledFrames > 0;
+
+        /// <summary>Lock this fighter's movement for <paramref name="frames"/> frames from this tick (refreshes, doesn't stack).</summary>
+        public void Cripple(int frames)
+        {
+            if (frames < 0) throw new ArgumentOutOfRangeException(nameof(frames), frames, "a lock cannot be negative");
+            if (frames > CrippledFrames) CrippledFrames = frames;
+        }
+
+        /// <summary>Frames left of a 炼气 damage buff. 0 when none.</summary>
+        public int BuffFramesLeft { get; private set; }
+
+        /// <summary>Damage of this fighter's hits while <see cref="BuffFramesLeft"/> is above 0, as a percentage.</summary>
+        public int BuffDamagePct { get; private set; } = 100;
+
+        public bool IsBuffed => BuffFramesLeft > 0;
+
+        /// <summary>True on the tick a 炼气 buff took hold.</summary>
+        public bool BuffedThisTick { get; private set; }
+
+        /// <summary><paramref name="damage"/> with this fighter's 炼气 buff on it, if one is running (rounded half up).</summary>
+        public int Boost(int damage) => IsBuffed ? (damage * BuffDamagePct + 50) / 100 : damage;
+
+        /// <summary>How many hits of the current string have landed (for 无相劫指: both must land to lock movement).</summary>
+        public int StringHitsLanded { get; private set; }
+
+        /// <summary>The Duel calls this when a hit of the current move landed its damage.</summary>
+        public void CountHitLanded()
+        {
+            if (State.IsInMove()) StringHitsLanded++;
+        }
+
+        /// <summary>True if every hit of the current string so far has landed.</summary>
+        public bool WholeStringLanded => State.IsInMove() && StringHitsLanded >= StringHit;
+
+        /// <summary>龙爪手: strikes dealt during the current hold.</summary>
+        public int GrabHitsDone { get; private set; }
+
+        /// <summary>True on the tick a multi-strike grab struck (the Duel deals the damage).</summary>
+        public bool GrabStrikeThisTick { get; private set; }
+
+        /// <summary>Fewest frames between two strikes of a multi-strike grab (a Duel sets grab_strike_gap).</summary>
+        public int GrabStrikeGap { get; set; }
+
+        private int _grabStrikeCooldown;
+
+        /// <summary>
+        /// True while the fighter this one holds may still break free with a grab of their own: any time in an ordinary
+        /// grab's hold, and in a multi-strike grab's windows before its last strike (龙爪手: before strikes 1 and 2).
+        /// </summary>
+        public bool HoldCanBeBroken =>
+            IsHolding && (!Technique!.IsMultiGrab || GrabHitsDone - (GrabStrikeThisTick ? 1 : 0) < Technique.GrabHits - 1);
+
+        /// <summary>While grabbed: the grab technique pressed this tick to break out with, or null.</summary>
+        public Technique? GrabBreakWith { get; private set; }
+
+        /// <summary>The slot of the current move is held down this tick (for a 硬气功 guard).</summary>
+        private bool _held;
+
+        /// <summary>A grabbed fighter is let go: the hold ran out on a multi-strike grab, so they're free on this tick.</summary>
+        public void Release()
+        {
+            if (State != FighterState.Grabbed) return;
+            StunFramesLeft = 0;
+            State = FighterState.Idle;
+        }
+
         /// <summary>Knocked-down and getting-up numbers, or null when this fighter can't be knocked down.</summary>
         public DownRules? DownRules { get; }
 
@@ -193,8 +278,9 @@ namespace Shaolin36.Core.Fighters
             if (frames > SealedFrames) SealedFrames = frames;
         }
 
-        /// <summary>True if a 点穴 seal stops <paramref name="technique"/> right now.</summary>
-        public bool IsSealedFrom(Technique technique) => IsSealed && technique.Category == Category.Waigong;
+        /// <summary>True if a 点穴 debuff stops <paramref name="technique"/> right now: a seal stops 外功, a movement lock stops 轻功.</summary>
+        public bool IsSealedFrom(Technique technique) =>
+            IsSealed && technique.Category == Category.Waigong || IsCrippled && technique.Category == Category.Qinggong;
 
         /// <summary>
         /// True if <paramref name="technique"/> could start now as far as stamina, Qi and a 点穴 seal go
@@ -229,6 +315,9 @@ namespace Shaolin36.Core.Fighters
         /// <summary>True while strikes pass through this fighter: the invincible frames at the start of a move such as a 轻功 dash.</summary>
         public bool IsInvincible =>
             State.IsInMove() && Technique!.IsInvincible(MoveFrame) || State == FighterState.Rising || State == FighterState.Rolling;
+
+        /// <summary>True while in the air in a 纵云梯 leap (its startup and active frames): passes over the other fighter.</summary>
+        public bool IsAirborne => State.IsInMove() && Technique!.IsJump && MoveFrame < Technique.DashFrames;
 
         /// <summary>True while in a 轻功 dash (its slide or its recovery).</summary>
         public bool IsDashing => State.IsInMove() && Technique!.IsDash;
@@ -391,9 +480,16 @@ namespace Shaolin36.Core.Fighters
         {
             _stick = stick;
             HealedThisTick = 0;
+            BuffedThisTick = false;
             ThrewThisTick = false;
+            GrabStrikeThisTick = false;
+            GrabBreakWith = null;
             if (SealedFrames > 0) SealedFrames--;
+            if (CrippledFrames > 0) CrippledFrames--;
+            if (BuffFramesLeft > 0 && --BuffFramesLeft == 0) BuffDamagePct = 100;
+            _held = Slot != null && input.IsHeld(Slot.Value);
             Advance();
+            TryAutoChain();
 
             if (State == FighterState.KnockedDown)
             {
@@ -425,6 +521,20 @@ namespace Shaolin36.Core.Fighters
             Regen(walking);
         }
 
+        /// <summary>无相劫指: on the first chain frame of an auto-chained hit, the next hit starts by itself.</summary>
+        private void TryAutoChain()
+        {
+            if (State != FighterState.Recovery || !Technique!.AutoChain || !Technique.HasNext) return;
+            if (MoveFrame != Technique.StartupFrames + Technique.ActiveFrames || Loadout.Book == null) return;
+            var next = Loadout.Book.NextOf(Technique);
+            if (next == null || !CanUse(next)) return;
+            int hit = StringHit + 1;
+            int landed = StringHitsLanded;
+            Start(Slot!.Value, next);
+            StringHit = hit;
+            StringHitsLanded = landed;
+        }
+
         /// <summary>On the floor: roll if a direction is held, rise on any button, or rise by itself after down_max.</summary>
         private void TryGetUp(SlotInput input)
         {
@@ -447,7 +557,7 @@ namespace Shaolin36.Core.Fighters
 
         /// <summary>True if a quick step could start now: free, able to quick-step, and not out of breath for it.</summary>
         public bool CanQuickStep =>
-            CanAct && QuickStepRules != null && (!IsExhausted || QuickStepRules.Stamina == 0);
+            CanAct && QuickStepRules != null && (!IsExhausted || QuickStepRules.Stamina == 0) && !IsCrippled;
 
         private bool TryQuickStep(StepDirection direction)
         {
@@ -477,14 +587,42 @@ namespace Shaolin36.Core.Fighters
         {
             if (!input.Any) return false;
 
+            // 龙爪手: each tap of the grab's slot while holding strikes and restarts the hold.
+            if (IsHolding && Technique!.IsMultiGrab && Slot != null)
+            {
+                if (!input.IsPressed(Slot.Value) || _grabStrikeCooldown > 0 || GrabHitsDone >= Technique.GrabHits) return false;
+                GrabHitsDone++;
+                GrabStrikeThisTick = true;
+                _grabStrikeCooldown = GrabStrikeGap;
+                HoldFramesLeft = GrabHitsDone >= Technique.GrabHits ? 0 : Technique.HoldFrames;
+                return true;
+            }
+
+            // Held by a grab: a grab of your own breaks out, if the Duel says it is still in time.
+            if (State == FighterState.Grabbed)
+            {
+                foreach (var slot in Slots.All)
+                {
+                    if (!input.IsPressed(slot)) continue;
+                    var grab = Loadout[slot];
+                    if (grab == null || !grab.IsGrab || !CanUse(grab)) continue;
+                    GrabBreakWith = grab;
+                    return true;
+                }
+                return false;
+            }
+
             if (InChainWindow && input.IsPressed(Slot!.Value))
             {
+                if (Technique!.AutoChain) return false;
                 if (!CanUse(Technique!.Next)) return false;
                 var book = Loadout.Book
                     ?? throw new InvalidOperationException($"{Technique!.Id} chains into '{Technique.Next}', but the loadout has no technique book to find it in");
                 int hit = StringHit + 1;
+                int landed = StringHitsLanded;
                 Start(Slot.Value, book.NextOf(Technique!)!);
                 StringHit = hit;
+                StringHitsLanded = landed;
                 return true;
             }
 
@@ -516,9 +654,9 @@ namespace Shaolin36.Core.Fighters
             return false;
         }
 
-        /// <summary>True if <paramref name="technique"/> can be started as far as stamina and Qi go.</summary>
+        /// <summary>True if <paramref name="technique"/> can be started as far as stamina and Qi go (a guard never while exhausted).</summary>
         public bool CanAfford(Technique technique) =>
-            (!IsExhausted || technique.StaminaCost == 0) && Qi >= technique.QiCost;
+            (!IsExhausted || technique.StaminaCost == 0 && !technique.IsGuard) && Qi >= technique.QiCost;
 
         /// <summary>
         /// Gain <paramref name="amount"/> Qi, never above <see cref="MaxQi"/>. Returns how much was
@@ -655,6 +793,9 @@ namespace Shaolin36.Core.Fighters
             MoveEndFrame = technique.TotalFrames;
             HitLanded = false;
             StringHit = 1;
+            StringHitsLanded = 0;
+            GrabHitsDone = 0;
+            _grabStrikeCooldown = 0;
             State = PhaseAt(technique, 0);
             if (technique.IsDash)
             {
@@ -693,9 +834,16 @@ namespace Shaolin36.Core.Fighters
             }
             else if (IsHolding)
             {
-                // A grab holding its catch: the move waits on this frame until the throw.
+                // A grab holding its catch: the move waits on this frame until the throw (or, for a multi-strike grab,
+                // until the held fighter breaks free).
+                if (_grabStrikeCooldown > 0) _grabStrikeCooldown--;
                 HoldFramesLeft--;
                 if (HoldFramesLeft == 0) ThrewThisTick = true;
+            }
+            else if (State.IsInMove() && Technique!.IsGuard && MoveFrame == Technique.StartupFrames + Technique.ActiveFrames - 1
+                && _held && !IsExhausted)
+            {
+                // 硬气功: held, the guard stays up on its last active frame.
             }
             else if (State.IsInMove())
             {
@@ -715,6 +863,13 @@ namespace Shaolin36.Core.Fighters
                         int healed = Math.Min(t.Heal, MaxHp - Hp);
                         Hp += healed;
                         HealedThisTick = healed;
+                    }
+                    // A 炼气 buff takes hold as its channel ends.
+                    if (t.IsBuff && MoveFrame == t.StartupFrames + t.ActiveFrames && !IsDown)
+                    {
+                        BuffFramesLeft = t.BuffFrames;
+                        BuffDamagePct = t.BuffDamagePct;
+                        BuffedThisTick = true;
                     }
                 }
             }
@@ -748,6 +903,9 @@ namespace Shaolin36.Core.Fighters
             DashForward = 0;
             DashRight = 0;
             HoldFramesLeft = 0;
+            StringHitsLanded = 0;
+            GrabHitsDone = 0;
+            _grabStrikeCooldown = 0;
         }
 
         /// <summary>Which phase frame <paramref name="frame"/> of a technique is in.</summary>

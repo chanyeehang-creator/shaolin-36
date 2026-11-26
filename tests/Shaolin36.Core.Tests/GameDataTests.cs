@@ -52,7 +52,7 @@ public class GameDataTests
     {
         var path = Path.Combine(RepoRoot(), "game", "data", "techniques.csv");
         var parry = TechniqueCsv.Parse(File.ReadAllText(path)).Techniques.Single(t => t.Id == "timed_parry");
-        Assert.Equal(Category.Huajin, parry.Category);
+        Assert.Equal(Category.Fangshen, parry.Category);
         Assert.True(parry.PerfectParryFrames > 0);
     }
 

@@ -25,6 +25,8 @@ namespace Shaolin36.Core.Data
             "quick_step_distance", "quick_step_frames", "quick_step_recovery", "quick_step_stamina", "quick_step_tap_window",
             "quick_step_side_distance", "opponent_ready", "just_dodge_qi",
             "down_min", "down_max", "rise_frames", "roll_frames", "roll_distance",
+            "block_stamina_light", "block_stamina_medium", "block_stamina_heavy", "block_heavy_damage_pct",
+            "cripple_walk_pct", "grab_strike_gap", "grab_break_recoil", "grab_break_push",
         };
 
         private readonly Dictionary<string, int> _values;
@@ -133,6 +135,34 @@ namespace Shaolin36.Core.Data
         /// <summary>How far a roll away goes, in centimetres.</summary>
         public int RollDistance => V("roll_distance");
 
+        /// <summary>硬气功 guard: stamina a blocked light strike costs the guard.</summary>
+        public int BlockStaminaLight => V("block_stamina_light");
+
+        /// <summary>硬气功 guard: stamina a blocked medium strike costs the guard.</summary>
+        public int BlockStaminaMedium => V("block_stamina_medium");
+
+        /// <summary>硬气功 guard: stamina a blocked heavy or energy strike costs the guard.</summary>
+        public int BlockStaminaHeavy => V("block_stamina_heavy");
+
+        /// <summary>硬气功 guard: damage a heavy or energy strike still deals through it, as a percentage (50 = half).</summary>
+        public int BlockHeavyDamagePct => V("block_heavy_damage_pct");
+
+        /// <summary>Stamina a blocked strike of <paramref name="weight"/> costs a 硬气功 guard.</summary>
+        public int BlockStamina(Weight weight) =>
+            weight == Weight.Light ? BlockStaminaLight : weight == Weight.Medium ? BlockStaminaMedium : BlockStaminaHeavy;
+
+        /// <summary>无相劫指's movement lock: walking speed while crippled, as a percentage of walk_speed.</summary>
+        public int CrippleWalkPct => V("cripple_walk_pct");
+
+        /// <summary>龙爪手: the fewest frames between two strikes of a multi-strike grab (taps sooner wait in the input buffer).</summary>
+        public int GrabStrikeGap => V("grab_strike_gap");
+
+        /// <summary>Grab break-out: frames both fighters recoil when the held one breaks free with a grab of their own.</summary>
+        public int GrabBreakRecoil => V("grab_break_recoil");
+
+        /// <summary>Grab break-out: how far each fighter is pushed apart, in centimetres.</summary>
+        public int GrabBreakPush => V("grab_break_push");
+
         /// <summary>The most frames from the first tap of a direction to the second that still makes a quick step.</summary>
         public int QuickStepTapWindow => V("quick_step_tap_window");
     }
@@ -234,6 +264,10 @@ namespace Shaolin36.Core.Data
                 Check(values["rise_frames"] >= 1, "rise_frames", "must be at least 1 frame");
                 Check(values["roll_frames"] >= 1, "roll_frames", "must be at least 1 frame");
                 Check(values["roll_distance"] <= 600, "roll_distance", "must be 600 cm or less");
+                Check(values["block_heavy_damage_pct"] <= 100, "block_heavy_damage_pct", "must be 100 or less (100 = the guard doesn't soften heavy hits)");
+                Check(values["cripple_walk_pct"] <= 100, "cripple_walk_pct", "must be 100 or less (100 = normal speed)");
+                Check(values["grab_break_recoil"] >= 1, "grab_break_recoil", "must be at least 1 frame");
+                Check(values["grab_break_push"] <= 300, "grab_break_push", "must be 300 cm or less");
                 Check(values["quick_step_frames"] >= 1, "quick_step_frames", "must be at least 1 frame");
                 Check(values["quick_step_tap_window"] >= 1 && values["quick_step_tap_window"] <= 30, "quick_step_tap_window",
                     "must be between 1 and 30 frames (half a second)");

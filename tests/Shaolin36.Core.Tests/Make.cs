@@ -31,7 +31,7 @@ internal static class Make
     /// <summary>A parry like the sheet's: startup 3, a 10-frame window (frames 3-12), perfect on frames 3-6.</summary>
     public static Technique ParryMove(int stamina = 10) =>
         Move("parry", Weight.Light, startup: 3, active: 10, recovery: 20, window: 0, perfect: 0, clashable: false,
-            category: Category.Huajin, hitstun: 0, reach: 0, perfectParry: 4, stamina: stamina);
+            category: Category.Fangshen, hitstun: 0, reach: 0, perfectParry: 4, stamina: stamina);
 
     /// <summary>
     /// Every rules key with a distinct value (its position in <see cref="Rules.Keys"/> plus 101),
@@ -47,7 +47,8 @@ internal static class Make
             // A percentage capped at 100 gets a valid value of its own.
             // A push in centimetres would move fighters out of reach in tests that don't expect it: 0.
             // The quick-step tap window is capped at 30 frames.
-            var value = key == "exhausted_walk_pct" ? "99" : key == "clash_recoil_push" ? "0" : key == "quick_step_tap_window" ? "12"
+            var value = key == "exhausted_walk_pct" ? "99" : key == "block_heavy_damage_pct" ? "45" : key == "cripple_walk_pct" ? "55"
+                : key == "grab_break_push" ? "0" : key == "clash_recoil_push" ? "0" : key == "quick_step_tap_window" ? "12"
                 : (101 + i).ToString();
             foreach (var (k, v) in overrides) if (k == key) value = v;
             sb.Append(key).Append(',').Append(value).Append(",test\n");

@@ -38,16 +38,16 @@ If that line says "unknown layout", or a button does the wrong thing, send Claud
 
 Every fight button is a **slot**. Slots don't mean anything on their own: whatever technique you put on a slot is what that button does.
 
-| Slot | Gamepad (Dual Action) | Keyboard + mouse | Starts with |
-| --- | --- | --- | --- |
-| □ | 1 (left face button) | J or left click | 罗汉拳 |
-| △ | 4 (top) | I | 铁砂掌 |
-| ○ | 3 (right) | L | 点穴 封穴 |
-| ✕ | 2 (bottom) | K or Space | 轻功 dash |
-| L1 | 5 | Q or right click | 化绵掌 |
-| L2 | 7 | Left Shift | |
-| R1 | 6 | E | 仙辽术 |
-| R2 | 8 | F | 擒拿手 (grab) |
+| Slot | Gamepad (Dual Action) | Keyboard + mouse | Starts with | Its other move (switch in the pause menu) |
+| --- | --- | --- | --- | --- |
+| □ | 1 (left face button) | J or left click | 外功 罗汉拳 | 虎形拳 |
+| △ | 4 (top) | I | 内功 铁砂掌 | 狮吼功 |
+| ○ | 3 (right) | L | 点穴 封穴 | 无相劫指 |
+| ✕ | 2 (bottom) | K or Space | 轻功 dash | 纵云梯 |
+| L1 | 5 | Q or right click | 防身 化绵掌 | 硬气功 (hold) |
+| L2 | 7 | Left Shift | | |
+| R1 | 6 | E | 气功 仙辽术 | 炼气 |
+| R2 | 8 | F | 擒拿 小擒拿手 (grab) | 龙爪手 |
 
 | Other | Gamepad | Keyboard |
 | --- | --- | --- |
@@ -60,7 +60,7 @@ Every fight button is a **slot**. Slots don't mean anything on their own: whatev
 | Floating text on/off | | F2 |
 | Feel kit on/off (hit-stop, sparks, sound, camera) | | F3 |
 
-On the **loadout screen**: move up and down to pick a technique (W/S, ↑/↓ or the D-pad), then press the button you want it on. Want 化绵掌 on ✕ instead of L1? Highlight 化绵掌 and press ✕. If something was already on that button, the two swap. Below the techniques, the **Opponent** row picks who you fight: press any button or ←/→ on it to go through 弟子 (novice), 武僧 (monk), 方丈 (master) and the old training dummy. Changing it starts a new duel. Select or T makes the opponent stand still (and fight again). The last row restarts the duel.
+On the **pause menu**, the top seven rows are the categories. Highlight one and press ←/→ (or any button) to switch between its two moves: the new one goes on the same button. The next row, **Opponent's moves**, is "the same as yours" by default, so your opponent always fights with whatever you picked (←/→ switches it back to the starting set). Below that is the button list as before: move up and down to pick a technique (W/S, ↑/↓ or the D-pad), then press the button you want it on. Want 化绵掌 on ✕ instead of L1? Highlight 化绵掌 and press ✕. If something was already on that button, the two swap. Below the techniques, the **Opponent** row picks who you fight: press any button or ←/→ on it to go through 弟子 (novice), 武僧 (monk), 方丈 (master) and the old training dummy. Changing it starts a new duel. Select or T makes the opponent stand still (and fight again). The last row restarts the duel.
 
 ## 5. Reading the screen
 
@@ -282,8 +282,24 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
 
 Run `scripts\test.bat` after editing to check the sheets.
 
+## The second move in each category
+
+Switch them in the pause menu (Tab, Esc or pad Start). The numbers are in `techniques.csv` and `rules.csv`.
+
+- **虎形拳 (外功, □).** Three medium hits, 8 + 8 + 10 = 26 damage (罗汉拳: 31). Each hit leaps: 35, 45 and 45 cm forward (罗汉拳 steps 10 to 15). Hit 1 winds up 16 frames (罗汉拳 13), hits 2 and 3 come out in 10. Tap □ in each chain window like 罗汉拳; it connects from 155 cm away.
+- **狮吼功 (内功, △).** Stand still and roar: 0.4 s wind-up, then a ring 220 cm all round you. Needs 5 Qi and spends it; you can't use it with less. 20 damage and knocks down. It's **pure energy**: no light, medium or heavy move can clash it (a strike into its wind-up just hits you), and two energy moves that meet cancel out ("Cancelled!"), whatever they cost. 化绵掌 can block it but never perfect-parry it; 硬气功 takes half. 0.6 s recovery if it misses.
+- **纵云梯 (轻功, ✕).** A high jump: 300 cm the way you hold the stick (none = straight at your opponent), over their head, so from 150 cm away you land 150 cm behind them. Invincible for its first 6 frames but never a just dodge, and you can be hit in the air after that. 15 stamina like the dash. It can't break out of a combo (only the dash can).
+- **无相劫指 (点穴, ○).** One press, two quick light finger strikes (3-frame wind-up, the second comes by itself). 5 + 5 damage. Very close: 95 cm (touching is 80). If **both** land, your opponent is locked for 5 s: no quick step, no 轻功 at all, and half walking speed (【困】 by the HP bar). Recovery 21 frames, like the end of a 外功 string, so it works as a second 外功.
+- **硬气功 (防身, L1).** Press and **hold**: the guard is up from the first frame and stays while you hold. Light and medium strikes deal nothing; heavy (铁砂掌) and energy (狮吼功) deal half. No hitstun, no knockback, no knockdown, no 点穴 seal or lock gets through. Raising it is free; each block costs stamina (6 light, 10 medium, 16 heavy), and at 0 stamina the guard drops and you're exhausted. No parry. Grabs go through it, and it only guards the way you faced when you raised it, so 纵云梯 to its back beats it. Let go: 8 frames to lower it.
+- **龙爪手 (擒拿, R2).** A grab like 小擒拿手 (0.2 s reach-in, 100 cm). Once it catches, **tap R2** to strike, up to 3 times, 7 damage each (21 in all; 小擒拿手's throw does 14). The 3rd knocks down and sends them 100 cm. Taps closer than 0.2 s apart wait their turn. Each window is 0.75 s: tap nothing and they slip free while you finish your recovery.
+- **Breaking out of a grab (new, any grab).** Grabbed? Press **your own grab button** (whichever grab you have) to break out: both of you reel back 0.33 s and are pushed apart. Against 小擒拿手 you can do it any time before the throw; against 龙爪手 only before its 1st or 2nd strike: the 3rd window is too late. The novice has no grab, so it never breaks out; the monk sometimes does in time; the master usually does.
+- **炼气 (气功, R1).** The same channel as 仙辽术 (0.5 s wind-up, 1 s channel, 0.33 s finish) for 10 Qi. When it finishes, all your damage is x1.2 for 5 s (【气 x1.2】 by the HP bar). Hit before then, nothing, and the Qi is gone.
+
+**Renames:** the parry category 化劲 is now **防身** (the sheet still accepts `huajin`), and the old grab is **小擒拿手**.
+
 ## 7. The questions for this build
 
+0. **The second moves:** switch each category in the pause menu and try it against an opponent using the same move. Which numbers feel off (虎形拳's leaps, 狮吼功's ring and Qi cost, 纵云梯's distance, 无相劫指's lock time, 硬气功's stamina per block, 龙爪手's tap window, 炼气's 1.2x)?
 1. **Does it feel like a fight now?** Against the monk, does the opponent close in, attack and defend in a way you can read? Anything it does that looks robotic or unfair?
 2. **Difficulty:** is the novice easy enough to learn on, and the master hard but beatable? Which numbers would you change first (reaction, parry chance, how often it attacks)?
 3. **Guessing:** can you spot its guessed parries and punish them? Does it guess too often or too rarely?

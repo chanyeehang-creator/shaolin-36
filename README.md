@@ -29,7 +29,7 @@ setx GODOT "C:\path\to\Godot_v4.7.2-stable_mono_win64.exe"
 
 ## Play
 
-Double-click `scripts\play.bat` (Windows) or run `scripts/play.sh`. It builds the C# code and opens the playable test: you against an opponent brain (novice, monk or master, or the old training dummy), on a square floor with the camera behind you, and 罗汉拳, 铁砂掌 and 化绵掌 on buttons you can swap. Step-by-step instructions, the full control table and gamepad setup are in [docs/playtest.md](docs/playtest.md).
+Double-click `scripts\play.bat` (Windows) or run `scripts/play.sh`. It builds the C# code and opens the playable test: you against an opponent brain (novice, monk or master, or the old training dummy), on a square floor with the camera behind you, with a move from each of the 7 categories on a button, and a pause menu that switches each category between its two moves (your opponent copies your choice). Step-by-step instructions, the full control table and gamepad setup are in [docs/playtest.md](docs/playtest.md).
 
 To work in the editor instead, open `game/project.godot` in Godot .NET and press F5.
 
@@ -47,7 +47,7 @@ CI runs all three on every push.
 
 ## Buttons are slots
 
-A fighter has 8 slots: □ △ ○ ✕ L1 L2 R1 R2. Each holds any technique or nothing, and the rules only ever see "slot N pressed", never "parry pressed". So 化绵掌 can sit on L1, ○ or ✕, and a later 化劲 technique such as 金钟罩 drops into the same slot the same way. A gamepad (including DirectInput pads like the Logitech Dual Action) and keyboard + mouse both map their buttons onto these 8 slots, at the same time (`game/scripts/Controls.cs`). In the game, the loadout screen (Tab, Esc or the pad's Start button) puts any technique on any button.
+A fighter has 8 slots: □ △ ○ ✕ L1 L2 R1 R2. Each holds any technique or nothing, and the rules only ever see "slot N pressed", never "parry pressed". So 化绵掌 can sit on L1, ○ or ✕, and its 防身 (formerly 化劲) alternative 硬气功 drops into the same slot the same way. A held move such as 硬气功 also reads which slots are held down each tick (`SlotInput.HeldBits`). A gamepad (including DirectInput pads like the Logitech Dual Action) and keyboard + mouse both map their buttons onto these 8 slots, at the same time (`game/scripts/Controls.cs`). In the game, the loadout screen (Tab, Esc or the pad's Start button) puts any technique on any button.
 
 ## The floor, facing and reach (full 3D)
 

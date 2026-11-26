@@ -24,6 +24,16 @@ namespace Shaolin36.Core.Combat
             return parry.IsInPerfectParry(parryFrame) ? ParryOutcome.PerfectParry : ParryOutcome.Parried;
         }
 
+        /// <summary>
+        /// As <see cref="Resolve(Technique, int)"/> for a strike of <paramref name="strike"/>: pure energy (狮吼功) can be
+        /// blocked but never parried, so the perfect frames only block it.
+        /// </summary>
+        public static ParryOutcome Resolve(Technique parry, int parryFrame, Technique strike)
+        {
+            var outcome = Resolve(parry, parryFrame);
+            return outcome == ParryOutcome.PerfectParry && strike.IsEnergy ? ParryOutcome.Parried : outcome;
+        }
+
         public static ParryEffect Effect(ParryOutcome outcome, Technique parry, Rules rules)
         {
             switch (outcome)

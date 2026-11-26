@@ -60,6 +60,27 @@ public partial class Arena : Node3D
     }
 
     private readonly List<FloatText> _floats = new();
+
+    /// <summary>
+    /// The two moves of each category, as the pause menu switches them (Chan's brief: a second move for every category).
+    /// The first is the starting set; switching swaps it for the second on whatever button it sits on.
+    /// </summary>
+    private static readonly (string category, string first, string second)[] MoveSets =
+    {
+        ("外功", "luohan_quan_1", "huxing_quan_1"),
+        ("内功", "tiesha_zhang", "shihou_gong"),
+        ("轻功", "qinggong_dash", "zongyun_ti"),
+        ("点穴", "fengxue", "wuxiang_zhi_1"),
+        ("防身", "timed_parry", "yingqi_gong"),
+        ("擒拿", "qinna_shou", "longzhua_shou"),
+        ("气功", "xianliao_shu", "lianqi"),
+    };
+
+    /// <summary>Menu rows above the technique list: one per move set, then the opponent-moves row.</summary>
+    private static int SetRows => MoveSets.Length + 1;
+
+    /// <summary>True: the opponent uses the same moves as you (Chan: for now). False: the starting set.</summary>
+    private bool _opponentMirrors = true;
     private bool _floatingText = FloatingTextOnByDefault;
 
     private readonly Rules _rules = null!;
@@ -136,6 +157,7 @@ public partial class Arena : Node3D
         _dummyLoadout.Assign(Slot.R2, Find("qinna_shou"));
         _dummy = TrainingDummy.FromRules(rules, Slot.Square);
         _doubleTap = new DoubleTap(rules.QuickStepTapWindow);
+        foreach (var (_, first, second) in MoveSets) { Find(first); Find(second); }
 
         NewDuel();
     }
@@ -282,7 +304,7 @@ public partial class Arena : Node3D
         _menuBack = new ColorRect { Color = new Color(0, 0, 0, 0.8f), Position = new Vector2(100, 120), Size = new Vector2(940, 500), Visible = false };
         foreach (var c in new Control[] { _status, _event, _pad, _help, legend, _menuBack, _menu }) hud.AddChild(c);
 
-        _event.Text = "Walk any way with W/A/S/D or the left stick: the camera stays behind you, locked on to your opponent. It walks in, attacks, parries and steps aside like you do. Fight with your slot buttons. Tab / Start opens the loadout, where you can pick the opponent. T / Select makes it stand still.";
+        _event.Text = "Walk any way with W/A/S/D or the left stick: the camera stays behind you, locked on to your opponent. Fight with your slot buttons. Tab / Start pauses: switch each category between its two moves (your opponent copies you), or pick the opponent. T / Select makes it stand still.";
         RefreshMenu();
     }
 
@@ -443,11 +465,14 @@ public partial class Arena : Node3D
 
         if (_menuOpen)
         {
-            int rows = _starters.Count + 2; // techniques, the opponent row, the restart row
+            int rows = SetRows + _starters.Count + 2; // move sets, opponent moves, techniques, the opponent row, the restart row
+            bool sideways = command == Command.MenuLeft || command == Command.MenuRight;
             if (command == Command.MenuUp) _menuRow = (_menuRow + rows - 1) % rows;
             else if (command == Command.MenuDown) _menuRow = (_menuRow + 1) % rows;
+            else if (_menuRow < MoveSets.Length && (sideways || slot != null)) SwitchSet(_menuRow);
+            else if (_menuRow == MoveSets.Length && (sideways || slot != null)) ToggleMirror();
             else if (slot != null) PutOnSlot(slot.Value);
-            else if ((command == Command.MenuLeft || command == Command.MenuRight) && _menuRow == _starters.Count)
+            else if (sideways && _menuRow == OpponentRow)
                 NextOpponent(command == Command.MenuLeft ? -1 : 1);
             RefreshMenu();
             return;
@@ -456,27 +481,88 @@ public partial class Arena : Node3D
         if (slot != null) _pending |= (byte)(1 << (int)slot.Value);
     }
 
+    private int OpponentRow => SetRows + _starters.Count;
+    private int RestartRow => OpponentRow + 1;
+
+    /// <summary>Which of a category's two moves you have on a button: 0 the first, 1 the second, -1 neither.</summary>
+    private int SetChoice(int set)
+    {
+        var (_, first, second) = MoveSets[set];
+        foreach (var s in Slots.All)
+        {
+            if (_playerLoadout[s] == Find(first)) return 0;
+            if (_playerLoadout[s] == Find(second)) return 1;
+        }
+        return -1;
+    }
+
+    /// <summary>Swap a category's move for its other one, on whatever button it sits on (the opponent too, while it mirrors you).</summary>
+    private void SwitchSet(int set)
+    {
+        var (category, first, second) = MoveSets[set];
+        var a = Find(first);
+        var b = Find(second);
+        if (!_playerLoadout.Replace(a, b) && !_playerLoadout.Replace(b, a))
+        {
+            _event.Text = $"Neither {category} move is on a button: put one on a button below first.";
+            return;
+        }
+        MirrorLoadout();
+        _event.Text = $"{category}: now {(SetChoice(set) == 1 ? b.Name : a.Name)}.";
+    }
+
+    private void ToggleMirror()
+    {
+        _opponentMirrors = !_opponentMirrors;
+        MirrorLoadout();
+    }
+
+    /// <summary>While mirroring, the opponent gets exactly your buttons; otherwise the starting set.</summary>
+    private void MirrorLoadout()
+    {
+        foreach (var s in Slots.All)
+        {
+            var t = _opponentMirrors ? _playerLoadout[s] : StartingSet(s);
+            if (t == null) _dummyLoadout.Clear(s);
+            else _dummyLoadout.Assign(s, t);
+        }
+    }
+
+    /// <summary>The starting set on each button: 罗汉拳 □, 铁砂掌 △, 封穴 ○, dash ✕, 化绵掌 L1, 仙辽术 R1, 小擒拿手 R2.</summary>
+    private Technique? StartingSet(Slot s) => s switch
+    {
+        Slot.Square => Find("luohan_quan_1"),
+        Slot.Triangle => Find("tiesha_zhang"),
+        Slot.Circle => Find("fengxue"),
+        Slot.Cross => Find("qinggong_dash"),
+        Slot.L1 => Find("timed_parry"),
+        Slot.R1 => Find("xianliao_shu"),
+        Slot.R2 => Find("qinna_shou"),
+        _ => null,
+    };
+
     /// <summary>In the loadout screen, a slot button puts the highlighted technique on that slot.</summary>
     private void PutOnSlot(Slot target)
     {
-        if (_menuRow == _starters.Count)
+        if (_menuRow == OpponentRow)
         {
             NextOpponent(1);
             return;
         }
-        if (_menuRow == _starters.Count + 1)
+        if (_menuRow == RestartRow)
         {
             NewDuel();
             _menuOpen = false;
             _event.Text = "New duel.";
             return;
         }
-        var technique = _starters[_menuRow];
+        var technique = _starters[_menuRow - SetRows];
         Slot? from = null;
         foreach (var s in Slots.All) if (_playerLoadout[s] == technique) from = s;
         if (from == target) return;
         if (from != null) _playerLoadout.Swap(from.Value, target); // whatever was on target moves to the old slot
         else _playerLoadout.Assign(target, technique);
+        MirrorLoadout();
     }
 
     private void RefreshMenu()
@@ -487,21 +573,31 @@ public partial class Arena : Node3D
 
         var sb = new System.Text.StringBuilder();
         sb.Append("[font_size=26][b]Loadout[/b][/font_size]   (the fight is paused)\n\n");
-        sb.Append("Choose a technique with W/S, ↑/↓ or the D-pad, then press the button you want it on.\n");
-        sb.Append("If something was already there, the two swap.\n\n");
+        sb.Append("[b]Moves[/b]: pick a category with W/S, ↑/↓ or the D-pad, then ←/→ (or any button) switches between its two moves.\n");
+        for (int i = 0; i < MoveSets.Length; i++)
+        {
+            var (category, first, second) = MoveSets[i];
+            int choice = SetChoice(i);
+            string Pick(string id, int which) => choice == which ? $"[b][color=#7dffb0]【{Find(id).Name}】[/color][/b]" : Find(id).Name;
+            var line = $"{category}   {Pick(first, 0)}   /   {Pick(second, 1)}" + (choice < 0 ? "   (neither is on a button)" : "");
+            sb.Append(i == _menuRow ? $"[color=#ffd11a]▶[/color] {line}\n" : $"   {line}\n");
+        }
+        var mirrorLine = $"Opponent's moves: {(_opponentMirrors ? "[b]the same as yours[/b]" : "[b]the starting set[/b]")}  (←/→ to change)";
+        sb.Append(_menuRow == MoveSets.Length ? $"[color=#ffd11a]▶ {mirrorLine}[/color]\n" : $"   {mirrorLine}\n");
+        sb.Append("\n[b]Buttons[/b]: choose a technique, then press the button you want it on. If something was already there, the two swap.\n");
         for (int i = 0; i < _starters.Count; i++)
         {
             var t = _starters[i];
             var on = Slots.All.Where(s => _playerLoadout[s] == t).Select(Slots.Label).ToList();
             var where = on.Count == 0 ? "not on a button" : "on " + string.Join(", ", on);
             var line = $"{t.Name}  ·  {t.Category}  ·  {where}";
-            sb.Append(i == _menuRow ? $"[color=#ffd11a]▶ {line}[/color]\n" : $"   {line}\n");
+            sb.Append(i + SetRows == _menuRow ? $"[color=#ffd11a]▶ {line}[/color]\n" : $"   {line}\n");
         }
         var what = UsingDummy ? "repeats 罗汉拳 where it stands" : "walks in, attacks, parries, steps aside";
         var dummyLine = $"Opponent: {OpponentName} ({what}){(_opponentActive ? "" : ", standing still")}  (any button or ←/→ to change and restart; Select or T: stand still)";
-        sb.Append(_menuRow == _starters.Count ? $"[color=#ffd11a]▶ {dummyLine}[/color]\n" : $"   {dummyLine}\n");
+        sb.Append(_menuRow == OpponentRow ? $"[color=#ffd11a]▶ {dummyLine}[/color]\n" : $"   {dummyLine}\n");
         var restartLine = "Restart the duel  (press any button)";
-        sb.Append(_menuRow == _starters.Count + 1 ? $"[color=#ffd11a]▶ {restartLine}[/color]\n" : $"   {restartLine}\n");
+        sb.Append(_menuRow == RestartRow ? $"[color=#ffd11a]▶ {restartLine}[/color]\n" : $"   {restartLine}\n");
 
         sb.Append("\n[b]Your buttons[/b]\n");
         foreach (var s in Slots.All)
@@ -540,7 +636,8 @@ public partial class Arena : Node3D
         bool oneWasExhausted = _duel.One.IsExhausted, twoWasExhausted = _duel.Two.IsExhausted;
         var oneMoveBefore = _duel.One.Technique;
         var twoMoveBefore = _duel.Two.Technique;
-        var input = new SlotInput(_pending);
+        // Presses since the last tick, and what's held down now (for the 硬气功 guard).
+        var input = new SlotInput(_pending, Controls.SlotsHeld());
         _pending = 0;
         if (_floatingText && _duel.One.IsExhausted && PressedUnaffordable(input))
             Float(Side.One, "No stamina!", ExhaustedColor);
@@ -609,7 +706,7 @@ public partial class Arena : Node3D
         {
             var t = _playerLoadout[s];
             if (!input.IsPressed(s) || t == null) continue;
-            if (f.IsSealedFrom(t)) Float(Side.One, "外功 sealed!", SealColor);
+            if (f.IsSealedFrom(t)) Float(Side.One, t.Category == Category.Qinggong ? "轻功 locked!" : "外功 sealed!", SealColor);
             else if (f.Qi < t.QiCost) Float(Side.One, $"Need {t.QiCost} Qi", QiColor);
             else continue;
             return;
@@ -628,7 +725,14 @@ public partial class Arena : Node3D
         // During hit-stop the duel doesn't tick, so only act on a tick the duel actually ran.
         if (_healSeenTick[(int)side] == _duel.Tick) return;
         _healSeenTick[(int)side] = _duel.Tick;
-        if (f.Technique != before && f.Technique != null && f.Technique.IsHeal) PlayHealChannel(side);
+        if (f.Technique != before && f.Technique != null && (f.Technique.IsHeal || f.Technique.IsBuff)) PlayHealChannel(side);
+        if (f.BuffedThisTick)
+        {
+            PlayHealDone(side);
+            _event.Text = $"[color=#ffd640][b]{f.Technique!.Name}[/b][/color] {(you ? "Your" : "Your opponent's")} damage is x{f.BuffDamagePct / 100.0:0.0#} for {Seconds(f.BuffFramesLeft)}.";
+            if (_floatingText) Float(side, $"炼气 x{f.BuffDamagePct / 100.0:0.0#}!", QiColor);
+            return;
+        }
         if (f.HealedThisTick > 0)
         {
             PlayHealDone(side);
@@ -636,16 +740,16 @@ public partial class Arena : Node3D
             if (_floatingText) Float(side, $"+{f.HealedThisTick} HP", HealColor);
             return;
         }
-        if (before == null || !before.IsHeal || f.Technique == before) return;
+        if (before == null || !(before.IsHeal || before.IsBuff) || f.Technique == before) return;
         // Interrupted any way (a hit, a parry stagger, a clash): cut the hum.
         if (f.Technique != before) StopHealChannel(side);
         foreach (var hit in hits)
         {
             if (hit.Defender != side || !hit.Landed) continue;
             _event.Text += you
-                ? $"\n[color=#ff6666][b]{before.Name} broken![/b][/color] The hit stopped your heal; the {before.QiCost} Qi is gone."
-                : $"\n[color=#7dffb0][b]You broke its {before.Name}![/b][/color] No heal, and its {before.QiCost} Qi is gone.";
-            if (_floatingText) Float(side, "Heal broken!", DamageOnYouColor);
+                ? $"\n[color=#ff6666][b]{before.Name} broken![/b][/color] The hit stopped it; the {before.QiCost} Qi is gone."
+                : $"\n[color=#7dffb0][b]You broke its {before.Name}![/b][/color] Nothing from it, and its {before.QiCost} Qi is gone.";
+            if (_floatingText) Float(side, before.IsHeal ? "Heal broken!" : "炼气 broken!", DamageOnYouColor);
             return;
         }
     }
@@ -702,12 +806,41 @@ public partial class Arena : Node3D
         bool mine = hit.Attacker == Side.One;
         var name = hit.Technique.Name;
 
+        if (hit.Grab == GrabPhase.Broken)
+            return mine
+                ? $"[color=#ccffff][b]Broke free![/b][/color] Your {name} broke out of the grab. Both of you reel back."
+                : $"[color=#ccffff][b]It broke free![/b][/color] Your opponent's {name} broke out of your grab.";
+        if (hit.Grab == GrabPhase.Released)
+            return mine
+                ? $"[color=#ffd11a][b]Slipped free.[/b][/color] No tap in time: your opponent wriggled out of {name}. Tap again quicker (within {Seconds(hit.Technique.HoldFrames)})."
+                : $"[color=#ccffff][b]Slipped free![/b][/color] Your opponent stopped striking and you wriggled out of {name}. Punish its recovery!";
         if (hit.Grab == GrabPhase.Caught)
         {
-            bool throughParry = hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Huajin;
+            bool throughParry = hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Fangshen;
+            var breakHint = hit.Technique.IsMultiGrab
+                ? $" Press your grab button to break out before its 2nd strike."
+                : $" Press your grab button to break out before the throw ({Seconds(hit.Technique.HoldFrames)}).";
             return mine
-                ? $"[color=#e67333][b]Grabbed![/b][/color] {name} caught your opponent{(throughParry ? " right through its parry" : "")}. The throw comes in {Seconds(hit.Technique.HoldFrames)}."
-                : $"[color=#e67333][b]Grabbed![/b][/color] Your opponent's {name} caught you{(throughParry ? ": a parry can't stop a grab. Hit it as it reaches in, or step back" : "")}.";
+                ? hit.Technique.IsMultiGrab
+                    ? $"[color=#e67333][b]Grabbed![/b][/color] {name} caught your opponent{(throughParry ? " right through its guard" : "")}. [b]Tap your grab button[/b] to strike, up to {hit.Technique.GrabHits} times (the last knocks down)."
+                    : $"[color=#e67333][b]Grabbed![/b][/color] {name} caught your opponent{(throughParry ? " right through its guard" : "")}. The throw comes in {Seconds(hit.Technique.HoldFrames)}."
+                : $"[color=#e67333][b]Grabbed![/b][/color] Your opponent's {name} caught you{(throughParry ? ": a parry or guard can't stop a grab" : "")}.{breakHint}";
+        }
+        if (hit.Grab == GrabPhase.Strike)
+        {
+            var count = _duel[hit.Attacker].GrabHitsDone;
+            var down = hit.KnockedDown ? " Knocked down!" : "";
+            return mine
+                ? $"[color=#ffb347][b]{name} strike {count}/{hit.Technique.GrabHits}![/b] {hit.Damage} damage.{down}[/color]"
+                : $"[color=#ff6666][b]{name} strike {count}/{hit.Technique.GrabHits}:[/b] {hit.Damage} damage.{down}[/color]" +
+                  (_duel[hit.Attacker].HoldCanBeBroken ? " Press your grab button to break out now!" : hit.KnockedDown ? "" : " Too late to break out.");
+        }
+        if (hit.Guarded)
+        {
+            var through = hit.Damage > 0 ? $"{hit.Damage} damage through it" : "no damage";
+            return mine
+                ? $"[color=#33bfff][b]Guarded.[/b][/color] Your opponent's 硬气功 took your {name}: {through}. Get round its back, or grab it."
+                : $"[color=#33bfff][b]硬气功 guarded[/b][/color] {name}: {through}, -{_rules.BlockStamina(hit.Technique.Weight)} stamina. A grab or a strike from behind gets through.";
         }
         if (hit.Grab == GrabPhase.Thrown)
             return mine
@@ -739,6 +872,8 @@ public partial class Arena : Node3D
         {
             case ClashOutcome.BothRecoil:
                 return "[color=#ffd11a][b]CLASH![/b][/color] Same weight: both of you bounce off.";
+            case ClashOutcome.EnergyCancel:
+                return "[color=#ffd640][b]ENERGY MEETS ENERGY![/b][/color] The two pure energy moves cancel out.";
             case ClashOutcome.PerfectClash:
                 return mine
                     ? "[color=#33ff59][b]PERFECT CLASH![/b][/color] You broke your opponent's wind-up. It's wide open!"
@@ -757,11 +892,16 @@ public partial class Arena : Node3D
                 ? $"\n[color=#c58cff][b]封 Sealed![/b][/color] Your opponent can't use 外功 (罗汉拳) for {Seconds(hit.SealFrames)}."
                 : $"\n[color=#c58cff][b]封 Sealed![/b][/color] You can't use 外功 (罗汉拳) for {Seconds(hit.SealFrames)}. 铁砂掌, parry, dash and 点穴 still work."
             : "";
+        if (hit.CrippleFrames > 0)
+            seal += mine
+                ? $"\n[color=#c58cff][b]困 Locked![/b][/color] Your opponent can't quick step or use 轻功, and walks at half speed, for {Seconds(hit.CrippleFrames)}."
+                : $"\n[color=#c58cff][b]困 Locked![/b][/color] No quick step and no 轻功 (dash, 纵云梯) for {Seconds(hit.CrippleFrames)}; you walk at half speed.";
         if (mine)
             return $"[color=#ffb347]{clash}You hit with {name}: {hit.Damage} damage.[/color]{combo}{seal}";
 
         var line = $"[color=#ff6666]{(clash.Length > 0 ? "[b]Clash lost.[/b] " : "")}{name} hit you: {hit.Damage} damage.[/color]{combo}{seal}";
-        return hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Huajin
+        return hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Fangshen
+            && hit.DefenderTechnique.PerfectParryFrames > 0
             ? line + "\n" + MissedParry(hit.DefenderTechnique, hit.DefenderMoveFrame)
             : line;
     }
@@ -805,8 +945,23 @@ public partial class Arena : Node3D
         if (hit.Grab == GrabPhase.Caught)
         {
             Float(defender, "Grabbed!", GrabColor);
-            if (hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Huajin)
+            if (hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Fangshen)
                 Float(defender, "Parry can't stop a grab!", new Color(1, 1, 1));
+            return;
+        }
+        if (hit.Grab == GrabPhase.Broken)
+        {
+            Float(attacker, "Broke free!", InvincibleColor);
+            return;
+        }
+        if (hit.Grab == GrabPhase.Released)
+        {
+            Float(defender, "Slipped free", InvincibleColor);
+            return;
+        }
+        if (hit.Guarded)
+        {
+            Float(defender, hit.Damage > 0 ? $"Guarded -{hit.Damage}" : "Guarded!", ParryColor);
             return;
         }
         if (hit.Grab == GrabPhase.Thrown) Float(defender, "Thrown!", GrabColor);
@@ -839,6 +994,10 @@ public partial class Arena : Node3D
                 Float(attacker, "CLASH!", StartupColor);
                 Float(defender, "CLASH!", StartupColor);
                 return;
+            case ClashOutcome.EnergyCancel:
+                Float(attacker, "Cancelled!", QiColor);
+                Float(defender, "Cancelled!", QiColor);
+                return;
             case ClashOutcome.PerfectClash:
                 Float(attacker, "Perfect clash!", ParryPerfectColor);
                 Float(defender, "Stagger!", StaggerColor);
@@ -859,7 +1018,8 @@ public partial class Arena : Node3D
                 defender == Side.One ? DamageOnYouColor : DamageOnDummyColor);
             if (hit.DefenderArmored) Float(defender, "Armor!", QiColor);
             if (hit.SealFrames > 0) Float(defender, "封 外功 sealed!", SealColor);
-            if (hit.DefenderTechnique != null && hit.DefenderTechnique.Category == Category.Huajin)
+            if (hit.CrippleFrames > 0) Float(defender, "困 轻功 locked!", SealColor);
+            if (hit.DefenderTechnique != null && hit.DefenderTechnique.PerfectParryFrames > 0)
                 Float(defender, hit.DefenderMoveFrame < hit.DefenderTechnique.StartupFrames ? "Too late!" : "Too early!",
                     new Color(1, 1, 1));
         }
@@ -924,13 +1084,13 @@ public partial class Arena : Node3D
         Place(_opponent, _opponentReach, Side.Two, DummyColor);
 
         _status.Text =
-            $"[b]You[/b]    HP {Bar(_duel.One)}{SealIcon(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
-            $"[b]Foe[/b]   HP {Bar(_duel.Two)}{SealIcon(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
+            $"[b]You[/b]    HP {Bar(_duel.One)}{SealIcon(_duel.One)}{LockIcon(_duel.One)}{BuffIcon(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
+            $"[b]Foe[/b]   HP {Bar(_duel.Two)}{SealIcon(_duel.Two)}{LockIcon(_duel.Two)}{BuffIcon(_duel.Two)}  stamina {StaminaBar(_duel.Two)}  Qi {QiBar(_duel.Two)}  {Doing(_duel.Two)}\n" +
             $"Distance {_duel.DistanceCm} cm   ·   {OpponentName}: {(_opponentActive ? Thinking() : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_clock.IsFrozen ? " [color=#ffd11a](hit-stop)[/color]" : "")}   ·   feel kit {(_feelOn ? "on" : "[color=#ffd11a]off[/color]")} (F3){(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
         _pad.Text = Controls.PadStatus() + (_lastPadInput.Length > 0 ? $"   ·   last pad input: {_lastPadInput}" : "");
         _help.Text =
-            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  轻功 dash: ✕ (hold a direction to aim it; none = straight in; also breaks out of a combo)  ·  封穴: ○ (seals 外功)  ·  仙辽术: R1 (10 Qi → 10 HP)  ·  擒拿手 grab: R2 (beats a parry; loses to a strike; the throw knocks down)  ·  Knocked down: any button rises, a direction rolls  ·  Loadout: Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
+            "Walk any way: W/A/S/D, arrows, D-pad or left stick (forward = toward your opponent)  ·  Quick step: double-tap a direction  ·  ✕ 轻功 (aim with a direction; the dash breaks combos, 纵云梯 jumps over)  ·  ○ 点穴  ·  R1 气功  ·  R2 擒拿 (beats parry and guard; grabbed: press a grab to break out)  ·  L1 防身 (硬气功: hold)  ·  Knocked down: any button rises, a direction rolls  ·  Pause menu (switch each category's move): Tab / Esc / pad Start  ·  Opponent still/fight: T / pad Select  ·  Restart: Enter  ·  Half speed: F1  ·  Floating text: F2  ·  Feel kit: F3\n" +
             "Buttons: " + string.Join("   ", Slots.All.Where(s => _playerLoadout[s] != null)
                 .Select(s => $"{Slots.Label(s)} {_playerLoadout[s]!.Name} ({Controls.LabelOf(s)})"));
     }
@@ -953,6 +1113,12 @@ public partial class Arena : Node3D
         var basis = new Basis(Vector3.Up, Yaw(f.Facing)) * new Basis(Vector3.Right, lean) * new Basis(Vector3.Up, spin);
         // Lying down, lift by the capsule's radius so it rests on the floor instead of sinking into it.
         var lift = new Vector3(0, 0.4f * Mathf.Sin(lean), 0);
+        // 纵云梯: a placeholder arc up and over, 1.6 m at the top.
+        if (f.IsAirborne)
+        {
+            float p = (f.MoveFrame + 1) / (float)f.Technique!.DashFrames;
+            lift.Y += 1.6f * 4f * p * (1f - p);
+        }
         body.Transform = new Transform3D(basis, feet + lift + basis * new Vector3(0, 1, 0));
         ((StandardMaterial3D)body.MaterialOverride).AlbedoColor = ColorOf(f, idle);
 
@@ -976,9 +1142,11 @@ public partial class Arena : Node3D
         if (f.IsDashing) return QuickStepColor;
         switch (f.State)
         {
+            case FighterState.Startup when f.Technique!.IsGuard: return ParryColor;
             case FighterState.Startup: return f.HasArmor ? ArmorColor : StartupColor;
+            case FighterState.Active when f.Technique!.IsGuard: return ParryColor;
             case FighterState.Active:
-                if (f.Technique!.Category == Category.Huajin)
+                if (f.Technique!.Category == Category.Fangshen)
                     return f.Technique.IsInPerfectParry(f.MoveFrame) ? ParryPerfectColor : ParryColor;
                 if (f.Technique.IsHeal) return HealColor;
                 return ActiveColor;
@@ -1013,6 +1181,14 @@ public partial class Arena : Node3D
     private static string SealIcon(Fighter f) =>
         f.IsSealed ? $" [bgcolor=#3a2352][color=#c58cff][b]【封】[/b][/color][/bgcolor][color=#c58cff]{Seconds(f.SealedFrames)}[/color]" : "";
 
+    /// <summary>无相劫指's movement lock by the HP bar: 【困】 and the seconds left.</summary>
+    private static string LockIcon(Fighter f) =>
+        f.IsCrippled ? $" [bgcolor=#3a2352][color=#c58cff][b]【困】[/b][/color][/bgcolor][color=#c58cff]{Seconds(f.CrippledFrames)}[/color]" : "";
+
+    /// <summary>炼气's damage buff by the HP bar: 【气 x1.2】 and the seconds left.</summary>
+    private static string BuffIcon(Fighter f) =>
+        f.IsBuffed ? $" [bgcolor=#4a3a10][color=#ffd640][b]【气 x{f.BuffDamagePct / 100.0:0.0#}】[/b][/color][/bgcolor][color=#ffd640]{Seconds(f.BuffFramesLeft)}[/color]" : "";
+
     /// <summary>Qi in gold, spent by 铁砂掌's empowered version and by 仙辽术.</summary>
     private static string QiBar(Fighter f)
     {
@@ -1040,7 +1216,11 @@ public partial class Arena : Node3D
             case BrainIntent.Escaping: return "[color=#ccffff]dashed out of your combo[/color]";
             case BrainIntent.Healing: return "[color=#7dffb0]healing with 仙辽术: hit it to break it![/color]";
             case BrainIntent.GettingUp: return "getting up off the floor";
-            case BrainIntent.Grabbing: return "[color=#e67333]going for a 擒拿手 grab: strike it or step back[/color]";
+            case BrainIntent.Grabbing: return "[color=#e67333]going for a grab: strike it or step back[/color]";
+            case BrainIntent.Guarding: return "[color=#33bfff]holding its 硬气功 guard: grab it or get behind it[/color]";
+            case BrainIntent.BreakingOut: return "[color=#ccffff]breaking out of your grab[/color]";
+            case BrainIntent.Clawing: return "[color=#e67333]holding you in 龙爪手: press your grab to break out![/color]";
+            case BrainIntent.Buffing: return "[color=#ffd640]channelling 炼气: hit it to break it![/color]";
             default: return "still";
         }
     }
@@ -1048,7 +1228,13 @@ public partial class Arena : Node3D
     private static string Doing(Fighter f)
     {
         if (f.IsHolding)
-            return $"{f.Technique!.Name} · holding · throw in {f.HoldFramesLeft} frames";
+            return f.Technique!.IsMultiGrab
+                ? $"{f.Technique.Name} · holding · strike {f.GrabHitsDone}/{f.Technique.GrabHits} · lets go in {f.HoldFramesLeft} frames"
+                : $"{f.Technique.Name} · holding · throw in {f.HoldFramesLeft} frames";
+        if (f.State == FighterState.Grabbed)
+            return "[color=#e67333]grabbed · press a grab button to break out[/color]";
+        if (f.State.IsInMove() && f.Technique!.IsGuard && f.State != FighterState.Recovery)
+            return $"{f.Technique.Name} · [color=#33bfff]guarding[/color] (hold the button)";
         if (f.State == FighterState.KnockedDown)
             return f.IsExhausted ? "[color=#ff8c1a]down · exhausted: wait for stamina to get up[/color]"
                 : f.CanGetUp ? "[color=#ffd11a]down · any button: rise · direction: roll away[/color]"

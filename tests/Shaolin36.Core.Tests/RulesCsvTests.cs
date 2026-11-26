@@ -23,7 +23,8 @@ public class RulesCsvTests
         // Distinct values per key: if two properties read the same key, two values here collide.
         // (clash_recoil_push is 0 by default in tests, like qi_start, so give it its own value here.)
         var rules = RulesCsv.Parse(Make.RulesText(("exhausted_until", "50"), ("qi_start", "0"), ("input_buffer", "6"),
-            ("clash_recoil_push", Make.RuleValue("clash_recoil_push").ToString()))).Rules!;
+            ("clash_recoil_push", Make.RuleValue("clash_recoil_push").ToString()),
+            ("grab_break_push", Make.RuleValue("grab_break_push").ToString()))).Rules!;
         var values = typeof(Rules).GetProperties()
             .Where(p => p.PropertyType == typeof(int))
             .Select(p => (int)p.GetValue(rules)!)

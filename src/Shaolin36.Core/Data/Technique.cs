@@ -55,8 +55,22 @@ namespace Shaolin36.Core.Data
             bool knockdown = false,
             bool hitsDown = false,
             int earlyBlockFrames = 0,
-            int hitRecoveryFrames = 0)
+            int hitRecoveryFrames = 0,
+            bool jump = false,
+            int crippleFrames = 0,
+            bool autoChain = false,
+            bool guard = false,
+            int grabHits = 0,
+            int buffFrames = 0,
+            int buffDamagePct = 100)
         {
+            Jump = jump;
+            CrippleFrames = crippleFrames;
+            AutoChain = autoChain;
+            Guard = guard;
+            GrabHits = grabHits;
+            BuffFrames = buffFrames;
+            BuffDamagePct = buffDamagePct;
             EarlyBlockFrames = earlyBlockFrames;
             HitRecoveryFrames = hitRecoveryFrames;
             Knockdown = knockdown;
@@ -222,6 +236,61 @@ namespace Shaolin36.Core.Data
         /// </summary>
         public bool HitsDown { get; }
 
+        /// <summary>
+        /// 轻功 jump (纵云梯): a dash that leaps. While it slides (its startup and active frames) the fighter is in the air:
+        /// it passes over the other fighter (no min_distance) and so can land behind them. Its way is fixed on the floor
+        /// when it starts (it doesn't curve round the lock-on). Its invincible frames never give a just dodge.
+        /// </summary>
+        public bool Jump { get; }
+
+        public bool IsJump => Jump && DashCm > 0;
+
+        /// <summary>
+        /// 点穴 (无相劫指): when this hit lands and every earlier hit of its string landed too, the defender can't quick step or
+        /// use 轻功 for this many frames, and walks at cripple_walk_pct speed. 0 = none.
+        /// </summary>
+        public int CrippleFrames { get; }
+
+        /// <summary>
+        /// True: once this hit's active frames end, the next hit of the string starts by itself on the first chain frame,
+        /// with no press (无相劫指's double strike). Needs <see cref="Next"/>.
+        /// </summary>
+        public bool AutoChain { get; }
+
+        /// <summary>
+        /// 防身 guard (硬气功): press and hold. It guards from its first frame (no wind-up); while its slot is held it stays on
+        /// its last active frame, and once let go it plays its recovery. Strikes from inside its <see cref="HitAngle"/>
+        /// (around where it was aimed when it started) are blocked: light and medium deal nothing, heavy and energy deal
+        /// block_heavy_damage_pct, and no 点穴 debuff or knockdown gets through. Each block costs block_stamina_* stamina;
+        /// at 0 stamina the guard drops. It can't be started while exhausted, and it never parries. Grabs go through it.
+        /// </summary>
+        public bool Guard { get; }
+
+        public bool IsGuard => Guard && Category == Category.Fangshen;
+
+        /// <summary>True on the frames this guard blocks: from frame 0 to the end of its active frames.</summary>
+        public bool IsGuarding(int frame) => IsGuard && frame >= 0 && frame < StartupFrames + ActiveFrames;
+
+        /// <summary>
+        /// 擒拿 (龙爪手): once the grab catches, each press of its slot during the hold strikes the held fighter (its damage,
+        /// no hitstun) and restarts the hold, up to this many strikes; the last one knocks down (with knockdown) and ends
+        /// the hold. If the hold runs out first, the held fighter breaks free. 0 = an ordinary grab with one throw.
+        /// </summary>
+        public int GrabHits { get; }
+
+        public bool IsMultiGrab => IsGrab && GrabHits > 0;
+
+        /// <summary>气功 (炼气): when the channel finishes, every hit the fighter deals does <see cref="BuffDamagePct"/> damage for this many frames.</summary>
+        public int BuffFrames { get; }
+
+        /// <summary>Damage of the fighter's hits while the buff runs, as a percentage (120 = 1.2x).</summary>
+        public int BuffDamagePct { get; }
+
+        public bool IsBuff => BuffFrames > 0;
+
+        /// <summary>Pure energy (狮吼功): see <see cref="Weight.Energy"/>.</summary>
+        public bool IsEnergy => Weight == Weight.Energy;
+
         /// <summary>The farthest this strike can connect when started: its reach plus any step-in and lunge.</summary>
         public int FullReachCm => ReachCm + AdvanceCm + LungeCm;
 
@@ -271,7 +340,7 @@ namespace Shaolin36.Core.Data
         public bool IsActive(int frame) => frame >= StartupFrames && frame < StartupFrames + ActiveFrames;
 
         /// <summary>A parry deflects strikes during its active frames.</summary>
-        public bool IsParrying(int frame) => Category == Category.Huajin && PerfectParryFrames > 0 && IsActive(frame);
+        public bool IsParrying(int frame) => Category == Category.Fangshen && PerfectParryFrames > 0 && IsActive(frame);
 
         /// <summary>First frame of the perfect parry (inclusive).</summary>
         public int PerfectParryStart => StartupFrames + EarlyBlockFrames;

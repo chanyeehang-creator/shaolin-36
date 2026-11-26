@@ -340,7 +340,8 @@ public class FloorTests
     {
         var sheet = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv")));
         Assert.True(sheet.Ok, string.Join("\n", sheet.Errors));
-        foreach (var t in sheet.Techniques.Where(t => t.ReachCm > 0))
+        // Pure energy (狮吼功) is the exception: a ring all round you, by design.
+        foreach (var t in sheet.Techniques.Where(t => t.ReachCm > 0 && !t.IsEnergy))
             Assert.InRange(t.HitAngle, 30, 120);
     }
 }

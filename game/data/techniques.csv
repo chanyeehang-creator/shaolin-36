@@ -1,6 +1,6 @@
 # Technique sheet. Frames are 1/60 s sim ticks. Stage 1 starting values: tune freely, then run scripts/test.sh.
-# category: waigong/外功 neigong/内功 qinggong/轻功 dianxue/点穴 huajin/化劲 qinna/擒拿 qigong/气功
-# weight: light/medium/heavy (Chan's weights: 罗汉拳 medium, light, light, medium; 铁砂掌 heavy with or without Qi; 封穴 light). clash_window = last N frames of startup; perfect_clash = first N frames of that window.
+# category: waigong/外功 neigong/内功 qinggong/轻功 dianxue/点穴 fangshen/防身 (was huajin/化劲, still accepted) qinna/擒拿 qigong/气功
+# weight: light/medium/heavy, or energy for pure energy (狮吼功; see below) (Chan's weights: 罗汉拳 medium, light, light, medium; 铁砂掌 heavy with or without Qi; 封穴 light). clash_window = last N frames of startup; perfect_clash = first N frames of that window.
 # hitstun = frames the defender is frozen after the hit. reach = centimetres.
 # 罗汉拳 rhythm (Chan's 2nd playtest, then 30% faster after hit-stop arrived): 0.22 s wind-up, hit 1, 0.37 s, hit 2, 0.15 s, hit 3, 0.37 s, hit 4.
 # Chained on the first frame the hits land on frames 13, 35, 44, 66 (were 19, 49, 61, 91). Each link still has 5 frames to chain and combo.
@@ -52,19 +52,46 @@
 #           rise_frames, roll_*). Hyper armor still holds its ground, and the KO hit just KOs.
 # hits_down = true: the move can hit a fighter lying down (damage only, they stay down). false for every move for now (Chan):
 #           nothing can hit a downed fighter yet.
-# 擒拿手 (Chan's name; the build plan's fast grab that beats guard; no cooldown, only wind-up and recovery): 10-frame (0.17 s)
+# 小擒拿手 (Chan's name, was 擒拿手; the build plan's fast grab that beats guard; no cooldown, only wind-up and recovery): 10-frame (0.17 s)
 #           reach-in, 4 frames to catch, steps in 15 cm, reach 100 cm (touching is 80) so it's short. Caught: held 30 frames (0.5 s),
 #           then thrown 130 cm for 14 damage and knocked down. The grabber is free 35 frames after the throw; the thrown fighter
 #           can rise 20 + 20 = 40 frames after it at the earliest, so the grabber is a little ahead but too far for a free hit.
 #           Whiffed: 32 frames (0.53 s) of recovery, a sure punish. 15 stamina. Strike beats grab, grab beats parry, parry beats strike.
-id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,empower_qi,empower_damage_pct,empower_armor,knockback,hit_angle,advance,dash,invincible,escape,seal,heal,lunge,hold,knockdown,hits_down,early_block,hit_recovery
+id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,empower_qi,empower_damage_pct,empower_armor,knockback,hit_angle,advance,dash,invincible,escape,seal,heal,lunge,hold,knockdown,hits_down,early_block,hit_recovery,jump,cripple,auto_chain,guard,grab_hits,buff,buff_damage_pct
 luohan_quan_1,罗汉拳 1 冲拳,waigong,medium,false,13,3,21,5,2,8,0,6,true,27,125,luohan_quan_2,6,0,0,100,false,4,60,10
 luohan_quan_2,罗汉拳 2 连拳,waigong,light,false,19,3,11,4,2,8,0,6,true,14,120,luohan_quan_3,6,0,0,100,false,4,60,15
 luohan_quan_3,罗汉拳 3 挑掌,waigong,light,false,6,3,21,4,2,9,0,7,true,27,125,luohan_quan_4,6,0,0,100,false,4,70,15
 luohan_quan_4,罗汉拳 4 收势重拳,waigong,medium,false,19,4,20,6,2,14,0,12,true,24,140,,0,0,0,100,false,60,90,15
-timed_parry,化绵掌 (timed parry),huajin,light,false,2,17,10,0,0,10,0,0,false,0,0,,0,4,0,100,false,0,,0,,,,,,,,,,3,
+timed_parry,化绵掌 (timed parry),fangshen,light,false,2,17,10,0,0,10,0,0,false,0,0,,0,4,0,100,false,0,,0,,,,,,,,,,3,
 tiesha_zhang,铁砂掌 (iron palm),neigong,heavy,false,36,4,36,8,2,20,0,15,true,40,130,,0,0,30,200,true,50,60,20
 qinggong_dash,轻功 冲步 (dash),qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,100,false,0,,0,200,10,true
 fengxue,点穴 封穴 (seal),dianxue,light,false,30,8,60,6,2,25,0,4,true,30,115,,0,0,0,100,false,10,50,0,0,0,false,300,0,140,,,,,24
 xianliao_shu,仙辽术 (healing qigong),qigong,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,0,100,false,0,,0,0,0,false,0,10
-qinna_shou,擒拿手 (grab),qinna,light,false,10,4,32,0,0,15,0,14,false,0,100,,0,0,0,100,false,130,60,15,0,0,false,0,0,0,30,true,false
+qinna_shou,小擒拿手 (grab),qinna,light,false,10,4,32,0,0,15,0,14,false,0,100,,0,0,0,100,false,130,60,15,0,0,false,0,0,0,30,true,false
+# ---- Second move in each category (Chan's brief). Pick between the two in the pause menu.
+# 虎形拳 (外功): 3 medium hits, each a leap (35, 45, 45 cm vs 罗汉拳's 10-15), 26 damage (罗汉拳 31). Hit 1 winds up 16 frames (罗汉拳 13), hits 2-3 come out in 10.
+huxing_quan_1,虎形拳 1 扑,waigong,medium,false,16,3,20,5,2,9,0,8,true,26,120,huxing_quan_2,6,0,,,,15,60,35,,,,,,,,,,,,,,,,,,
+huxing_quan_2,虎形拳 2 剪,waigong,medium,false,10,3,18,4,2,9,0,8,true,24,120,huxing_quan_3,6,0,,,,15,60,45,,,,,,,,,,,,,,,,,,
+huxing_quan_3,虎形拳 3 虎扑,waigong,medium,false,10,4,22,4,2,12,0,10,true,26,125,,0,0,,,,70,70,45,,,,,,,,,,,,,,,,,,
+# 狮吼功 (内功): pure energy (weight energy). Stands still; 0.4 s wind-up, then a 220 cm ring all round (hit_angle empty = 360). Needs and spends 5 Qi.
+#           20 damage and knocks down. No light/medium/heavy move can clash it; two energy moves that meet (clash window or going off) cancel out.
+#           Blocked by 化绵掌 (its perfect frames only block it: energy can't be parried) and by 硬气功 (half damage). 0.6 s recovery: punish a miss.
+shihou_gong,狮吼功 (lion roar),neigong,energy,false,24,6,36,8,0,15,5,20,true,30,220,,0,0,,,,80,,,,,,,,,,true,,,,,,,,,,
+# 纵云梯 (轻功): a high jump. 300 cm the way the stick is held (none = straight at your opponent), fixed on the floor, passing over them, so from
+#           150 cm away you land 150 cm behind. 6 invincible frames on take-off but never a just dodge; can be hit in the air after that. 15 stamina, like the dash.
+zongyun_ti,纵云梯 (cloud ladder jump),qinggong,light,false,4,26,12,0,0,15,0,0,false,0,0,,0,0,,,,,,,300,6,false,,,,,,,,,true,,,,,,
+# 无相劫指 (点穴): one press, two light finger strikes (the second comes by itself: auto_chain). 3-frame wind-up, reach 95 (touching is 80).
+#           5 + 5 damage (封穴 4). Both land: 5 s movement lock (no quick step, no 轻功, walk at cripple_walk_pct). Recovery 21 like a 外功 string end.
+wuxiang_zhi_1,无相劫指 (formless finger),dianxue,light,false,3,2,6,2,1,12,0,5,true,14,95,wuxiang_zhi_2,1,0,,,,3,50,5,,,,,,,,,,,,,,true,,,,
+wuxiang_zhi_2,无相劫指 2,dianxue,light,false,3,2,21,2,1,0,0,5,true,24,100,,0,0,,,,20,50,5,,,,,,,,,,,,,300,,,,,
+# 硬气功 (防身): press and hold to guard; up from the first frame. Blocks strikes from the front half (hit_angle 180 round where it faced when raised, so
+#           纵云梯 to their back beats it). Light/medium: no damage; heavy and energy: block_heavy_damage_pct. No hitstun, knockback, knockdown or 点穴 debuff.
+#           Costs no stamina to raise; each block costs block_stamina_* (rules.csv); at 0 the guard drops. No parry. Grabs go through. 8 frames to lower.
+yingqi_gong,硬气功 (iron shirt guard),fangshen,light,false,1,1,8,0,0,0,0,0,false,0,0,,0,0,,,,,180,,,,,,,,,,,,,,,,true,,,
+# 龙爪手 (擒拿): a grab (0.2 s reach-in, 100 cm). Caught: tap the grab button again to strike, up to 3 times (7 damage each, 21 in all; 小擒拿手 14),
+#           at least grab_strike_gap frames apart; can't be blocked or dodged. The 3rd knocks down and sends them 100 cm. Each window is 45 frames (0.75 s):
+#           no tap in time and they slip free while you play the 0.5 s recovery. Held by any grab, press a grab of your own to break out (both recoil):
+#           any time in 小擒拿手's hold, but only before 龙爪手's 1st and 2nd strikes (the 3rd window is too late).
+longzhua_shou,龙爪手 (dragon claw),qinna,light,false,12,4,30,0,0,18,0,7,false,0,100,,0,0,,,,100,60,15,,,,,,,45,true,false,,,,,,,3,,
+# 炼气 (气功): same channel as 仙辽术 (0.5 s wind-up, 1 s channel, 0.33 s finish) for 10 Qi; when it finishes, all your damage is 1.2x for 5 s. Hit before then: lost.
+lianqi,炼气 (refine Qi),qigong,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,,,,,,,,,,,,,,,,,,,,,,,300,120
