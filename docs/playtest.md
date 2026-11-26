@@ -17,7 +17,7 @@ A quick test of the roguelike loop. Every number below is in `game\data\run.csv`
    - **Max stamina +10** (up to 130).
    - **Max Qi +20** (up to 130).
    - **Learn a new move:** the game picks one of the 7 categories (外功 too), then a move from it that you don't know yet. You then press an **empty** button for it. A move is never replaced, so once all 8 buttons are full, new moves stop being offered.
-5. **The enemies grow:** enemy 1 knows only 罗汉拳 (plus walking and quick step), has 80 HP and the easiest brain. Each new enemy has **one more move** (2, 3, 4 ... up to 8), a new random set of them, and **10 more HP**. From enemy 3 on its 外功 can be 虎形拳 instead of 罗汉拳. Every enemy has 100 stamina and starts with 100 of 100 Qi. The brain gets smarter: 弟子 (novice) for fights 1 to 3, 武僧 (monk) for 4 to 7, 方丈 (master) for 8 to 10. **Enemy 10 is the boss, with 200 HP.**
+5. **The enemies grow:** enemy 1 knows only 罗汉拳 (plus walking and quick step), has 80 HP and the easiest brain. Each new enemy has **one more move** (2, 3, 4 ... up to 8), a new random set of them, and **10 more HP**. From enemy 3 on its 外功 can be 虎形拳 instead of 罗汉拳. Every enemy has 100 stamina and 100 max Qi, and starts each fight with 0 Qi. The brain gets smarter: 弟子 (novice) for fights 1 to 3, 武僧 (monk) for 4 to 7, 方丈 (master) for 8 to 10. **Enemy 10 is the boss, with 200 HP.**
 6. **Lose once and the run is over:** press any button to start again from the beginning.
 
 During a fight, Tab / Esc / pad Start pauses (your stats and power-ups are on the pause screen). Paused, **Enter gives the run up** and starts over. There is no restart key or "opponent stands still" in the run. The HUD's button line shows `+N` after a move with N power-ups.

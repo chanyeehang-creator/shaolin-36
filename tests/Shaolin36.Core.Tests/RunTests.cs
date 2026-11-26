@@ -73,7 +73,7 @@ public class RunTests
         Assert.Equal(50, Sheet.WinHealPct);
         Assert.Equal(3, Sheet.Offers);
         Assert.Equal((80, 10, 200), (Sheet.EnemyHp, Sheet.EnemyHpStep, Sheet.BossHp));
-        Assert.Equal((100, 100), (Sheet.EnemyStamina, Sheet.EnemyQi));
+        Assert.Equal((100, 100, 0), (Sheet.EnemyStamina, Sheet.EnemyQi, Sheet.EnemyQiStart));
     }
 
     [Fact]
@@ -117,12 +117,12 @@ public class RunTests
         Assert.Equal(T("luohan_quan_1"), e.Loadout[Slot.Square]);
         Assert.Equal(1, Slots.All.Count(s => !e.Loadout.IsEmpty(s)));
         Assert.Equal(80, e.Stats.MaxHp);
-        Assert.Equal((100, 100), (e.Stats.MaxStamina, e.Stats.MaxQi));
+        Assert.Equal((100, 100, 0), (e.Stats.MaxStamina, e.Stats.MaxQi, e.Stats.Qi));
         Assert.Equal("novice", e.BrainId);
 
         var duel = run.StartFight();
         Assert.Equal((100, 80, 80), (duel.One.MaxHp, duel.One.MaxStamina, duel.One.MaxQi));
-        Assert.Equal((80, 100, 100), (duel.Two.MaxHp, duel.Two.MaxStamina, duel.Two.MaxQi));
+        Assert.Equal((80, 100, 100, 0), (duel.Two.MaxHp, duel.Two.MaxStamina, duel.Two.MaxQi, duel.Two.Qi));
     }
 
     [Theory]

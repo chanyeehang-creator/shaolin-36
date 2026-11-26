@@ -21,7 +21,7 @@ enemy_hp_step,10,Each later enemy has this much more HP
 boss_hp,200,The last enemy (the boss) has this HP instead
 enemy_stamina,100,Every enemy's max stamina
 enemy_qi,100,Every enemy's max Qi
-enemy_qi_start,100,Qi every enemy starts a fight with
+enemy_qi_start,0,Qi every enemy starts a fight with (Chan: 0)
 enemy_moves_max,8,Enemy N knows N moves (one more each fight) up to this many
 enemy_tiger_from,3,From this fight on the enemy's 外功 can be any of enemy_waigong; before it always enemy_first
 starters,luohan_quan_1 huxing_quan_1,The 外功 you choose between at the start
