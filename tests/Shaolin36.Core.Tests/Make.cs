@@ -50,6 +50,8 @@ internal static class Make
             var value = key == "exhausted_walk_pct" ? "99" : key == "block_heavy_damage_pct" ? "45" : key == "cripple_walk_pct" ? "55"
                 : key == "grab_break_push" ? "0" : key == "clash_recoil_push" ? "0" : key == "quick_step_tap_window" ? "12"
                 : key == "relock_turn_frames" ? "17" : key == "quick_step_invincible" ? "0"
+                // The opponents' back walk is capped at 100%; no jump height, so a 纵云梯 can be hit all through the air as before.
+                : key == "cpu_walk_back_pct" ? "95" : key == "jump_height" ? "0"
                 : (101 + i).ToString();
             foreach (var (k, v) in overrides) if (k == key) value = v;
             sb.Append(key).Append(',').Append(value).Append(",test\n");

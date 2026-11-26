@@ -4,7 +4,7 @@
 key,value,note
 fights,10,Chambers with a fight in a run; the last is the boss
 player_hp,100,Your starting max HP
-player_stamina,80,Your starting max stamina
+player_stamina,100,Your starting max stamina (Chan: 100, the same as HP; was 80)
 player_qi,80,Your starting max Qi (you start the run with qi_start from rules.csv; Qi carries over between fights)
 hp_up,20,Max HP reward: +this
 hp_cap,200,Max HP never goes above this

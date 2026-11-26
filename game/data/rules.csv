@@ -27,7 +27,7 @@ parry_perfect_drain,15,Perfect parry: the attacker loses this much stamina (the 
 parry_perfect_qi,10,Perfect parry: the defender gains this much Qi
 input_buffer,6,A press made while busy is kept this many frames and used as soon as it can be (chain window or idle)
 knockback_frames,8,Knockback and clash pushes slide the fighter back over this many frames (8 = 0.13 s)
-walk_speed,200,Walking speed in cm per second (only while idle)
+walk_speed,200,Walking speed in cm per second (only while idle). The same every way for both fighters, so your back walk keeps pace with the opponent's forward walk (Chan); opponents walk back slower (cpu_walk_back_pct)
 min_distance,80,Fighters can't walk closer than this many cm (the capsules touch at 80)
 start_distance,300,How far apart a duel starts in cm. Out of every attack's reach (the longest is 铁砂掌: 130 + 20 step-in) so nobody can be hit the moment a duel starts (Chan's playtest: was 110)
 arena_width,1400,The fight floor is a square this many cm each way (14 m); fighters stop at the edges
@@ -56,3 +56,7 @@ grab_strike_gap,12,龙爪手: fewest frames between two strikes while holding (0
 grab_break_recoil,20,Grab break-out (press any grab while held): both fighters recoil this long (0.33 s)
 grab_break_push,40,Grab break-out: each fighter steps back this many cm (Street Fighter style; from touching 80 cm they end about 160 apart)
 relock_turn_frames,18,纵云梯: once an opponent who lost you finds you again it turns back round over this many frames per half turn (0.3 s), not at once
+side_step_lose_frames,30,A left or right quick step makes the opponent lose you for this many frames (0.5 s) like 纵云梯 does, then it turns back round (relock_turn_frames). Forward and back steps don't. Hitting it finds you at once (Chan)
+cpu_walk_back_pct,90,Opponents walk backwards at this % of walk_speed (90 = 180 cm/s against your 200 forward) so you can catch them; they quick-step or dash to catch you (Chan)
+jump_height,240,纵云梯: how high your feet rise at the top of the jump in cm (was 160 on screen). The jump is a curve over its startup + active frames
+strike_top,150,Strikes and grabs reach up to this height in cm: while a 纵云梯 has your feet this high (frames 7 to 23 of its 30 in the air at jump_height 240) nothing can touch you

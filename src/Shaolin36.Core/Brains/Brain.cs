@@ -184,6 +184,12 @@ namespace Shaolin36.Core.Brains
             if (me.State == FighterState.Hitstun)
             {
                 _hitstunTicks++;
+                // The boss (DefendsInHitstun) can parry or guard the next hit of the combo, if it sees it coming.
+                if (me.DefendsInHitstun)
+                {
+                    var defend = DefendInHitstun(duel, me, foe, distance);
+                    if (defend != null) return defend.Value;
+                }
                 if (!_escapeDecided && _hitstunTicks >= Math.Max(1, Style.Reaction) && next == FighterState.Hitstun)
                 {
                     _escapeDecided = true;
@@ -642,6 +648,60 @@ namespace Shaolin36.Core.Brains
         }
 
         private static BrainInput Walk(MoveInput move) => new BrainInput(SlotInput.None, move);
+
+        /// <summary>
+        /// In hitstun, for a fighter that <see cref="Fighter.DefendsInHitstun"/> (the boss): the next strike of the combo, once it sees
+        /// it coming (its reaction time), is met with its 化劲 parry (parry chance, timed like step 3) or its 硬气功 guard. Null to
+        /// carry on as before (maybe dash out).
+        /// </summary>
+        private BrainInput? DefendInHitstun(Duel duel, Fighter me, Fighter foe, int distance)
+        {
+            if (_plannedParryTick >= 0)
+            {
+                bool sameStrike = foe.Technique != null && foe.State.IsInMove() && MoveStart(foe, duel.Tick) == _plannedAgainst;
+                if (!sameStrike) _plannedParryTick = -1;
+                else if (duel.Tick >= _plannedParryTick)
+                {
+                    _plannedParryTick = -1;
+                    var timed = ParrySlot(me);
+                    if (timed != null && me.CanUse(me.Loadout[timed.Value]!)) return Press(timed.Value, BrainIntent.Parrying);
+                    return null;
+                }
+                else
+                {
+                    Intent = BrainIntent.Parrying;
+                    return BrainInput.None;
+                }
+            }
+
+            var seen = SeenNow();
+            if (seen.Technique == null || seen.State != FighterState.Startup || seen.Technique.ReachCm <= 0 || seen.Technique.IsGrab
+                || seen.StartTick == _decidedAttack) return null;
+            var t = seen.Technique;
+            int hitTick = seen.StartTick + t.StartupFrames;
+            if (distance > t.FullReachCm + ThreatMarginCm || hitTick <= duel.Tick) return null;
+            _decidedAttack = seen.StartTick;
+
+            var parrySlot = ParrySlot(me);
+            if (parrySlot != null && me.CanUse(me.Loadout[parrySlot.Value]!) && _dice.Chance(Style.Parry))
+            {
+                var parry = me.Loadout[parrySlot.Value]!;
+                int pressTick = hitTick - parry.StartupFrames - AimFrame(parry);
+                if (pressTick <= duel.Tick) return Press(parrySlot.Value, BrainIntent.Parrying);
+                _plannedParryTick = pressTick;
+                _plannedAgainst = seen.StartTick;
+                Intent = BrainIntent.Parrying;
+                return BrainInput.None;
+            }
+            var guardSlot = GuardSlot(me);
+            if (parrySlot == null && guardSlot != null && me.CanUse(me.Loadout[guardSlot.Value]!) && _dice.Chance(Style.Parry))
+            {
+                _guarding = true;
+                _guardUntil = hitTick + t.ActiveFrames + 2;
+                return Press(guardSlot.Value, BrainIntent.Guarding);
+            }
+            return null;
+        }
 
         /// <summary>The tick the fighter's current move started on, as seen before the tick numbered <paramref name="tick"/> runs.</summary>
         private static int MoveStart(Fighter f, int tick) => tick - 1 - f.MoveFrame;

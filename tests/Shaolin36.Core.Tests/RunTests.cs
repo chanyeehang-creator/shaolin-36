@@ -97,7 +97,7 @@ public class RunTests
     public void Chans_numbers_are_on_the_sheet()
     {
         Assert.Equal(10, Sheet.Fights);
-        Assert.Equal((100, 80, 80), (Sheet.PlayerHp, Sheet.PlayerStamina, Sheet.PlayerQi));
+        Assert.Equal((100, 100, 80), (Sheet.PlayerHp, Sheet.PlayerStamina, Sheet.PlayerQi));
         Assert.Equal((20, 200), (Sheet.HpUp, Sheet.HpCap));
         Assert.Equal((10, 130), (Sheet.StaminaUp, Sheet.StaminaCap));
         Assert.Equal((20, 130), (Sheet.QiUp, Sheet.QiCap));
@@ -146,7 +146,7 @@ public class RunTests
         Assert.Equal(RunPhase.Roam, run.Phase);
         Assert.Equal(0, run.Chamber);
         Assert.Null(run.Enemy);
-        Assert.Equal((100, 100, 80, 80, 0), (run.MaxHp, run.Hp, run.MaxStamina, run.MaxQi, run.Qi));
+        Assert.Equal((100, 100, 100, 80, 0), (run.MaxHp, run.Hp, run.MaxStamina, run.MaxQi, run.Qi));
     }
 
     [Theory]
@@ -547,7 +547,7 @@ public class RunTests
         Assert.Equal(0, run.Chamber);
         Assert.Empty(run.Learnt);
         Assert.False(run.SuperRareShown);
-        Assert.Equal((100, 100, 80, 80, 0), (run.MaxHp, run.Hp, run.MaxStamina, run.MaxQi, run.Qi));
+        Assert.Equal((100, 100, 100, 80, 0), (run.MaxHp, run.Hp, run.MaxStamina, run.MaxQi, run.Qi));
     }
 
     [Fact]

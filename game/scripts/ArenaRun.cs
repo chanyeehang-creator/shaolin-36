@@ -33,6 +33,12 @@ public partial class Arena
     private readonly List<Node3D> _doorNodes = new();
     /// <summary>The door you're standing in, or -1.</summary>
     private int _atDoor = -1;
+    /// <summary>The □ prompt over each door, shown while you stand at it.</summary>
+    private readonly List<Label3D> _doorPrompts = new();
+    /// <summary>Roaming: which way the free camera looks across the floor, in radians (0 = +X, toward the doors).</summary>
+    private float _roamYaw;
+    /// <summary>Roaming: how fast the free camera turns at full stick, in radians per second.</summary>
+    private const float RoamTurnPerSecond = 2.4f;
 
     /// <summary>Frames after a KO before a press goes on (0.75 s).</summary>
     private const int KoPause = 45;
@@ -40,8 +46,8 @@ public partial class Arena
     private const int DoorWallCm = 600;
     /// <summary>Space between doors along the wall, in cm.</summary>
     private const int DoorGapCm = 260;
-    /// <summary>Stand within this many cm of a door to go through it.</summary>
-    private const int DoorReachCm = 110;
+    /// <summary>Come within this many cm of a door and its □ prompt shows: □ then goes through it.</summary>
+    private const int DoorReachCm = 160;
     /// <summary>The wooden dummy's HP: it never goes down.</summary>
     private const int DummyHp = 99999;
 
@@ -116,10 +122,16 @@ public partial class Arena
                 }
                 return true;
             }
+            // At a door, □ goes through it instead of doing its move (Chan: the pad has no other button for it).
+            if (RunRoaming && slot == Slot.Square && _atDoor >= 0)
+            {
+                GoThrough(_atDoor);
+                return true;
+            }
             if (RunRoaming && (command == Command.Restart || command == Command.DummyToggle))
             {
                 if (_atDoor >= 0) GoThrough(_atDoor);
-                else _event.Text = "Walk up to a door, then press Enter (pad: Select) to go through.";
+                else _event.Text = "Walk up to a door: when its □ shows, press □ to go through.";
                 return true;
             }
             // No restarting a duel or freezing the enemy in a run.
@@ -188,7 +200,7 @@ public partial class Arena
 
     // ------------------------------------------------------------ roaming and doors
 
-    /// <summary>Into a cleared chamber (or chamber 0): the wooden dummy, the doors, free walking.</summary>
+    /// <summary>Into a cleared chamber (or chamber 0): the doors and free walking with the camera (no dummy, Chan).</summary>
     private void StartRoam()
     {
         _menuOpen = false;
@@ -197,12 +209,15 @@ public partial class Arena
         NewDuel();
         RefreshDoors();
         _event.Text = (_runNote.Length > 0 ? _runNote + "\n" : "") + (_run.Chamber == 0
-            ? "Chamber 0: no enemy here. Try your move on the wooden dummy, then walk up to a door and press Enter (pad: Select)."
-            : $"Chamber {_run.Chamber} cleared. Try your moves on the wooden dummy, then walk up to a door and press Enter (pad: Select).");
+            ? "Chamber 0: no enemy here. Walk to the door you want (turn the camera with the right stick or Z / C); when its □ shows, press □ to go through."
+            : $"Chamber {_run.Chamber} cleared. Walk to the door you want (turn the camera with the right stick or Z / C); when its □ shows, press □ to go through.");
         RefreshMenu();
     }
 
-    /// <summary>The chamber with no fight: you (HP and Qi as they are; nothing done here carries over) and a dummy that never goes down.</summary>
+    /// <summary>
+    /// The chamber with no fight: you (HP and Qi as they are; nothing done here carries over). The duel needs a second fighter, so
+    /// there is one, but the duel is set to roaming (no hits, no bumping, no lock-on) and it isn't drawn.
+    /// </summary>
     private Duel RoamDuel()
     {
         var dummy = new Loadout(_book);
@@ -224,6 +239,7 @@ public partial class Arena
     {
         foreach (var n in _doorNodes) n.QueueFree();
         _doorNodes.Clear();
+        _doorPrompts.Clear();
         _atDoor = -1;
         if (!RunRoaming || !IsInsideTree()) return;
         for (int i = 0; i < _run.Doors.Count; i++)
@@ -257,6 +273,23 @@ public partial class Arena
                 Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
                 NoDepthTest = true,
             });
+            // The □ button: shows over the door while you stand at it.
+            var prompt = new Label3D
+            {
+                Text = "□  enter",
+                Position = new Vector3(-0.6f, 1.6f, 0),
+                Modulate = new Color(1, 1, 1),
+                OutlineModulate = new Color(0, 0, 0),
+                OutlineSize = 14,
+                FontSize = 96,
+                Font = _font,
+                PixelSize = 0.006f,
+                Billboard = BaseMaterial3D.BillboardModeEnum.Enabled,
+                NoDepthTest = true,
+                Visible = false,
+            };
+            door.AddChild(prompt);
+            _doorPrompts.Add(prompt);
             AddChild(door);
             _doorNodes.Add(door);
         }
@@ -278,9 +311,61 @@ public partial class Arena
             if (FloorPoint.DistanceCm(_duel.One.Position, DoorPoint(i)) <= DoorReachCm) at = i;
         if (at == _atDoor) return;
         _atDoor = at;
+        for (int i = 0; i < _doorPrompts.Count; i++) _doorPrompts[i].Visible = i == at;
         if (at < 0) return;
         var d = _run.Doors[at];
-        _event.Text = $"[color=#{RarityColor(d.Rarity).ToHtml(false)}][b]{RarityName(d.Rarity)} door: {DoorName(d)}[/b][/color] to chamber {_run.Chamber + 1}. {DoorWhat(d)}\n[b]Press Enter (pad: Select) to go through.[/b]";
+        _event.Text = $"[color=#{RarityColor(d.Rarity).ToHtml(false)}][b]{RarityName(d.Rarity)} door: {DoorName(d)}[/b][/color] to chamber {_run.Chamber + 1}. {DoorWhat(d)}\n[b]Press □ ({Controls.LabelOf(Slot.Square)}) to go through.[/b]";
+    }
+
+    /// <summary>Roaming starts facing the doors, with the camera behind you.</summary>
+    private void StartRoamFacing()
+    {
+        _roamYaw = 0;
+        _duel.One.Facing = new FloorPoint(1, 0);
+    }
+
+    /// <summary>The way the free camera looks across the floor, as a unit vector in the scene (Y = 0).</summary>
+    private Vector3 RoamForward => new(Mathf.Cos(_roamYaw), 0, Mathf.Sin(_roamYaw));
+
+    /// <summary>
+    /// Roaming: turn the stick (relative to the camera) into the way you face, then walk straight ahead that fast. A quick step
+    /// goes the way you turn to, so it is always a forward one. You only turn while free (a move keeps the way it started).
+    /// </summary>
+    private void RoamWalk(ref MoveInput walk, ref StepDirection quickStep)
+    {
+        if (!walk.IsWalking && quickStep == StepDirection.None) return;
+        var f = RoamForward;
+        var r = new Vector3(-f.Z, 0, f.X);
+        var way = f * walk.Forward + r * walk.Right;
+        if (quickStep != StepDirection.None && way.LengthSquared() < 0.0001f)
+        {
+            way = quickStep switch
+            {
+                StepDirection.Forward => f,
+                StepDirection.Back => -f,
+                StepDirection.Right => r,
+                _ => -r,
+            };
+        }
+        if (_duel.One.CanAct && way.LengthSquared() > 0.0001f)
+            _duel.One.Facing = new FloorPoint(Mathf.RoundToInt(way.X * 1000), Mathf.RoundToInt(way.Z * 1000));
+        int tilt = Mathf.RoundToInt(Mathf.Min(MoveInput.Full, Mathf.Sqrt((float)walk.Forward * walk.Forward + (float)walk.Right * walk.Right)));
+        walk = new MoveInput(tilt, 0);
+        if (quickStep != StepDirection.None) quickStep = StepDirection.Forward;
+    }
+
+    /// <summary>The free camera while roaming: behind you along its own yaw (right stick or Z / C turns it), looking past you.</summary>
+    private void RoamCamera(float delta)
+    {
+        _roamYaw += Controls.CameraTurnInput() * RoamTurnPerSecond * delta;
+        var me = Floor(_duel.One.Position);
+        var f = RoamForward;
+        var spot = me - f * CameraBack + Vector3.Up * CameraHeight;
+        var look = me + f * 3f + Vector3.Up * CameraLookHeight;
+        float k = _cameraPlaced ? 1 - Mathf.Exp(-CameraFollowPerSecond * delta) : 1;
+        _cameraBase = _cameraBase.Lerp(spot, k);
+        _cameraLook = _cameraLook.Lerp(look, k);
+        _cameraPlaced = true;
     }
 
     private static Color RarityColor(Rarity r) => r switch

@@ -336,6 +336,49 @@ namespace Shaolin36.Core.Combat
 
         public Rules Rules { get; }
 
+        /// <summary>
+        /// Roaming a cleared chamber (no fight): fighter Two isn't really there (the game hides it). Nothing can hit anybody, Two
+        /// never moves, nobody bumps into anybody, and One isn't locked on: "forward" is the way One faces, which the game sets each
+        /// tick from the free camera and the stick, so One walks, steps, dashes and jumps the way it faces.
+        /// </summary>
+        public bool Roaming { get; set; }
+
+        /// <summary>
+        /// The single-player edge (Chan: the game is never PvP, so the player is favoured). Fighter One is you: you can raise 化绵掌 or
+        /// 硬气功 and 纵云梯 out of hitstun, and once a 外功 or 点穴 hit of a string connects the next hits turn to face your opponent.
+        /// Fighter Two is the opponent brain: it walks back at cpu_walk_back_pct and loses you when you quick-step left or right
+        /// (<see cref="Fighter.CanLoseLock"/>, set by the game, also needed). Only a boss (<paramref name="twoIsBoss"/>) may raise its
+        /// 防身 out of hitstun.
+        /// </summary>
+        public void FavourOne(bool twoIsBoss)
+        {
+            One.DefendsInHitstun = true;
+            One.JumpsInHitstun = true;
+            One.FacesOnConnect = true;
+            One.WalkBackPct = 100;
+            Two.DefendsInHitstun = twoIsBoss;
+            Two.JumpsInHitstun = false;
+            Two.FacesOnConnect = false;
+            Two.WalkBackPct = Rules.CpuWalkBackPct;
+        }
+
+        /// <summary>
+        /// How high <paramref name="f"/>'s feet are off the floor in cm: a 纵云梯 leap rises to jump_height and comes down again over
+        /// its time in the air (startup + active frames); 0 on the floor.
+        /// </summary>
+        public int HeightCm(Fighter f)
+        {
+            if (f == null) throw new ArgumentNullException(nameof(f));
+            if (!f.IsAirborne) return 0;
+            int total = f.Technique!.DashFrames;
+            int p = f.MoveFrame + 1;
+            if (total <= 0 || p >= total) return 0;
+            return (int)(4L * Rules.JumpHeight * p * (total - p) / ((long)total * total));
+        }
+
+        /// <summary>True while <paramref name="f"/> is high enough in a 纵云梯 leap (feet at strike_top or above) that no strike or grab reaches.</summary>
+        public bool IsAboveStrikes(Fighter f) => f.IsAirborne && HeightCm(f) >= Rules.StrikeTop;
+
         /// <summary>A duel with the fighters start_distance apart, centred on 0, One on the left.</summary>
         /// <param name="oneQi">Qi fighter One starts with; null for qi_start.</param>
         /// <param name="twoQi">Qi fighter Two starts with; null for qi_start.</param>
@@ -386,10 +429,16 @@ namespace Shaolin36.Core.Combat
             var broken = new List<HitEvent>(1);
             BreakOut(Side.One, broken);
             BreakOut(Side.Two, broken);
+            // A left or right quick step: a fighter who can lose you loses you for a moment (side_step_lose_frames).
+            SideStepLoseLock(One, Two);
+            SideStepLoseLock(Two, One);
             KeepLock(One, moveOne);
             KeepLock(Two, moveTwo);
-            Aim(One, Two);
-            Aim(Two, One);
+            if (!Roaming)
+            {
+                Aim(One, Two);
+                Aim(Two, One);
+            }
             var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + LungeStep(Side.One) + DashStep(Side.One) + RollStep(Side.One) + QuickStepStep(Side.One) + PushStep(Side.One);
             var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + LungeStep(Side.Two) + DashStep(Side.Two) + RollStep(Side.Two) + QuickStepStep(Side.Two) + PushStep(Side.Two);
             Move(stepOne, stepTwo);
@@ -450,8 +499,10 @@ namespace Shaolin36.Core.Combat
         /// True if <paramref name="attacker"/>'s move connects with <paramref name="target"/> this tick (see <see cref="Connects"/>);
         /// a grab also needs a target it can catch: not in hitstun and not already grabbed.
         /// </summary>
-        private static bool Reaches(Fighter attacker, Fighter target) =>
-            Connects(attacker, target.Position)
+        private bool Reaches(Fighter attacker, Fighter target) =>
+            !Roaming
+            && Connects(attacker, target.Position)
+            && !IsAboveStrikes(target)
             && (target.State != FighterState.KnockedDown || attacker.Technique!.HitsDown)
             && (!attacker.Technique!.IsGrab || CanBeGrabbed(target));
 
@@ -574,6 +625,10 @@ namespace Shaolin36.Core.Combat
 
             // 擒拿: a grab goes through parries, guards, clashes and hyper armor.
             if (move.IsGrab) return Catch(attacker, move, defender, defenderMove, defenderFrame);
+
+            // A 外功 or 点穴 strike connected (whatever happens next: landed, blocked, parried or clashed): with FacesOnConnect, the
+            // rest of the string turns to face the defender.
+            if (striker.Technique == move) striker.MarkConnected();
 
             // 硬气功: a strike from inside the guard's arc is blocked.
             if (defenderMove != null && defenderMove.IsGuarding(defenderFrame)
@@ -818,7 +873,7 @@ namespace Shaolin36.Core.Combat
             int i = (int)side;
             var f = this[side];
             bool air = f.IsAirborne;
-            if (_airborne[i] && !air)
+            if (_airborne[i] && !air && !Roaming)
             {
                 var other = this[OtherSide(side)];
                 // Landed behind a fighter who can lose you (纵云梯 over their head): they lose the lock-on.
@@ -946,7 +1001,9 @@ namespace Shaolin36.Core.Combat
             bool otherInAir = other.IsAirborne || _airborne[other == One ? 0 : 1];
             if (!me.IsLockedOn || me.CanLoseLock && otherInAir) return;
             // A dash keeps the lock-on: it has no strike to aim.
-            if (me.State.IsInMove() && !me.IsDashing && (me.MoveFrame > 0 || me.StringHit > 1)) return;
+            // Once a hit of the string connected (FacesOnConnect: the player), the next hits keep turning to face you through their wind-up.
+            bool tracking = me.FacesOnConnect && me.StringConnected && me.StringHit > 1 && me.State == FighterState.Startup;
+            if (me.State.IsInMove() && !me.IsDashing && (me.MoveFrame > 0 || me.StringHit > 1) && !tracking) return;
             var target = other.Position - me.Position;
             if (me.IsTurning && !target.IsZero)
             {
@@ -968,6 +1025,18 @@ namespace Shaolin36.Core.Combat
         }
 
         /// <summary>
+        /// On the tick <paramref name="stepper"/> starts a left or right quick step, <paramref name="other"/> (if it can lose the lock-on
+        /// and has it) loses them for side_step_lose_frames, then turns back round. Forward and back steps don't.
+        /// </summary>
+        private void SideStepLoseLock(Fighter stepper, Fighter other)
+        {
+            if (stepper.State != FighterState.QuickStep || stepper.QuickStepFrame != 0) return;
+            if (stepper.QuickStepDirection != StepDirection.Left && stepper.QuickStepDirection != StepDirection.Right) return;
+            if (!other.CanLoseLock || other.IsDown) return;
+            other.LoseLockFor(Rules.SideStepLoseFrames);
+        }
+
+        /// <summary>
         /// A fighter who lost the lock-on finds you again once they have stood still (idle, no walking or quick step) for their
         /// relock delay: at once with a delay of 0, otherwise after that many frames.
         /// </summary>
@@ -979,9 +1048,9 @@ namespace Shaolin36.Core.Combat
         }
 
         /// <summary>Which way is "forward" for <paramref name="f"/>: at the other fighter, or the way they face while they've lost you or are turning back.</summary>
-        private static FloorPoint Forward(Fighter f, Fighter other)
+        private FloorPoint Forward(Fighter f, Fighter other)
         {
-            if (!f.IsLockedOn || f.IsTurning) return f.Facing;
+            if (Roaming || !f.IsLockedOn || f.IsTurning) return f.Facing;
             var toward = other.Position - f.Position;
             return toward.IsZero ? f.Facing : toward;
         }
@@ -992,6 +1061,8 @@ namespace Shaolin36.Core.Combat
             if (!input.IsWalking || !f.CanAct) return FloorPoint.Zero;
             // Speeds are cm per second, which is exactly floor units per tick.
             double speed = f.IsExhausted ? Rules.WalkSpeed * Rules.ExhaustedWalkPct / 100.0 : Rules.WalkSpeed;
+            // Walking backwards (the opponents walk back slower than you walk forward, so you can catch them).
+            if (input.Forward < 0) speed = speed * f.WalkBackPct / 100.0;
             // 无相劫指's movement lock slows walking too.
             if (f.IsCrippled) speed = speed * Rules.CrippleWalkPct / 100.0;
             double tilt = Math.Sqrt((double)input.Forward * input.Forward + (double)input.Right * input.Right);
@@ -1015,6 +1086,12 @@ namespace Shaolin36.Core.Combat
         private void Move(FloorPoint stepOne, FloorPoint stepTwo)
         {
             if (stepOne.IsZero && stepTwo.IsZero) return;
+            // Roaming: only One moves, through where Two stands, stopped by the arena edges alone.
+            if (Roaming)
+            {
+                One.Position = ClampToArena(One.Position + stepOne);
+                return;
+            }
             var a0 = One.Position;
             var b0 = Two.Position;
             // The arena edges stop the steps first, so a fighter pinned at the edge can't be walked into (a long 虎形拳 leap).

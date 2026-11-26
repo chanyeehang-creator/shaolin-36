@@ -189,9 +189,13 @@ public partial class Arena : Node3D
         // A brain opponent loses you when you jump over it (纵云梯) and finds you again after standing still its relock time.
         _duel.Two.CanLoseLock = _brain != null;
         _duel.Two.RelockFrames = _brain?.Style.Relock ?? 0;
-        _dummy.Attacks = _opponentActive;
+        // Single player, never PvP (Chan): you get the edge. Only the boss may block out of hitstun too.
+        _duel.FavourOne(RunFighting && _run.Enemy!.IsBoss);
+        // A cleared chamber (or chamber 0): nobody to fight, walk free with the camera.
+        _duel.Roaming = RunRoaming;
+        if (RunRoaming) StartRoamFacing();
+        _dummy.Attacks = _opponentActive && !RunRoaming; // roaming, nobody is there to attack you
         if (RunFighting) _brain!.Active = true;
-        if (RunRoaming) _dummy.Attacks = false; // the chamber's wooden dummy only stands there
         _clock = new FeelClock(_duel, _feel) { HitStopOn = _feelOn };
         _combo = 0;
         _comboBy = null;
@@ -672,6 +676,8 @@ public partial class Arena : Node3D
         // Double-tapping one of the four directions asks for a quick step that way.
         var walk = Controls.WalkInput();
         var quickStep = _doubleTap.Update(DoubleTap.Cardinal(walk));
+        // Roaming: the stick is relative to the free camera; you turn to face the way you go and walk (or step) forward.
+        if (RunRoaming) RoamWalk(ref walk, ref quickStep);
         if (_floatingText && quickStep != StepDirection.None && _duel.One.IsExhausted && !_duel.One.CanQuickStep && _duel.One.CanAct)
             Float(Side.One, "No stamina!", ExhaustedColor);
         var hits = _clock.Step(input, opponent.Slots, walk.WithQuickStep(quickStep), opponent.Move);
@@ -724,8 +730,8 @@ public partial class Arena : Node3D
         var f = _duel[side];
         if (!wasStunned || !f.EscapedHitstun || f.MoveFrame != 0) return;
         _event.Text = side == Side.One
-            ? $"[color=#ccffff][b]Escaped![/b][/color] You dashed out of the combo ({f.Technique!.StaminaCost} stamina). No just dodge from an escape."
-            : "[color=#ccffff][b]Your opponent escaped[/b][/color] your combo with its 轻功 dash.";
+            ? $"[color=#ccffff][b]Escaped![/b][/color] You broke out of the combo with {f.Technique!.Name} ({f.Technique.StaminaCost} stamina). No just dodge from an escape."
+            : $"[color=#ccffff][b]Your opponent escaped[/b][/color] your combo with {f.Technique!.Name}.";
         if (_floatingText) Float(side, "Escape!", InvincibleColor);
     }
 
@@ -1113,6 +1119,9 @@ public partial class Arena : Node3D
     {
         Place(_player, _playerReach, Side.One, PlayerColor);
         Place(_opponent, _opponentReach, Side.Two, DummyColor);
+        // Roaming a chamber there is nobody else: the hidden fighter Two isn't shown.
+        _opponent.Visible = !RunRoaming;
+        if (RunRoaming) _opponentReach.Visible = false;
 
         _status.Text =
             $"[b]You[/b]    HP {Bar(_duel.One)}{SealIcon(_duel.One)}{LockIcon(_duel.One)}{BuffIcon(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
@@ -1120,6 +1129,10 @@ public partial class Arena : Node3D
             (_runMode ? RunStatusLine() : "") +
             $"Distance {_duel.DistanceCm} cm   ·   {OpponentName}: {(_opponentActive || RunFighting ? Thinking() : "[color=#ffd11a]standing still[/color]")}   ·   tick {_duel.Tick}{(_clock.IsFrozen ? " [color=#ffd11a](hit-stop)[/color]" : "")}   ·   feel kit {(_feelOn ? "on" : "[color=#ffd11a]off[/color]")} (F3){(_slowMotion ? "   ·   [color=#ffd11a]half speed (F1)[/color]" : "")}";
 
+        if (RunRoaming)
+            _status.Text =
+                $"[b]You[/b]    HP {Bar(_duel.One)}{SealIcon(_duel.One)}{BuffIcon(_duel.One)}  stamina {StaminaBar(_duel.One)}  Qi {QiBar(_duel.One)}  {Doing(_duel.One)}\n" +
+                RunStatusLine() + "Walk with the left stick or W/A/S/D (the way the camera looks)  ·  turn the camera: right stick or Z / C  ·  at a door: □ goes through";
         if (RunScreenUp) _status.Text = ""; // a run screen is up: no duel to show
         // The status wraps on a narrow window: keep the event line and pad line just under it, never on top of it.
         float below = 12 + Mathf.Max(88f, _status.GetContentHeight()) + 2;
@@ -1150,12 +1163,8 @@ public partial class Arena : Node3D
         var basis = new Basis(Vector3.Up, Yaw(f.Facing)) * new Basis(Vector3.Right, lean) * new Basis(Vector3.Up, spin);
         // Lying down, lift by the capsule's radius so it rests on the floor instead of sinking into it.
         var lift = new Vector3(0, 0.4f * Mathf.Sin(lean), 0);
-        // 纵云梯: a placeholder arc up and over, 1.6 m at the top.
-        if (f.IsAirborne)
-        {
-            float p = (f.MoveFrame + 1) / (float)f.Technique!.DashFrames;
-            lift.Y += 1.6f * 4f * p * (1f - p);
-        }
+        // 纵云梯: up and over on the rules' own curve (jump_height at the top; above strike_top nothing can reach you).
+        lift.Y += _duel.HeightCm(f) / 100f;
         body.Transform = new Transform3D(basis, feet + lift + basis * new Vector3(0, 1, 0));
         ((StandardMaterial3D)body.MaterialOverride).AlbedoColor = ColorOf(f, idle);
 

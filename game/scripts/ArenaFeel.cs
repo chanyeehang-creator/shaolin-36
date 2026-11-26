@@ -283,6 +283,11 @@ public partial class Arena
     /// </summary>
     private void FollowCamera(float delta)
     {
+        if (RunRoaming)
+        {
+            RoamCamera(delta);
+            return;
+        }
         var me = Floor(_duel.One.Position);
         var them = Floor(_duel.Two.Position);
         var toward = them - me;

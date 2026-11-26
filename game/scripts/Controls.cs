@@ -238,6 +238,23 @@ public static class Controls
             Mathf.RoundToInt(Mathf.Clamp(right, -1, 1) * MoveInput.Full));
     }
 
+    /// <summary>
+    /// Turning the free camera while roaming a chamber: the right stick on any pad, or Z / C (also , and .) on the keyboard.
+    /// -1 turns the view left, 1 right.
+    /// </summary>
+    public static float CameraTurnInput()
+    {
+        float turn = 0;
+        if (Input.IsPhysicalKeyPressed(Key.Z) || Input.IsPhysicalKeyPressed(Key.Comma)) turn -= 1;
+        if (Input.IsPhysicalKeyPressed(Key.C) || Input.IsPhysicalKeyPressed(Key.Period)) turn += 1;
+        foreach (int pad in Input.GetConnectedJoypads())
+        {
+            float x = Input.GetJoyAxis(pad, JoyAxis.RightX);
+            if (Mathf.Abs(x) >= StickDeadzone) turn += Mathf.Sign(x) * (Mathf.Abs(x) - StickDeadzone) / (1f - StickDeadzone);
+        }
+        return Mathf.Clamp(turn, -1, 1);
+    }
+
     /// <summary>One line naming the connected pads, for the HUD and for setting up a pad.</summary>
     public static string PadStatus()
     {
