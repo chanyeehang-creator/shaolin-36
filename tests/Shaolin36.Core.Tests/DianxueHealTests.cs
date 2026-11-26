@@ -49,7 +49,8 @@ public class DianxueHealTests
         Assert.Equal(Sim.TicksPerSecond, Finger.RecoveryFrames); // Chan: about 1 s to recover, no skill cooldown
         Assert.True(Finger.SealFrames > 0);
         Assert.True(Finger.Damage > 0 && Finger.Damage < Jab.Damage + 1, "small damage");
-        Assert.False(Finger.Clashable);
+        Assert.True(Finger.Clashable); // Chan: light and clashable, so its wind-up can be read and clashed
+        Assert.Equal(Weight.Light, Finger.Weight);
         Assert.Equal(0, Finger.AdvanceCm); // stands still through the wind-up
         Assert.InRange(Finger.LungeCm, 91, 199); // Chan: between the quick step (70 / 90 cm) and the 轻功 dash (200 cm)
     }

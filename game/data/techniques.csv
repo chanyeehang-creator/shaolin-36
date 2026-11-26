@@ -1,6 +1,6 @@
 # Technique sheet. Frames are 1/60 s sim ticks. Stage 1 starting values: tune freely, then run scripts/test.sh.
 # category: waigong/外功 neigong/内功 qinggong/轻功 dianxue/点穴 huajin/化劲 qinna/擒拿 qigong/气功
-# weight: light/medium/heavy. clash_window = last N frames of startup; perfect_clash = first N frames of that window.
+# weight: light/medium/heavy (Chan's weights: 罗汉拳 medium, light, light, medium; 铁砂掌 heavy with or without Qi; 封穴 light). clash_window = last N frames of startup; perfect_clash = first N frames of that window.
 # hitstun = frames the defender is frozen after the hit. reach = centimetres.
 # 罗汉拳 rhythm (Chan's 2nd playtest, then 30% faster after hit-stop arrived): 0.22 s wind-up, hit 1, 0.37 s, hit 2, 0.15 s, hit 3, 0.37 s, hit 4.
 # Chained on the first frame the hits land on frames 13, 35, 44, 66 (were 19, 49, 61, 91). Each link still has 5 frames to chain and combo.
@@ -34,7 +34,8 @@
 # 点穴 封穴 (Chan's brief; the name from the build plan): one finger strike, small damage, seals 外功 for 5 s. Balanced by a long 0.5 s wind-up
 #           (parry or step on reaction), 25 stamina (vs 8 for a 罗汉拳 hit) and a 1 s recovery on a miss (Chan: recovery, not a skill cooldown;
 #           a hit during it interrupts it like any move). On a hit (Chan's balance patch) it's free 24 frames (0.4 s) after the hit,
-#           6 frames before the 30-frame hitstun ends: a brief pause, so dodging it is what beats it. Not clashable (a Qi strike). Later variants can be faster and cost Qi.
+#           6 frames before the 30-frame hitstun ends: a brief pause, so dodging it is what beats it. Later variants can be faster and cost Qi.
+#           Clashable (Chan: read its wind-up and clash it back): light, clash window frames 24-29 of its 30-frame wind-up, perfect 24-25.
 # hit_recovery = if set: once the hit lands (damage; not blocked, parried or dodged), the attacker can act this many frames later,
 #           cutting the rest of the move short. A miss keeps the full active + recovery. Empty = same recovery either way.
 # lunge = cm the attacker's body surges forward along its aim from the first active frame, slid over the active frames: the hitbox goes
@@ -58,12 +59,12 @@
 #           Whiffed: 32 frames (0.53 s) of recovery, a sure punish. 15 stamina. Strike beats grab, grab beats parry, parry beats strike.
 id,name,category,weight,weapon,startup,active,recovery,clash_window,perfect_clash,stamina,qi,damage,clashable,hitstun,reach,next,chain_window,perfect_parry,empower_qi,empower_damage_pct,empower_armor,knockback,hit_angle,advance,dash,invincible,escape,seal,heal,lunge,hold,knockdown,hits_down,early_block,hit_recovery
 luohan_quan_1,罗汉拳 1 冲拳,waigong,medium,false,13,3,21,5,2,8,0,6,true,27,125,luohan_quan_2,6,0,0,100,false,4,60,10
-luohan_quan_2,罗汉拳 2 连拳,waigong,medium,false,19,3,11,4,2,8,0,6,true,14,120,luohan_quan_3,6,0,0,100,false,4,60,15
-luohan_quan_3,罗汉拳 3 挑掌,waigong,medium,false,6,3,21,4,2,9,0,7,true,27,125,luohan_quan_4,6,0,0,100,false,4,70,15
-luohan_quan_4,罗汉拳 4 收势重拳,waigong,heavy,false,19,4,20,6,2,14,0,12,true,24,140,,0,0,0,100,false,60,90,15
+luohan_quan_2,罗汉拳 2 连拳,waigong,light,false,19,3,11,4,2,8,0,6,true,14,120,luohan_quan_3,6,0,0,100,false,4,60,15
+luohan_quan_3,罗汉拳 3 挑掌,waigong,light,false,6,3,21,4,2,9,0,7,true,27,125,luohan_quan_4,6,0,0,100,false,4,70,15
+luohan_quan_4,罗汉拳 4 收势重拳,waigong,medium,false,19,4,20,6,2,14,0,12,true,24,140,,0,0,0,100,false,60,90,15
 timed_parry,化绵掌 (timed parry),huajin,light,false,2,17,10,0,0,10,0,0,false,0,0,,0,4,0,100,false,0,,0,,,,,,,,,,3,
 tiesha_zhang,铁砂掌 (iron palm),neigong,heavy,false,36,4,36,8,2,20,0,15,true,40,130,,0,0,30,200,true,50,60,20
 qinggong_dash,轻功 冲步 (dash),qinggong,light,false,2,12,10,0,0,15,0,0,false,0,0,,0,0,0,100,false,0,,0,200,10,true
-fengxue,点穴 封穴 (seal),dianxue,light,false,30,8,60,0,0,25,0,4,false,30,115,,0,0,0,100,false,10,50,0,0,0,false,300,0,140,,,,,24
+fengxue,点穴 封穴 (seal),dianxue,light,false,30,8,60,6,2,25,0,4,true,30,115,,0,0,0,100,false,10,50,0,0,0,false,300,0,140,,,,,24
 xianliao_shu,仙辽术 (healing qigong),qigong,light,false,30,60,20,0,0,5,10,0,false,0,0,,0,0,0,100,false,0,,0,0,0,false,0,10
 qinna_shou,擒拿手 (grab),qinna,light,false,10,4,32,0,0,15,0,14,false,0,100,,0,0,0,100,false,130,60,15,0,0,false,0,0,0,30,true,false

@@ -39,6 +39,8 @@ namespace Shaolin36.Core.Brains
         Punishing,
         /// <summary>Saw a strike coming and is timing its parry for it.</summary>
         Parrying,
+        /// <summary>Saw a slow strike coming and is timing its own strike into it: a clash (拼招).</summary>
+        Clashing,
         /// <summary>Threw its parry on a guess that you were about to strike.</summary>
         Guessing,
         /// <summary>Saw a strike coming and quick-stepped to the side.</summary>
@@ -64,7 +66,9 @@ namespace Shaolin36.Core.Brains
     /// reacting. Each tick it:
     /// <list type="number">
     /// <item>carries on its own string when a chain window opens (<see cref="BrainStyle.Chain"/>);</item>
-    /// <item>answers a strike it sees coming (never with a parry against a 擒拿 grab, which a parry can't stop): a 化劲 parry timed for the strike's hit frame (<see cref="BrainStyle.Parry"/>,
+    /// <item>answers a strike it sees coming: first, if the strike can be clashed, with <see cref="BrainStyle.Clash"/> chance it times one of its own
+    /// clashable strikes to land in the strike's clash window (拼招; the perfect frames with <see cref="BrainStyle.Perfect"/> chance, otherwise the
+    /// plain frames with a move at least as heavy), when one is quick enough and reaches. Otherwise (never with a parry against a 擒拿 grab, which a parry can't stop) a 化劲 parry timed for the strike's hit frame (<see cref="BrainStyle.Parry"/>,
     /// aiming at the perfect part with <see cref="BrainStyle.Perfect"/>), or else a step aside (<see cref="BrainStyle.Step"/>): with a 轻功 dash
     /// on a slot it dashes to the side timed so the strike's hit frame falls in its invincible frames, otherwise it quick-steps;</item>
     /// <item>caught in a combo, once it has been in hitstun for its reaction time, dashes back out of it with its 轻功 dash
@@ -112,6 +116,8 @@ namespace Shaolin36.Core.Brains
         private int _plannedAgainst = int.MinValue;
         private int _plannedDashTick = -1;         // tick to press the dash on, or -1
         private int _plannedDashRight;             // -100 left or 100 right
+        private int _plannedClashTick = -1;        // tick to press the clash strike on, or -1
+        private Slot _plannedClashSlot;
         private int _hitstunTicks;                 // ticks in a row it has been in hitstun
         private bool _escapeDecided;               // rolled for a combo escape in this run of hitstun
         private int _decidedOpening = int.MinValue;
@@ -149,6 +155,7 @@ namespace Shaolin36.Core.Brains
             if (!Active || duel.IsOver || duel.Tick < duel.Rules.OpponentReady)
             {
                 _plannedParryTick = -1;
+                _plannedClashTick = -1;
                 Intent = BrainIntent.Still;
                 return BrainInput.None;
             }
@@ -217,6 +224,23 @@ namespace Shaolin36.Core.Brains
                 }
             }
 
+            if (_plannedClashTick >= 0)
+            {
+                bool sameStrike = foe.Technique != null && foe.State.IsInMove() && MoveStart(foe, duel.Tick) == _plannedAgainst;
+                if (!sameStrike) _plannedClashTick = -1;
+                else if (duel.Tick >= _plannedClashTick)
+                {
+                    _plannedClashTick = -1;
+                    var strike = me.Loadout[_plannedClashSlot];
+                    if (strike != null && next == FighterState.Idle && me.CanUse(strike)) return Press(_plannedClashSlot, BrainIntent.Clashing);
+                }
+                else
+                {
+                    Intent = BrainIntent.Clashing;
+                    return BrainInput.None;
+                }
+            }
+
             if (_plannedParryTick >= 0)
             {
                 bool sameStrike = foe.Technique != null && foe.State.IsInMove() && MoveStart(foe, duel.Tick) == _plannedAgainst;
@@ -248,6 +272,19 @@ namespace Shaolin36.Core.Brains
                 if (comingAtMe && hitTick > duel.Tick)
                 {
                     _decidedAttack = seen.StartTick;
+
+                    // 拼招: time one of its own strikes into the strike's clash window.
+                    if (t.Clashable && t.ClashWindowFrames > 0 && Style.Clash > 0 && _dice.Chance(Style.Clash)
+                        && PlanClash(me, t, seen.StartTick, duel.Tick, distance, out var clashSlot, out var clashTick))
+                    {
+                        if (clashTick <= duel.Tick) return Press(clashSlot, BrainIntent.Clashing);
+                        _plannedClashTick = clashTick;
+                        _plannedClashSlot = clashSlot;
+                        _plannedAgainst = seen.StartTick;
+                        Intent = BrainIntent.Clashing;
+                        return BrainInput.None;
+                    }
+
                     var parrySlot = ParrySlot(me);
                     // A parry can't stop a 擒拿 grab: get out of the way instead.
                     if (!t.IsGrab && parrySlot != null && me.CanUse(me.Loadout[parrySlot.Value]!) && _dice.Chance(Style.Parry))
@@ -496,6 +533,62 @@ namespace Shaolin36.Core.Brains
             // A plain block: mostly a little late (after the perfect frames), sometimes a little early.
             if (early > 0 && (plain == 0 || _dice.Chance(25))) return _dice.Below(early);
             return early + perfect + _dice.Below(Math.Min(plain, 6));
+        }
+
+        /// <summary>
+        /// Plans a clash (拼招) against <paramref name="strike"/>, which started on <paramref name="strikeStart"/>: one of its own
+        /// clashable strikes that reaches and whose hit lands, pressed on <paramref name="tick"/> or later, on a frame of the strike's
+        /// clash window. With <see cref="BrainStyle.Perfect"/> chance it aims for the perfect frames (any weight wins those), and if
+        /// it is too late for them, or it didn't aim for them, the plain frames with a move at least as heavy as the strike (heavier
+        /// first: it breaks through). Not aiming for perfect but with nothing heavy enough, it goes for the perfect frames after all
+        /// (the only clash a lighter move wins). The heaviest move that is in time is picked. False if nothing fits.
+        /// </summary>
+        private bool PlanClash(Fighter me, Technique strike, int strikeStart, int tick, int distance, out Slot slot, out int pressTick)
+        {
+            slot = default;
+            pressTick = -1;
+            int windowStart = strike.ClashWindowStart;
+            int perfectEnd = windowStart + Math.Min(strike.PerfectClashFrames, strike.ClashWindowFrames);
+            int now = tick - strikeStart; // the strike's frame on this tick
+            bool aimPerfect = perfectEnd > windowStart && _dice.Chance(Style.Perfect);
+            if (aimPerfect && TryClashBand(me, strike, now, distance, windowStart, perfectEnd, false, out slot, out int frame))
+            {
+                pressTick = tick + frame - now - me.Loadout[slot]!.StartupFrames;
+                return true;
+            }
+            if (TryClashBand(me, strike, now, distance, perfectEnd, strike.StartupFrames, true, out slot, out frame)
+                || !aimPerfect && TryClashBand(me, strike, now, distance, windowStart, perfectEnd, false, out slot, out frame))
+            {
+                pressTick = tick + frame - now - me.Loadout[slot]!.StartupFrames;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The heaviest clashable strike it can pay for that reaches from <paramref name="distance"/> and, pressed now or later, lands on a
+        /// frame of the strike from <paramref name="from"/> (inclusive) to <paramref name="to"/> (exclusive); and the frame it aims for.
+        /// <paramref name="needWeight"/>: only moves at least as heavy as the strike (so it never loses the clash).
+        /// </summary>
+        private bool TryClashBand(Fighter me, Technique strike, int now, int distance, int from, int to, bool needWeight,
+            out Slot slot, out int frame)
+        {
+            slot = default;
+            frame = -1;
+            int best = int.MinValue;
+            foreach (var s in Slots.All)
+            {
+                var t = me.Loadout[s];
+                if (!IsAttack(t) || t!.IsGrab || !t.Clashable || !me.CanUse(t) || t.FullReachCm < distance) continue;
+                int weight = Clash.EffectiveWeight(t, strike);
+                if (needWeight && weight < Clash.EffectiveWeight(strike, t)) continue;
+                int earliest = Math.Max(from, now + t.StartupFrames); // pressed this tick, it lands on the strike's frame now + startup
+                if (earliest >= to || weight <= best) continue;
+                best = weight;
+                slot = s;
+                frame = earliest + _dice.Below(Math.Min(to - earliest, 3));
+            }
+            return best != int.MinValue;
         }
 
         /// <summary>The first slot holding a 化劲 parry, or null.</summary>
