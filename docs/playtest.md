@@ -302,7 +302,7 @@ Switch them in the pause menu (Tab, Esc or pad Start). The numbers are in `techn
 
 ## 7. The questions for this build
 
-0. **The second moves:** switch each category in the pause menu and try it against an opponent using the same move. Which numbers feel off (虎形拳's leaps, 狮吼功's ring and Qi cost, 纵云梯's distance, 无相劫指's lock time, 硬气功's stamina per block, 龙爪手's tap window, 易筋经.s 1.5x)?
+0. **The second moves:** switch each category in the pause menu and try it against an opponent using the same move. Which numbers feel off (虎形拳's leaps, 狮吼功's ring and Qi cost, 纵云梯's distance, 无相劫指's lock time, 硬气功's stamina per block, 龙爪手's tap window, 易筋经's 1.5x)?
 1. **Does it feel like a fight now?** Against the monk, does the opponent close in, attack and defend in a way you can read? Anything it does that looks robotic or unfair?
 2. **Difficulty:** is the novice easy enough to learn on, and the master hard but beatable? Which numbers would you change first (reaction, parry chance, how often it attacks)?
 3. **Guessing:** can you spot its guessed parries and punish them? Does it guess too often or too rarely?
