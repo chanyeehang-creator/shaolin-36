@@ -261,7 +261,7 @@ So the whole 罗汉拳 string walks 41 cm forward, and it now reaches if you sta
 - **70 cm forward or back, 90 cm left or right**, in **8 frames (0.13 s)**, then **6 frames (0.1 s)** before you can act again: 14 frames (0.23 s) in all. Walking covers 70 cm in 0.35 s, so it's about three times as fast, but it's a step, not a roll or a dash.
 - The second tap must come within **14 frames (0.23 s)** of the first. Only the four straight directions count: a diagonal does nothing.
 - Costs **6 stamina**. You can't quick step while exhausted.
-- **No invincibility and no perfect-timing dodge.** If a strike reaches you during the step, it hits you as normal. It works by moving you, so it has to happen before the hit comes out: a side step as the dummy starts its 罗汉拳 wind-up (yellow) takes you out of the punch's wedge, and you end up at its side, in reach for your own punch. Step on the last few frames of the wind-up and you're still hit.
+- **Invincible while it slides, open in its recovery (new).** The whole 8-frame slide (0.13 s) is invincible: a strike that lands then passes through you. The 6-frame recovery is not, so a strike that lands after the slide hits you as normal. That's fewer invincible frames than the 轻功 dash (10 frames, 0.17 s), and unlike the dash a strike it slips gives **no just dodge and no Qi**. The capsule turns pale cyan while it's invincible. A side step as the dummy starts its 罗汉拳 wind-up (yellow) still takes you out of the punch's wedge, and you end up at its side, in reach for your own punch. The number is `quick_step_invincible` in `rules.csv` (at most `quick_step_frames`).
 - Left and right steps curve round the dummy, so you stay about the same distance away.
 - Pressed while you're busy (in a move, or just hit), it waits up to 6 frames (the input buffer) and comes out as soon as you're free, like a button press.
 - It isn't a 轻功 technique. Later 轻功 slot techniques will be the real dodges; the quick step is the bare minimum everyone keeps.
@@ -276,7 +276,7 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - `start_distance`: how far apart the duel starts (300 cm, out of every attack's reach, so nobody is hit the moment a duel starts or restarts).
   - `opponent_ready`: frames the opponent brain waits at the start of a duel before it moves (30, half a second).
   - `min_distance`, `arena_width`: how close the capsules can get, and how big the square floor is (1400 = 14 m each way).
-  - `quick_step_distance` (70 cm forward/back), `quick_step_side_distance` (90 cm left/right), `quick_step_frames` (8), `quick_step_recovery` (6), `quick_step_stamina` (6), `quick_step_tap_window` (14): the quick step.
+  - `quick_step_distance` (70 cm forward/back), `quick_step_side_distance` (90 cm left/right), `quick_step_frames` (8), `quick_step_recovery` (6), `quick_step_invincible` (8, the whole slide), `quick_step_stamina` (6), `quick_step_tap_window` (14): the quick step.
   - `dummy_pause`: frames the training dummy waits between strings (40, about 0.7 s).
   - `parry_recovery`, `parry_perfect_recovery`, `parry_perfect_stagger`: how long you recover after a block or a perfect parry, and how long a perfect parry staggers the attacker.
   - `clash_recoil_frames`, `clash_lose_stagger`, `clash_perfect_stagger`, `clash_perfect_recovery`: the clash results.
