@@ -1033,6 +1033,7 @@ public partial class Arena : Node3D
             case BrainIntent.Attacking: return "attacking";
             case BrainIntent.Punishing: return "[color=#ff6666]punishing your opening[/color]";
             case BrainIntent.Parrying: return "[color=#33bfff]saw your strike, parrying[/color]";
+            case BrainIntent.Clashing: return "[color=#ffd11a]saw your strike, clashing into it (拼招)[/color]";
             case BrainIntent.Guessing: return "[color=#33bfff]parrying on a guess[/color]";
             case BrainIntent.Dodging: return "saw your strike, stepping aside";
             case BrainIntent.Resting: return "[color=#ff8c1a]backing off to breathe[/color]";

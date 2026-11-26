@@ -43,6 +43,18 @@ public class BrainCsvTests
     }
 
     [Fact]
+    public void The_clash_column_is_optional_and_checked()
+    {
+        const string h = "id,name,reaction,think_every,aggression,punish,chain,parry,perfect,step,circle,rest_below,heavy,guess,clash,note\n";
+        var r = BrainCsv.Parse(h + "x,X,18,20,50,60,80,40,35,20,50,25,25,15,30,note\n");
+        Assert.True(r.Ok, string.Join("\n", r.Errors));
+        Assert.Equal(30, r.Sheet!.Styles.Single().Clash);
+        Assert.Equal(0, BrainCsv.Parse(Header + "x,X,18,20,50,60,80,40,35,20,50,25,25,15,note\n").Sheet!.Styles.Single().Clash);
+        var bad = BrainCsv.Parse(h + "x,X,18,20,50,60,80,40,35,20,50,25,25,15,150,note\n");
+        Assert.Contains(bad.Errors, e => e.StartsWith("line 2 (x, clash)"));
+    }
+
+    [Fact]
     public void Duplicate_ids_missing_columns_and_empty_sheets_are_reported()
     {
         var dup = BrainCsv.Parse(Header + "x,X,18,20,50,60,80,40,35,20,50,25,25,15\nx,X,18,20,50,60,80,40,35,20,50,25,25,15\n");

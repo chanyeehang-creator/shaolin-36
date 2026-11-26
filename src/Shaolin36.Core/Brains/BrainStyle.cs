@@ -15,8 +15,9 @@ namespace Shaolin36.Core.Brains
         public const int MaxThinkEvery = 120;
 
         public BrainStyle(string id, string name, int reaction, int thinkEvery, int aggression, int punish, int chain,
-            int parry, int perfect, int step, int circle, int restBelow, int heavy, int guess = 0, int heal = 0, int grab = 0)
+            int parry, int perfect, int step, int circle, int restBelow, int heavy, int guess = 0, int heal = 0, int grab = 0, int clash = 0)
         {
+            Clash = clash;
             Grab = grab;
             Heal = heal;
             Id = id;
@@ -90,6 +91,13 @@ namespace Shaolin36.Core.Brains
         /// </summary>
         public int Grab { get; }
 
+        /// <summary>
+        /// Chance that it answers a clashable strike it sees coming with a clash (拼招): one of its own strikes timed to land in the
+        /// strike's clash window (rolled before <see cref="Parry"/>). <see cref="Perfect"/> is the chance it aims for the perfect frames.
+        /// It needs a move quick enough to land in the window after its reaction time, so in practice it clashes slow strikes like 铁砂掌.
+        /// </summary>
+        public int Clash { get; }
+
         public override string ToString() => $"{Id} ({Name})";
     }
 
@@ -103,7 +111,7 @@ namespace Shaolin36.Core.Brains
         };
 
         /// <summary>Columns a sheet may leave out (an empty or missing cell is 0).</summary>
-        public static readonly string[] OptionalColumns = { "heal", "grab" };
+        public static readonly string[] OptionalColumns = { "heal", "grab", "clash" };
 
         private readonly List<BrainStyle> _styles;
 
@@ -204,11 +212,12 @@ namespace Shaolin36.Core.Brains
                 int guess = Pct("guess");
                 int heal = Cell("heal").Length == 0 ? 0 : Pct("heal");
                 int grab = Cell("grab").Length == 0 ? 0 : Pct("grab");
+                int clash = Cell("clash").Length == 0 ? 0 : Pct("clash");
                 var name = Cell("name");
 
                 if (ok)
                     styles.Add(new BrainStyle(id, name.Length > 0 ? name : id, reaction, thinkEvery, aggression, punish, chain,
-                        parry, perfect, step, circle, restBelow, heavy, guess, heal, grab));
+                        parry, perfect, step, circle, restBelow, heavy, guess, heal, grab, clash));
             }
 
             if (errors.Count == 0 && styles.Count == 0) errors.Add($"line {lines.Count}: no brain rows, expected at least one");

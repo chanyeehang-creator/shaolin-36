@@ -182,7 +182,7 @@ Because of the small pushes, the full 罗汉拳 string only stays in reach if yo
 **The opponent brain (Stage 3).** The opponent is now played by a brain that uses the same buttons and stick you do: the same three techniques (罗汉拳 on □, 铁砂掌 on △, 化绵掌 on L1), the same stamina, Qi and frame data, and the quick step. It never reads your buttons. It only "sees" what you do a little late, like a person reacting. What it does, in order of priority:
 
 1. **Carries on its string:** at each link of its 罗汉拳 it decides whether to press for the next hit. When it does, it presses on the first chain frame, so the rest of the string is a true combo once hit 1 lands.
-2. **Answers a strike it sees coming:** a parry timed for your hit frame (sometimes aiming for the perfect part, sometimes the plain block part), or else a quick step to the side.
+2. **Answers a strike it sees coming:** a clash (拼招) when it can: it times its own strike to land in your move's clash window (the perfect frames when it can, which break your move and give it 10 Qi; the plain frames only with a move at least as heavy as yours). Otherwise a parry timed for your hit frame (sometimes aiming for the perfect part, sometimes the plain block part), or else a quick step to the side.
 3. **Backs off to breathe** when its stamina is low (it walks back to 250 cm and waits). It still parries if it can pay for it.
 4. **Punishes:** if it sees you recovering from a move, staggered or recoiling while you're in its reach, it may attack straight away.
 5. **Otherwise** it walks in until its attacks reach (about 125 cm), with the odd quick step forward to close a long gap. In reach, every so often it chooses: attack (with enough Qi it always picks the Qi 铁砂掌), throw its parry on a guess, circle round you, or wait.
@@ -191,16 +191,17 @@ The top line shows what it is up to, for example "closing in", "circling you", "
 
 Three brains to pick from on the loadout screen (you start against the monk):
 
-| Brain | Reaction | Parries what it sees | Aims for perfect | Guesses | Punishes | Attacks when it chooses |
-| --- | --- | --- | --- | --- | --- | --- |
-| 弟子 (novice) | 24 frames (0.4 s) | 15% | 20% | 5% | 30% | 35%, every 30 frames (0.5 s) |
-| 武僧 (monk) | 18 frames (0.3 s) | 40% | 35% | 15% | 60% | 50%, every 20 frames (0.33 s) |
-| 方丈 (master) | 12 frames (0.2 s) | 65% | 60% | 25% | 90% | 60%, every 12 frames (0.2 s) |
+| Brain | Reaction | Clashes what it sees | Parries what it sees | Aims for perfect | Guesses | Punishes | Attacks when it chooses |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 弟子 (novice) | 24 frames (0.4 s) | 5% | 15% | 20% | 5% | 30% | 35%, every 30 frames (0.5 s) |
+| 武僧 (monk) | 18 frames (0.3 s) | 15% | 40% | 35% | 15% | 60% | 50%, every 20 frames (0.33 s) |
+| 方丈 (master) | 12 frames (0.2 s) | 35% | 65% | 60% | 25% | 90% | 60%, every 12 frames (0.2 s) |
 
 Things worth knowing when you fight it:
 
 - **Every duel starts 300 cm apart** and the brain waits half a second (30 frames) before it moves, so a new duel or a restart never opens with you getting hit. Walking in at 200 cm per second, it needs about 1.4 s in all to reach you. (The old training dummy never walks, so walk up to it.)
 - **罗汉拳 hit 1 lands 13 frames (0.22 s) after you press**, faster than any of the brains can react (12 frames to see it plus 2 to open a parry is already 14). So your opening jab only gets parried when the brain **guesses**. Its slow moves are different: your 铁砂掌 winds up for 36 frames (0.6 s), and every brain sees that coming in time.
+- **It clashes on reaction, so only slow strikes.** Your 铁砂掌's clash window is frames 28-35 of its 36-frame wind-up (perfect on 28-29). Its quickest clashable move is 罗汉拳 hit 1 (13 frames), and 罗汉拳 is lighter, so it has to hit the perfect frames: it must press by frame 16. The master sees your palm on frame 12 and can; the monk (18) and the novice (24) see it too late. The top line shows "clashing into it (拼招)" while it waits for its frame. 封穴 and 擒拿手 can't be clashed.
 - **A wrong guess is your chance.** When it throws 化绵掌 and nothing comes, it's stuck for 29 frames (0.48 s) and paid 10 stamina. Wait for the parry colours to pass, then hit it.
 - **After it blocks one hit, it can block the next only if the gap is long enough.** A block costs 5 frames of recovery, a new parry takes 2 frames to open and its window starts with 3 block frames. 罗汉拳 hit 3 lands 9 frames after hit 2, so a parry re-pressed straight after a block is in time to block it. The same is true for you when it attacks you.
 - **It gets tired like you do.** Every parry costs it 10 stamina and every strike its own cost. When it backs off to breathe, chase it.
