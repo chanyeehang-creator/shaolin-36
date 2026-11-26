@@ -155,6 +155,19 @@ namespace Shaolin36.Core.Brains
         public BrainStyle Style { get; }
         public int Seed { get; }
 
+        /// <summary>
+        /// The opening after its own attacks (Chan, for the mini boss): for this many frames after each attack of its own ends
+        /// (a strike or a grab; counted from its last frame), it won't parry, clash, guard, dodge, step aside or dash out of a
+        /// combo, and a strike you start in that time it never reacts to at all. It can still attack. 0 = no opening.
+        /// Attack first instead and it defends as usual.
+        /// </summary>
+        public int OpeningFrames { get; set; }
+
+        /// <summary>True while it is open after an attack of its own (see <see cref="OpeningFrames"/>).</summary>
+        public bool IsOpen(int tick) => tick < _openUntil;
+
+        private int _openUntil = -1;
+
         /// <summary>False makes it stand still and press nothing, for practising on it.</summary>
         public bool Active { get; set; } = true;
 
@@ -180,17 +193,31 @@ namespace Shaolin36.Core.Brains
             var next = me.NextState();
             int distance = duel.DistanceCm;
 
+            // Its own attack under way: the opening runs OpeningFrames past its last frame.
+            if (OpeningFrames > 0 && me.State.IsInMove() && me.Technique!.ReachCm > 0) _openUntil = duel.Tick + OpeningFrames;
+            bool selfOpen = IsOpen(duel.Tick);
+            if (selfOpen)
+            {
+                // No defending: drop anything planned, and never answer a strike started now, even after the opening.
+                _plannedParryTick = -1;
+                _plannedClashTick = -1;
+                _plannedDashTick = -1;
+                var started = SeenNow();
+                if (started.Technique != null && started.State.IsInMove()) _decidedAttack = started.StartTick;
+                if (foe.State.IsInMove()) _decidedAttack = Math.Max(_decidedAttack, MoveStart(foe, duel.Tick));
+            }
+
             // 0. Caught in a combo: once it has noticed (its reaction time), maybe dash back out of it.
             if (me.State == FighterState.Hitstun)
             {
                 _hitstunTicks++;
                 // The boss (DefendsInHitstun) can parry or guard the next hit of the combo, if it sees it coming.
-                if (me.DefendsInHitstun)
+                if (me.DefendsInHitstun && !selfOpen)
                 {
                     var defend = DefendInHitstun(duel, me, foe, distance);
                     if (defend != null) return defend.Value;
                 }
-                if (!_escapeDecided && _hitstunTicks >= Math.Max(1, Style.Reaction) && next == FighterState.Hitstun)
+                if (!selfOpen && !_escapeDecided && _hitstunTicks >= Math.Max(1, Style.Reaction) && next == FighterState.Hitstun)
                 {
                     _escapeDecided = true;
                     var escape = EscapeSlot(me);
@@ -359,7 +386,7 @@ namespace Shaolin36.Core.Brains
             var seen = SeenNow();
 
             // 3. A strike it can see coming: parry it or step out of the way.
-            if (seen.Technique != null && seen.State == FighterState.Startup && seen.Technique.ReachCm > 0
+            if (!selfOpen && seen.Technique != null && seen.State == FighterState.Startup && seen.Technique.ReachCm > 0
                 && seen.StartTick != _decidedAttack)
             {
                 var t = seen.Technique;
@@ -519,7 +546,7 @@ namespace Shaolin36.Core.Brains
                 if (attack != null && _dice.Chance(Style.Aggression)) return Press(attack.Value, BrainIntent.Attacking);
                 var guessSlot = ParrySlot(me) ?? GuardSlot(me);
                 int foeReach = EngageDistance(foe);
-                if (guessSlot != null && foeReach > 0 && distance <= foeReach + EngageMarginCm && foe.State == FighterState.Idle
+                if (!IsOpen(duel.Tick) && guessSlot != null && foeReach > 0 && distance <= foeReach + EngageMarginCm && foe.State == FighterState.Idle
                     && me.CanUse(me.Loadout[guessSlot.Value]!) && _dice.Chance(Style.Guess))
                 {
                     if (me.Loadout[guessSlot.Value]!.IsGuard)

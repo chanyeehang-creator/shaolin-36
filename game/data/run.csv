@@ -41,3 +41,5 @@ miniboss_brain,master,The mini boss's brain (better than the chamber's own)
 first_doors_a,qinggong fangshen lianqi,Chamber 1's first door is a new category from these (Chan: the defensive one)
 first_doors_b,neigong qinna dianxue,Chamber 1's second door is a new category from these
 three_doors,5 9,You choose from 3 doors to get into these chambers (2 elsewhere; 1 into the boss's)
+miniboss_opening,30,After each of its own attacks a mini boss won't parry clash guard or dodge for this many frames (0.5 s): a clear opening to punish. Strike first instead and it can still parry or dodge you (Chan)
+boss_opening,15,The same opening for the boss in chamber 10: shorter (0.25 s) so the boss stays the hardest fight (Chan)
