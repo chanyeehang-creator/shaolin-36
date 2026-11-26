@@ -557,9 +557,7 @@ namespace Shaolin36.Core.Combat
             if (defenderMove != null && defenderMove.IsGuarding(defenderFrame)
                 && defenderMove.Covers(defender.Facing, striker.Position - defender.Position))
             {
-                bool heavy = move.Weight >= Weight.Heavy;
-                int through = heavy ? (striker.Boost(StrikeDamage(move, empowered)) * Rules.BlockHeavyDamagePct + 50) / 100 : 0;
-                int blocked = defender.DamageTaken(through);
+                int blocked = defender.DamageTaken(BlockedDamage(striker, move, empowered));
                 defender.TakeHit(blocked, 0);
                 defender.LoseStamina(Rules.BlockStamina(move.Weight));
                 return new HitEvent(Tick, attacker, move, blocked, 0, defender.Hp, defenderMove, defenderFrame,
@@ -577,7 +575,12 @@ namespace Shaolin36.Core.Combat
                     defender.GainStamina(e.DefenderStaminaRefund);
                     striker.LoseStamina(e.AttackerStaminaLoss);
                     int parryQi = defender.GainQi(e.DefenderQiGain);
-                    return new HitEvent(Tick, attacker, move, 0, 0, defender.Hp, defenderMove, defenderFrame, parry, e,
+                    // Every block works the same (Chan): a plain 化绵掌 block, like 硬气功, still lets block_heavy_damage_pct of a
+                    // heavy or energy strike through. A perfect parry deflects it all.
+                    int through = parry == ParryOutcome.Parried ? BlockedDamage(striker, move, empowered) : 0;
+                    int blockedDealt = defender.DamageTaken(through);
+                    defender.TakeHit(blockedDealt, 0);
+                    return new HitEvent(Tick, attacker, move, blockedDealt, 0, defender.Hp, defenderMove, defenderFrame, parry, e,
                         defenderQiGained: parryQi, empowered: empowered);
                 }
 
@@ -639,6 +642,13 @@ namespace Shaolin36.Core.Combat
                 defenderExhausted: exhausted, attackerQiGained: hitQi, empowered: empowered, defenderArmored: defenderArmored,
                 knockbackCm: knockback, sealFrames: move.SealFrames, knockedDown: down, crippleFrames: crippled);
         }
+
+        /// <summary>
+        /// What a blocked strike still deals (before the exhausted bonus), the same for every block (化绵掌 or 硬气功): nothing from
+        /// light and medium, block_heavy_damage_pct from heavy and pure energy.
+        /// </summary>
+        private int BlockedDamage(Fighter striker, Technique move, bool empowered) =>
+            move.Weight >= Weight.Heavy ? (striker.Boost(StrikeDamage(move, empowered)) * Rules.BlockHeavyDamagePct + 50) / 100 : 0;
 
         /// <summary>
         /// A hit of <paramref name="move"/> landed: count it on the striker's string, and if it locks movement (无相劫指) and every

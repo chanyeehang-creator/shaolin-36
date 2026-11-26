@@ -101,7 +101,8 @@ public class SecondMoveTests
         var finger = T("wuxiang_zhi_1");
         var finger2 = T("wuxiang_zhi_2");
         Assert.Equal(Category.Dianxue, finger.Category);
-        Assert.True(finger.AutoChain);
+        Assert.False(finger.AutoChain, "Chan: tap twice for both hits");
+        Assert.True(finger.ChainWindowFrames > 0);
         Assert.True(finger.StartupFrames <= 3, "almost no wind-up");
         Assert.True(finger.Damage + finger2.Damage > T("fengxue").Damage);
         Assert.True(finger.Weight == Weight.Light && finger2.Weight == Weight.Light);
@@ -202,7 +203,9 @@ public class SecondMoveTests
         var hits = RunTo(d, 30, one: At(0, Slot.Triangle), two: At(press, Slot.L1));
         var hit = Assert.Single(hits);
         Assert.Equal(ParryOutcome.Parried, hit.Parry);
-        Assert.Equal(0, hit.Damage);
+        // Every block is the same (Chan): half of a heavy or energy strike gets through 化绵掌 too.
+        Assert.Equal((T("shihou_gong").Damage * Rules.BlockHeavyDamagePct + 50) / 100, hit.Damage);
+        Assert.False(hit.KnockedDown);
         Assert.NotEqual(FighterState.Stagger, d.One.State);
         Assert.Equal(ParryOutcome.PerfectParry, Parry.Resolve(parry, parry.PerfectParryStart));
     }
@@ -310,10 +313,11 @@ public class SecondMoveTests
     // ---------- 无相劫指 ----------
 
     [Fact]
-    public void Wuxiang_zhi_is_one_press_two_strikes_that_lock_movement_when_both_land()
+    public void Wuxiang_zhi_is_two_taps_two_strikes_that_lock_movement_when_both_land()
     {
+        var finger = T("wuxiang_zhi_1");
         var d = DuelOf(Second(), First(), 90);
-        var hits = RunTo(d, 40, one: At(0, Slot.Circle));
+        var hits = RunTo(d, 40, one: AtTicks(Slot.Circle, 0, finger.StartupFrames + finger.ActiveFrames));
         var landed = hits.Where(h => h.Attacker == Side.One && h.Landed).ToList();
         Assert.Equal(new[] { "wuxiang_zhi_1", "wuxiang_zhi_2" }, landed.Select(h => h.Technique.Id));
         Assert.Equal(10, landed.Sum(h => h.Damage));
@@ -334,9 +338,42 @@ public class SecondMoveTests
     public void Wuxiang_zhi_blocked_locks_nothing()
     {
         var d = DuelOf(Second(), Second(), 90);
-        var hits = RunTo(d, 40, one: At(0, Slot.Circle), two: Holding(Slot.L1));
+        var hits = RunTo(d, 40, one: AtTicks(Slot.Circle, 0, 5), two: Holding(Slot.L1));
         Assert.Equal(2, hits.Count(h => h.Guarded));
         Assert.False(d.Two.IsCrippled);
+    }
+
+    [Fact]
+    public void Wuxiang_zhi_tapped_once_strikes_once_and_locks_nothing()
+    {
+        var d = DuelOf(Second(), First(), 90);
+        var hits = RunTo(d, 40, one: At(0, Slot.Circle));
+        var hit = Assert.Single(hits);
+        Assert.Equal("wuxiang_zhi_1", hit.Technique.Id);
+        Assert.False(d.Two.IsCrippled);
+    }
+
+    [Fact]
+    public void Huamian_zhang_blocks_like_yingqi_gong_half_a_heavy_hit_and_no_debuff()
+    {
+        // 铁砂掌 lands on frame 36; 化绵掌's plain block frames are 2-4 and 9-18 of its press: press 10 frames before.
+        var palm = DuelOf(First(), First(), 100);
+        var p = Assert.Single(RunTo(palm, 40, one: At(0, Slot.Triangle), two: At(26, Slot.L1)));
+        Assert.Equal(ParryOutcome.Parried, p.Parry);
+        Assert.Equal((T("tiesha_zhang").Damage * Rules.BlockHeavyDamagePct + 50) / 100, p.Damage);
+        Assert.Equal(Rules.HpMax - p.Damage, palm.Two.Hp);
+
+        // A light 罗汉拳 hit blocked: nothing.
+        var fist = DuelOf(First(), First(), 100);
+        var f = Assert.Single(RunTo(fist, 14, one: At(0, Slot.Square), two: At(3, Slot.L1)));
+        Assert.Equal(ParryOutcome.Parried, f.Parry);
+        Assert.Equal(0, f.Damage);
+
+        // A blocked 封穴: no seal.
+        var seal = DuelOf(First(), First(), 100);
+        var s = Assert.Single(RunTo(seal, 40, one: At(0, Slot.Circle), two: At(20, Slot.L1)));
+        Assert.NotEqual(ParryOutcome.NotParried, s.Parry);
+        Assert.False(seal.Two.IsSealed);
     }
 
     [Fact]
@@ -401,6 +438,8 @@ public class SecondMoveTests
         Assert.DoesNotContain(hits, h => h.Grab == GrabPhase.Thrown);
         Assert.Equal(Rules.HpMax, d.Two.Hp);
         Assert.Equal(Rules.StaminaMax - T("qinna_shou").StaminaCost, d.Two.Stamina);
+        // Both step back, Street Fighter style: grab_break_push each, so the gap opens by twice that.
+        Assert.InRange(d.DistanceCm, Rules.MinDistance + 2 * Rules.GrabBreakPush - 25, Rules.MinDistance + 2 * Rules.GrabBreakPush + 25);
     }
 
     [Fact]

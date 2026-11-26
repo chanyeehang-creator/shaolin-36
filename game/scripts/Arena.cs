@@ -862,8 +862,8 @@ public partial class Arena : Node3D
                       $"Your {hit.ParryEffect!.DefenderStaminaRefund} stamina came back and your opponent lost {hit.ParryEffect.AttackerStaminaLoss}.";
             case ParryOutcome.Parried:
                 return mine
-                    ? $"[color=#33bfff][b]Blocked.[/b][/color] Your opponent blocked your {name}; your string can carry on."
-                    : $"[color=#33bfff][b]Blocked[/b][/color] {name}: no damage, but its string carries on, so tap again for the next hit " +
+                    ? $"[color=#33bfff][b]Blocked.[/b][/color] Your opponent blocked your {name}{(hit.Damage > 0 ? $" ({hit.Damage} damage got through)" : "")}; your string can carry on."
+                    : $"[color=#33bfff][b]Blocked[/b][/color] {name}: {(hit.Damage > 0 ? $"{hit.Damage} damage through the block (heavy and energy hits get half through)" : "no damage")}, but its string carries on, so tap again for the next hit " +
                       $"(each tap costs {hit.DefenderTechnique!.StaminaCost} stamina). " +
                       $"({PerfectMiss(hit.DefenderTechnique!, hit.DefenderMoveFrame)} for a perfect parry.)";
         }
@@ -984,7 +984,7 @@ public partial class Arena : Node3D
                 if (hit.DefenderQiGained > 0) Float(defender, $"+{hit.DefenderQiGained} Qi", QiColor);
                 return;
             case ParryOutcome.Parried:
-                Float(defender, "Blocked!", ParryColor);
+                Float(defender, hit.Damage > 0 ? $"Blocked -{hit.Damage}" : "Blocked!", ParryColor);
                 return;
         }
 
