@@ -23,6 +23,7 @@ namespace Shaolin36.Core.Runs
             "rarity_common", "rarity_uncommon", "rarity_rare", "super_rare_from", "super_rare_to", "super_rare_pct",
             "skill_choices", "scroll_picks", "miniboss_hp_bonus",
             "enemy_hp", "enemy_hp_step", "boss_hp", "enemy_stamina", "enemy_qi", "enemy_qi_start", "enemy_moves_max", "enemy_tiger_from",
+            "miniboss_opening", "boss_opening",
         };
 
         /// <summary>Every text key the sheet must have: technique and brain ids, separated by spaces.</summary>
@@ -98,6 +99,12 @@ namespace Shaolin36.Core.Runs
         public int EnemyHpStep => N("enemy_hp_step");
         /// <summary>The last fight's enemy (the boss) has this HP instead.</summary>
         public int BossHp => N("boss_hp");
+
+        /// <summary>Frames after each of its attacks in which a mini boss's brain won't parry, clash, guard or dodge: your opening (Chan).</summary>
+        public int MinibossOpening => N("miniboss_opening");
+
+        /// <summary>The same opening for the boss (chamber 10). 0 = none.</summary>
+        public int BossOpening => N("boss_opening");
         public int EnemyStamina => N("enemy_stamina");
         public int EnemyQi => N("enemy_qi");
         public int EnemyQiStart => N("enemy_qi_start");
@@ -174,6 +181,7 @@ namespace Shaolin36.Core.Runs
             if (WinHealPct > 100) errors.Add("win_heal_pct: at most 100");
             if (UpgradeStaminaPct * UpgradeMax > 100) errors.Add("upgrade_stamina_pct x upgrade_max: more than 100% off");
             if (EnemyHp < 1 || BossHp < 1) errors.Add("enemy_hp and boss_hp: at least 1");
+            if (MinibossOpening > 300 || BossOpening > 300) errors.Add("miniboss_opening and boss_opening: 300 frames (5 s) or fewer");
             if (EnemyStamina < 1) errors.Add("enemy_stamina: at least 1");
             if (EnemyQiStart > EnemyQi) errors.Add("enemy_qi_start: above enemy_qi");
             if (EnemyMovesMax < 1 || EnemyMovesMax > Fighters.Slots.Count) errors.Add($"enemy_moves_max: 1 to {Fighters.Slots.Count}");

@@ -186,6 +186,7 @@ public class RunTests
         Assert.Equal(80, e.Stats.MaxHp);
         Assert.Equal("novice", e.BrainId);
         Assert.False(e.IsMiniboss);
+        Assert.Equal(0, e.OpeningFrames); // only mini bosses (and the boss, at boss_opening) get the opening
 
         var duel = run.StartFight();
         duel.Two.TakeHit(duel.Two.Hp, 0);
@@ -375,6 +376,9 @@ public class RunTests
         Assert.True(run.Enemy!.IsMiniboss);
         Assert.Equal(80 + 10 * (next - 1) + 40, run.Enemy.Stats.MaxHp);
         Assert.Equal("master", run.Enemy.BrainId);
+        // Chan: an opening after each of its attacks.
+        Assert.Equal(30, run.Enemy.OpeningFrames);
+        Assert.Equal(30, Sheet.MinibossOpening);
     }
 
     [Fact]

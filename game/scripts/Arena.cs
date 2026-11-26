@@ -184,7 +184,7 @@ public partial class Arena : Node3D
         if (_healVoices[0] != null) { StopHealChannel(Side.One); StopHealChannel(Side.Two); }
         // A new seed each duel, counted up from 1: the brain's choices change from duel to duel but every run is repeatable.
         _duelNumber++;
-        _brain = RunFighting ? new Brain(RunBrainStyle, _run.Enemy!.BrainSeed)
+        _brain = RunFighting ? new Brain(RunBrainStyle, _run.Enemy!.BrainSeed) { OpeningFrames = _run.Enemy.OpeningFrames }
             : RunRoaming || UsingDummy ? null : new Brain(_brains.Styles[_opponentMode], _duelNumber) { Active = _opponentActive };
         // A brain opponent loses you when you jump over it (纵云梯) and finds you again after standing still its relock time.
         _duel.Two.CanLoseLock = _brain != null;
