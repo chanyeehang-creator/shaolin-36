@@ -12,7 +12,7 @@ Built in **Godot 4.7 (.NET / C#)**. The combat rules live in a plain C# library 
 | `tests/Shaolin36.Core.Tests/` | Unit and scenario tests for the rules (xUnit). |
 | `tools/DataCheck/` | Check script: rejects bad rows in the data sheets before the game loads them. |
 | `game/` | The Godot project (`project.godot`). Shows and drives the core; holds scenes, scripts and assets. |
-| `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet; `run.csv` holds the demo run's numbers; `rules.csv` holds base stats and the clash and parry numbers; `feel.csv` holds the hit feel (hit-stop, sparks, sound, camera) for each kind of strike; `brains.csv` holds how each opponent brain plays. |
+| `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet; `run.csv` holds the demo run's numbers; `rules.csv` holds base stats and the clash and parry numbers; `feel.csv` holds the hit feel (hit-stop, sparks, sound, camera) for each kind of strike; `brains.csv` holds how each opponent brain plays; `poses.csv` holds the stick-figure fighters' key poses (a wind-up and a strike for each move, timed to its frame data). |
 | `scripts/` | One-click Play, test and headless boot scripts. |
 | `.github/workflows/` | CI: data check, core tests and a headless Godot boot on every push. |
 
@@ -80,7 +80,7 @@ A landed hit pushes the defender straight away from the attacker by the techniqu
 
 ## Editing data
 
-Edit `game/data/techniques.csv`, `game/data/rules.csv` or `game/data/feel.csv` (in Excel, save as **CSV UTF-8**). Category and weight accept English or Chinese (`waigong` or `外功`, `heavy` or `重`). Lines starting with `#` are comments. Run the test script afterwards: the check tells you the line and column of anything wrong.
+Edit `game/data/techniques.csv`, `game/data/rules.csv`, `game/data/feel.csv` or `game/data/poses.csv` (in Excel, save as **CSV UTF-8**). Category and weight accept English or Chinese (`waigong` or `外功`, `heavy` or `重`). Lines starting with `#` are comments. Run the test script afterwards: the check tells you the line and column of anything wrong.
 
 Frames are 1/60 s sim ticks. The current numbers are Stage 1 starting values, open for tuning. The data check also prints how many frames each combo string gives you to chain and still link.
 

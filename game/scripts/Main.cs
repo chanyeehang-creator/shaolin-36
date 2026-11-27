@@ -3,6 +3,7 @@ using Shaolin36.Core;
 using Shaolin36.Core.Brains;
 using Shaolin36.Core.Data;
 using Shaolin36.Core.Feel;
+using Shaolin36.Core.Poses;
 using Shaolin36.Core.Runs;
 
 namespace Shaolin36.Game;
@@ -19,6 +20,7 @@ public partial class Main : Node3D
     private const string FeelPath = "res://data/feel.csv";
     private const string BrainsPath = "res://data/brains.csv";
     private const string RunPath = "res://data/run.csv";
+    private const string PosesPath = "res://data/poses.csv";
 
     public override void _Ready()
     {
@@ -38,11 +40,15 @@ public partial class Main : Node3D
             ? run.Sheet!.Check(new TechniqueBook(result.Techniques), brains.Sheet!)
             : new System.Collections.Generic.List<string>();
         foreach (var error in runErrors) GD.PushError($"{RunPath}: {error}");
+        var poses = PoseCsv.Parse(FileAccess.GetFileAsString(PosesPath) ?? string.Empty);
+        foreach (var error in poses.Errors) GD.PushError($"{PosesPath}: {error}");
+        var poseErrors = poses.Ok && result.Ok ? poses.Sheet!.Check(result.Techniques) : new System.Collections.Generic.List<string>();
+        foreach (var error in poseErrors) GD.PushError($"{PosesPath}: {error}");
 
-        bool ok = result.Ok && rules.Ok && feel.Ok && brains.Ok && run.Ok && runErrors.Count == 0;
-        int problems = result.Errors.Count + rules.Errors.Count + feel.Errors.Count + brains.Errors.Count + run.Errors.Count + runErrors.Count;
+        bool ok = result.Ok && rules.Ok && feel.Ok && brains.Ok && run.Ok && runErrors.Count == 0 && poses.Ok && poseErrors.Count == 0;
+        int problems = result.Errors.Count + rules.Errors.Count + feel.Errors.Count + brains.Errors.Count + run.Errors.Count + runErrors.Count + poses.Errors.Count + poseErrors.Count;
         var summary = ok
-            ? $"Shaolin 36 · {result.Techniques.Count} techniques, {Rules.Keys.Length} rules, {FeelSheet.EventNames.Count} feel events, {brains.Sheet?.Styles.Count} opponent brains and a {run.Sheet?.Fights}-fight run loaded · sim {Sim.TicksPerSecond} Hz"
+            ? $"Shaolin 36 · {result.Techniques.Count} techniques, {Rules.Keys.Length} rules, {FeelSheet.EventNames.Count} feel events, {brains.Sheet?.Styles.Count} opponent brains and a {run.Sheet?.Fights}-fight run and {poses.Sheet?.Count} poses loaded · sim {Sim.TicksPerSecond} Hz"
             : $"Data check failed: {problems} problem(s), see the Output panel";
         GD.Print(summary);
 
@@ -59,7 +65,7 @@ public partial class Main : Node3D
         }
 
         // A fresh run each launch: the seed is rolled here, and every choice in the run follows from it.
-        var arena = new Arena(rules.Rules!, result.Techniques, feel.Sheet!, brains.Sheet!, run.Sheet!, (int)(GD.Randi() & 0x7fffffff));
+        var arena = new Arena(rules.Rules!, result.Techniques, feel.Sheet!, brains.Sheet!, run.Sheet!, poses.Sheet!, (int)(GD.Randi() & 0x7fffffff));
         if (smoke)
         {
             // Run a short fight with no screen: a training dummy's presses against the opponent brain.

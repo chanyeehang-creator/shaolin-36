@@ -2,7 +2,7 @@
 
 **New in this build: the demo roguelike run.** The game now opens on a 10-fight run (section "The demo run" below). Press **F4** at any time between fights to switch to the old practice arena (you against an opponent brain or the training dummy, with the loadout menu), and F4 again to go back to the run.
 
-You (the orange capsule, with the camera behind you) against an opponent (the dark red capsule) on a square floor in full 3D. The opponent has a brain: it walks in to reach you, attacks, parries strikes it sees coming, steps aside, punishes your mistakes and backs off when it's out of breath (section 5, "The opponent brain").
+You (the jade-green stick figure, with the camera behind you) against an opponent (the slate-grey stick figure) on a square floor in full 3D. The opponent has a brain: it walks in to reach you, attacks, parries strikes it sees coming, steps aside, punishes your mistakes and backs off when it's out of breath (section 5, "The opponent brain").
 
 ## The demo run
 
@@ -87,9 +87,11 @@ On the **pause menu**, the top seven rows are the categories. Highlight one and 
 
 ## 5. Reading the screen
 
-The capsules change colour with what they are doing:
+The fighters are jointed stick figures. Every move has a **wind-up pose** and a **strike pose** (in `game/data/poses.csv`), timed to its frame data: the body reaches the wind-up halfway through the startup and holds it, cocked (that's the tell to read), snaps into the strike on the first active frame, exactly when the hit can land, and eases back to the stance over the recovery. The hitboxes don't change: the pose only shows them. Hits, staggers, grabs, knockdowns and quick steps have poses of their own.
 
-- **Yellow**: startup (winding up). A faint yellow wedge on the floor shows where the move will hit: as long as its reach and as wide as its hit angle.
+They also change colour with what they are doing:
+
+- **Wind-up, by weight**: **yellow** light, **orange** medium, **crimson-magenta** heavy, **violet** pure energy (狮吼功). The glow builds as the strike nears. A **grab flashes white and orange**: no parry or guard stops it, so strike it or step back. A faint wedge in the same colour on the floor shows where the move will hit: as long as its reach and as wide as its hit angle. (Other wind-ups, such as a heal, are plain yellow.)
 - **Red**: active, the hit is live. The floor wedge turns red.
 - **Green / light blue**: your 化绵掌 window. Green is the perfect part (4 frames, after a 3-frame block), light blue the block parts either side.
 - **Dark blue**: recovery, can't act.
@@ -232,7 +234,7 @@ Things worth knowing when you fight it:
 
 **Full 3D: the floor, the camera and walking.** The fight is no longer on a line. You and the dummy stand on a 14 m square floor (the grid lines are 1 m apart), and you can walk in any direction.
 
-- **The camera** sits behind you (4.4 m back, 3.5 m up) and a little to your right (2.2 m), always looking at the dummy (lock-on). Each capsule has a small dark "nose" on its chest that shows which way it faces.
+- **The camera** sits behind you (4.4 m back, 3.5 m up) and a little to your right (2.2 m), always looking at the dummy (lock-on). Each fighter has a small dark "nose" on its face that shows which way it looks.
 - **Walking is relative to the dummy:** W / stick up walks straight at it, S / stick down backs away, A and D (stick left and right) circle round it. Up close, walking into it slides you round its side. The stick walks as fast as you push it; full speed is 200 cm per second, diagonals included.
 - **Both fighters turn to face each other** while they're free (standing, walking, quick-stepping or reeling from a hit). **Once a fighter attacks, the turning stops:** the attack aims where the other fighter stood on the frame it started, and every follow-up hit of that string goes the same way. Turning comes back when the string is over. So if you side-step the dummy's first punch, the rest of its 罗汉拳 string carries on into empty air.
 - **Hits have a width now (hit angle).** A strike only lands if you're inside its wedge, not just inside its reach. Step to the side during the wind-up and it can miss you.
