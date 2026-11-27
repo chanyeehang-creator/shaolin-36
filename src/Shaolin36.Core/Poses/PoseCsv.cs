@@ -65,15 +65,6 @@ namespace Shaolin36.Core.Poses
                     return idx < cells.Count ? cells[idx].Trim() : string.Empty;
                 }
 
-                int Angle(string name)
-                {
-                    var raw = Cell(name);
-                    if (raw.Length == 0) return 0;
-                    if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) && Pose.InRange(v)) return v;
-                    rowErrors.Add($"'{name}' must be a whole number of degrees from -{Pose.MaxAngle} to {Pose.MaxAngle}, got '{raw}'");
-                    return 0;
-                }
-
                 var poseName = Cell("pose");
                 if (poseName.Length == 0) rowErrors.Add("'pose' is empty");
                 var jointName = Cell("joint");
@@ -82,6 +73,16 @@ namespace Shaolin36.Core.Poses
                     var known = new List<string>();
                     for (int j = 0; j < Joints.Count; j++) known.Add(Joints.Name((Joint)j));
                     rowErrors.Add($"unknown joint '{jointName}' ({string.Join(", ", known)})");
+                }
+
+                int Angle(string name)
+                {
+                    var raw = Cell(name);
+                    if (raw.Length == 0) return 0;
+                    int max = Pose.MaxAngleOf(joint);
+                    if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) && Pose.InRange(joint, v)) return v;
+                    rowErrors.Add($"'{name}' must be a whole number of degrees from -{max} to {max}, got '{raw}'");
+                    return 0;
                 }
                 int pitch = Angle("pitch"), yaw = Angle("yaw"), roll = Angle("roll");
                 if (rowErrors.Count == 0 && !seen.Add(poseName + "|" + Joints.Name(joint)))

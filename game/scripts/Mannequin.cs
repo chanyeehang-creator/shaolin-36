@@ -114,6 +114,9 @@ public partial class Mannequin : Node3D
         _skin.EmissionEnergyMultiplier = glowEnergy;
     }
 
+    /// <summary>The pose <see cref="Show"/> last put the mannequin in.</summary>
+    public Pose? LastPose => _lastPose;
+
     /// <summary>Poses the mannequin for this tick: what <paramref name="f"/> is doing, from the pose sheet.</summary>
     public void Show(Fighter f, PoseSheet sheet)
     {
@@ -136,7 +139,10 @@ public partial class Mannequin : Node3D
     /// </summary>
     public void Apply(Pose p, bool plantFeet = true)
     {
-        _hips.Rotation = new Vector3(0, Mathf.DegToRad(p.Yaw(PoseJoint.Hips)), 0);
+        // The whole figure turns over around the hips (a roll, a flip), then the hips turn it left or right as usual.
+        var body = Basis.FromEuler(new Vector3(
+            Mathf.DegToRad(-p.Pitch(PoseJoint.Body)), Mathf.DegToRad(p.Yaw(PoseJoint.Body)), Mathf.DegToRad(-p.Roll(PoseJoint.Body))));
+        _hips.Basis = body * new Basis(Vector3.Up, Mathf.DegToRad(p.Yaw(PoseJoint.Hips)));
         _waist.Rotation = new Vector3(Mathf.DegToRad(-p.Pitch(PoseJoint.Hips)), 0, Mathf.DegToRad(-p.Roll(PoseJoint.Hips)));
         Upright(_chest, p, PoseJoint.Chest);
         Upright(_head, p, PoseJoint.Head);
@@ -151,6 +157,12 @@ public partial class Mannequin : Node3D
         Knee(_kneeL, kneeL);
 
         _hips.Position = new Vector3(0, HipHeight, 0);
+        if (p.IsTurnedOver)
+        {
+            // Rolling or flipping: whatever part of the body is lowest (back, shoulders, head, hands) rests on the floor.
+            _hips.Position = new Vector3(0, HipHeight - LowestPoint(), 0);
+            return;
+        }
         float right = FootY(_legR, _kneeR), left = FootY(_legL, _kneeL);
         // A kick or a knee raise keeps its foot up (fully from FootLift.FullDegrees); every other pose stands on both.
         int lift = plantFeet ? FootLift.Of(p, out _) : 1000;
@@ -211,6 +223,42 @@ public partial class Mannequin : Node3D
     {
         var sole = _hips.Transform * hip.Transform * knee.Transform * new Vector3(0, -ShinLength - FootDrop, 0);
         return sole.Y;
+    }
+
+    /// <summary>
+    /// Height of the lowest point of the whole body above the mannequin's origin (with the hips at their standing height),
+    /// counting each part's thickness: the head, chest, waist, shoulders, elbows, hands, hips, knees, heels and toes.
+    /// </summary>
+    private float LowestPoint()
+    {
+        var hips = _hips.Transform;
+        var waist = hips * _waist.Transform;
+        var chest = waist * _chest.Transform;
+        float low = float.MaxValue;
+        void At(Transform3D t, Vector3 point, float radius) => low = Mathf.Min(low, (t * point).Y - radius);
+
+        At(chest * _head.Transform, new Vector3(0, 0.13f, 0), 0.11f);
+        At(chest, new Vector3(0, 0.14f, 0), 0.15f);
+        At(chest, new Vector3(0, 0.34f, 0), 0.15f);
+        At(waist, Vector3.Zero, 0.13f);
+        foreach (var (shoulder, elbow) in new[] { (_armR, _elbowR), (_armL, _elbowL) })
+        {
+            var s = chest * shoulder.Transform;
+            var e = s * elbow.Transform;
+            At(s, Vector3.Zero, 0.055f);
+            At(e, Vector3.Zero, 0.055f);
+            At(e, new Vector3(0, -ForearmLength - 0.02f, 0), 0.06f);
+        }
+        foreach (var (hip, knee) in new[] { (_legR, _kneeR), (_legL, _kneeL) })
+        {
+            var h = hips * hip.Transform;
+            var k = h * knee.Transform;
+            At(h, Vector3.Zero, 0.075f);
+            At(k, Vector3.Zero, 0.075f);
+            At(k, new Vector3(0, -ShinLength - FootDrop, 0.06f), 0);  // heel
+            At(k, new Vector3(0, -ShinLength - FootDrop, -0.18f), 0); // toe
+        }
+        return low;
     }
 
     // Hips, chest and head point up: forward bend is a minus turn about X, a right tilt a minus turn about Z.

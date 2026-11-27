@@ -19,11 +19,18 @@ namespace Shaolin36.Core.Poses
         KneeR,
         LegL,
         KneeL,
+        /// <summary>
+        /// The whole figure turned over around the hips, for rolls and flips: pitch turns it forward (head first: 360 is a full
+        /// forward roll or front flip, minus a backflip), roll turns it over to its right (a cartwheel), yaw spins it.
+        /// Angles go to ±360, so key poses can carry it all the way round. Turned over, whatever part of the body is lowest
+        /// rests on the floor instead of the feet.
+        /// </summary>
+        Body,
     }
 
     public static class Joints
     {
-        public const int Count = 11;
+        public const int Count = 12;
 
         /// <summary>The joint's name in the pose sheet.</summary>
         public static string Name(Joint j)
@@ -40,7 +47,8 @@ namespace Shaolin36.Core.Poses
                 case Joint.LegR: return "leg_r";
                 case Joint.KneeR: return "knee_r";
                 case Joint.LegL: return "leg_l";
-                default: return "knee_l";
+                case Joint.KneeL: return "knee_l";
+                default: return "body";
             }
         }
 

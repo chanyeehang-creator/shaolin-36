@@ -62,8 +62,12 @@ namespace Shaolin36.Core.Data
             bool guard = false,
             int grabHits = 0,
             int buffFrames = 0,
-            int buffDamagePct = 100)
+            int buffDamagePct = 100,
+            bool lungeStops = false,
+            int recoveryAdvanceCm = 0)
         {
+            LungeStops = lungeStops;
+            RecoveryAdvanceCm = recoveryAdvanceCm;
             Jump = jump;
             CrippleFrames = crippleFrames;
             AutoChain = autoChain;
@@ -213,6 +217,23 @@ namespace Shaolin36.Core.Data
         /// Stops at min_distance like walking. 0 = no lunge.
         /// </summary>
         public int LungeCm { get; }
+
+        /// <summary>
+        /// True: the lunge stops where its hit connects (landed, blocked, parried or clashed), like a pounce landing on its
+        /// target, instead of carrying on after a fighter it knocked back. So the gap after the hit is the same however
+        /// early in the lunge it connected (虎形拳 1: its roll always has the knockback's room to travel). A dodged hit
+        /// carries on. Needs <see cref="LungeCm"/>.
+        /// </summary>
+        public bool LungeStops { get; }
+
+        /// <summary>
+        /// How far the attacker carries on forward along its aim during the recovery, in whole centimetres, slid over the
+        /// recovery frames from the first (虎形拳 1: the forward roll after the pounce, when hit 2 doesn't follow). Stops at
+        /// min_distance like walking, and stops when the move ends early: chained into the next hit, knocked out of it, or cut
+        /// short by <see cref="HitRecoveryFrames"/>. Look only for reach: <see cref="StringReachFrom"/> doesn't count it,
+        /// since a quick chain skips most of it. 0 = stands still.
+        /// </summary>
+        public int RecoveryAdvanceCm { get; }
 
         /// <summary>
         /// 擒拿 grab: how long the attacker holds the defender once the grab catches them, in frames, before the throw
@@ -365,19 +386,29 @@ namespace Shaolin36.Core.Data
         /// For a string starting with this technique: the farthest away the defender can stand when it starts
         /// for every hit to stay in reach, given each hit's step forward (advance or lunge) and each landed hit's knockback (which
         /// has finished sliding by the next hit when knockback_frames is shorter than the gaps). Assumes the
-        /// defender stands still on the line of the aim. <paramref name="find"/> looks up the next hits by id.
+        /// defender stands still on the line of the aim. A <see cref="LungeStops"/> hit is taken to connect at the very
+        /// edge of its reach (the most the gap can be after it). <paramref name="find"/> looks up the next hits by id.
         /// Hits whose next id is missing end the string.
         /// </summary>
         public int StringReachFrom(System.Func<string, Technique?> find)
         {
-            int best = int.MaxValue, closed = 0, guard = 0;
+            // Every step only ever shrinks or keeps the gap as the start comes closer, so count down to the first start that works.
+            int far = ReachCm + AdvanceCm + LungeCm;
+            while (far > 0 && !StringReaches(far, find)) far--;
+            return far;
+        }
+
+        private bool StringReaches(int startCm, System.Func<string, Technique?> find)
+        {
+            int gap = startCm, guard = 0;
             for (Technique? t = this; t != null && guard < 32; t = t.HasNext ? find(t.Next) : null, guard++)
             {
-                closed += t.AdvanceCm + t.LungeCm;
-                best = System.Math.Min(best, t.ReachCm + closed);
-                closed -= t.KnockbackCm;
+                gap -= t.AdvanceCm;
+                if (gap - t.LungeCm > t.ReachCm) return false;
+                gap = t.LungeStops ? System.Math.Min(gap, t.ReachCm) : gap - t.LungeCm;
+                gap += t.KnockbackCm;
             }
-            return best;
+            return true;
         }
 
         public override string ToString() => $"{Id} ({Name})";

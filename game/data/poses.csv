@@ -1,6 +1,9 @@
 # Pose sheet: the stick-figure mannequin's key poses. Look only: the hitboxes stay where techniques.csv puts them.
-# One row per joint of a pose, angles in whole degrees (-180 to 180). Joints a pose leaves out stay at 0 (standing straight, arms down).
-# joints: hips (yaw turns the whole body, legs too; pitch and roll lean the body at the waist, leaving the legs), chest, head, arm_r, elbow_r, arm_l, elbow_l, leg_r, knee_r, leg_l, knee_l
+# One row per joint of a pose, angles in whole degrees (-180 to 180; body -360 to 360). Joints a pose leaves out stay at 0 (standing straight, arms down).
+# joints: hips (yaw turns the whole body, legs too; pitch and roll lean the body at the waist, leaving the legs), chest, head, arm_r, elbow_r, arm_l, elbow_l, leg_r, knee_r, leg_l, knee_l,
+#         body (turns the whole figure over, for rolls and flips: pitch = forward roll or front flip (minus = backward), roll = cartwheel,
+#         yaw = spin round. Up to a full turn either way. It turns the short way between two poses, so give a roll a key pose at
+#         least every 180 degrees: 0, 120, 240, 360. While turned over the figure rests on whatever part of it is lowest.)
 # pitch = swing forward (arms, legs, measured from straight down; 90 = arm straight out in front) or bend forward (hips, chest, head; minus leans back).
 #         For elbows and knees, pitch is how far they bend (0 = straight).
 # yaw   = for hips, chest and head, plus turns the right shoulder forward (minus pulls it back). For limbs, a twist (rarely needed).
@@ -10,11 +13,21 @@
 # Kicks and knee raises: a leg swung 85 degrees or more (pitch or roll: the thigh about level with the hip) keeps its foot
 # off the floor, and the pose stands on the other leg. From 75 to 85 the foot lifts gradually. Raise both legs and both stand.
 # To see poses without playing, run scripts\pose-shots.bat (pictures of every pose land in the pose-shots folder).
+# To see a whole move in motion, name its technique: scripts\pose-shots.bat huxing_quan_1 draws the string frame by frame
+# (huxing_quan_1.strip.png, the hits chained as fast as a fight allows); huxing_quan_1:1 stops after the first hit.
 #
 # Every move needs a wind-up and a strike pose: "<technique id>.windup" / ".strike", or else its category's
 # ("waigong.windup", "neigong.strike", ...). Timed to the frame data: the body reaches the wind-up halfway through the startup
 # and holds it (the tell), snaps into the strike on the first active frame (when the hit can land), holds it through the
 # active frames (a held guard, a grab's hold), then eases back to the stance over the recovery.
+# More key poses, each at a share (0-100%) of its part of the move: "<id>.windup@30", ".strike@100" (the last active frame),
+# ".recovery@50". A plain ".windup" is @50 and a plain ".strike" @0. The body keeps its speed through key poses and only
+# slows where it stops. Hold or flow: a wind-up whose last key is @100 never holds still, it keeps moving and peaks on the
+# last startup frame, so the strike snaps out of the motion; a plain ".windup" (or @50, @80...) is reached and held.
+# Strike keys after the first carry the hit on through the active frames; recovery keys are passed on the way to the stance.
+# A key that repeats the key before it holds: the body stops between the two, easing in and out (a recovery key repeating
+# the last strike key holds the finish, as tiesha_zhang.recovery@43 does).
+# A move uses its own keys for each part it has them, its category's for the rest.
 # The other states: stance (idle), hitstun (also recoil), stagger, grabbed, down (knocked down, rolling; rising blends to stance), step (quick step).
 pose,joint,pitch,yaw,roll
 # ---- states
@@ -199,15 +212,16 @@ luohan_quan_4.strike,leg_r,-50,0,8
 luohan_quan_4.strike,knee_r,0,0,0
 # ---- 虎形拳, from reference footage of the form (scripts\pose-shots.bat shows them).
 # 虎形拳 1: a quick tiger form, square on to the opponent in a horse stance (knees out to the sides, facing them): the left
-# claw curled up over the head, the right claw low by the belly; then a pouncing dive at the opponent, both claws reaching,
+# forearm across the front of the chest at shoulder height, claw curled, and the right claw in front of the lower chest
+# (both close to the chest, Chan); then a pouncing dive at the opponent, both claws reaching,
 # standing on the bent left leg with the right leg flying up behind (it lifts off the floor). The pounce carries the body.
 huxing_quan_1.windup,hips,5,0,0
 huxing_quan_1.windup,chest,-8,0,0
 huxing_quan_1.windup,head,0,0,0
-huxing_quan_1.windup,arm_l,40,60,150
-huxing_quan_1.windup,elbow_l,95,0,0
-huxing_quan_1.windup,arm_r,0,50,20
-huxing_quan_1.windup,elbow_r,90,0,0
+huxing_quan_1.windup,arm_l,5,60,90
+huxing_quan_1.windup,elbow_l,110,0,0
+huxing_quan_1.windup,arm_r,5,40,20
+huxing_quan_1.windup,elbow_r,100,0,0
 huxing_quan_1.windup,leg_l,72,-55,0
 huxing_quan_1.windup,knee_l,75,0,0
 huxing_quan_1.windup,leg_r,72,-55,0
@@ -223,20 +237,84 @@ huxing_quan_1.strike,leg_l,60,0,5
 huxing_quan_1.strike,knee_l,85,0,0
 huxing_quan_1.strike,leg_r,-88,0,5
 huxing_quan_1.strike,knee_r,20,0,0
+# ...the pounce carries on into a forward roll: the head and hands reach the floor as the hit ends (the last active frame),
+# over the back tucked, and up onto the feet (if hit 2 doesn't follow, the recovery rolls through and stands).
+huxing_quan_1.strike@100,body,70,0,0
+huxing_quan_1.strike@100,hips,45,0,0
+huxing_quan_1.strike@100,chest,15,0,0
+huxing_quan_1.strike@100,head,40,0,0
+huxing_quan_1.strike@100,arm_l,95,0,10
+huxing_quan_1.strike@100,elbow_l,45,0,0
+huxing_quan_1.strike@100,arm_r,95,0,10
+huxing_quan_1.strike@100,elbow_r,45,0,0
+huxing_quan_1.strike@100,leg_l,90,0,5
+huxing_quan_1.strike@100,knee_l,115,0,0
+huxing_quan_1.strike@100,leg_r,35,0,5
+huxing_quan_1.strike@100,knee_r,95,0,0
+huxing_quan_1.recovery@45,body,200,0,0
+huxing_quan_1.recovery@45,hips,60,0,0
+huxing_quan_1.recovery@45,chest,20,0,0
+huxing_quan_1.recovery@45,head,35,0,0
+huxing_quan_1.recovery@45,arm_l,55,0,10
+huxing_quan_1.recovery@45,elbow_l,100,0,0
+huxing_quan_1.recovery@45,arm_r,55,0,10
+huxing_quan_1.recovery@45,elbow_r,100,0,0
+huxing_quan_1.recovery@45,leg_l,125,0,8
+huxing_quan_1.recovery@45,knee_l,140,0,0
+huxing_quan_1.recovery@45,leg_r,125,0,8
+huxing_quan_1.recovery@45,knee_r,140,0,0
+huxing_quan_1.recovery@75,body,320,0,0
+huxing_quan_1.recovery@75,hips,45,0,0
+huxing_quan_1.recovery@75,chest,15,0,0
+huxing_quan_1.recovery@75,head,20,0,0
+huxing_quan_1.recovery@75,arm_l,70,0,10
+huxing_quan_1.recovery@75,elbow_l,70,0,0
+huxing_quan_1.recovery@75,arm_r,70,0,10
+huxing_quan_1.recovery@75,elbow_r,70,0,0
+huxing_quan_1.recovery@75,leg_l,115,0,8
+huxing_quan_1.recovery@75,knee_l,140,0,0
+huxing_quan_1.recovery@75,leg_r,115,0,8
+huxing_quan_1.recovery@75,knee_r,140,0,0
 # 虎形拳 2: coming up out of the forward roll, crouched low on the left knee, the right claw cocked up by the head and the
 # left claw in front; then a right bow stance (弓步): the right arm arched over the head, claw pointing forward, and the
-# left claw strikes forward at chest height. (One pose per wind-up, so the roll itself shows as this crouch.)
-huxing_quan_2.windup,hips,25,15,0
-huxing_quan_2.windup,chest,10,0,0
-huxing_quan_2.windup,head,-25,-10,0
-huxing_quan_2.windup,arm_r,120,0,15
-huxing_quan_2.windup,elbow_r,100,0,0
-huxing_quan_2.windup,arm_l,60,0,10
-huxing_quan_2.windup,elbow_l,100,0,0
-huxing_quan_2.windup,leg_r,72,-15,0
-huxing_quan_2.windup,knee_r,115,0,0
-huxing_quan_2.windup,leg_l,30,-15,0
-huxing_quan_2.windup,knee_l,110,0,0
+# left claw strikes forward at chest height.
+# Hit 2's wind-up is the rest of the roll: over the back (35%), up onto the feet (70%), and the crouch on its last frame.
+huxing_quan_2.windup@35,body,200,0,0
+huxing_quan_2.windup@35,hips,60,0,0
+huxing_quan_2.windup@35,chest,20,0,0
+huxing_quan_2.windup@35,head,35,0,0
+huxing_quan_2.windup@35,arm_l,55,0,10
+huxing_quan_2.windup@35,elbow_l,100,0,0
+huxing_quan_2.windup@35,arm_r,55,0,10
+huxing_quan_2.windup@35,elbow_r,100,0,0
+huxing_quan_2.windup@35,leg_l,125,0,8
+huxing_quan_2.windup@35,knee_l,140,0,0
+huxing_quan_2.windup@35,leg_r,125,0,8
+huxing_quan_2.windup@35,knee_r,140,0,0
+huxing_quan_2.windup@70,body,320,0,0
+huxing_quan_2.windup@70,hips,45,0,0
+huxing_quan_2.windup@70,chest,15,0,0
+huxing_quan_2.windup@70,head,20,0,0
+huxing_quan_2.windup@70,arm_l,70,0,10
+huxing_quan_2.windup@70,elbow_l,70,0,0
+huxing_quan_2.windup@70,arm_r,70,0,10
+huxing_quan_2.windup@70,elbow_r,70,0,0
+huxing_quan_2.windup@70,leg_l,115,0,8
+huxing_quan_2.windup@70,knee_l,140,0,0
+huxing_quan_2.windup@70,leg_r,115,0,8
+huxing_quan_2.windup@70,knee_r,140,0,0
+huxing_quan_2.windup@100,body,360,0,0
+huxing_quan_2.windup@100,hips,25,15,0
+huxing_quan_2.windup@100,chest,10,0,0
+huxing_quan_2.windup@100,head,-25,-10,0
+huxing_quan_2.windup@100,arm_r,120,0,15
+huxing_quan_2.windup@100,elbow_r,100,0,0
+huxing_quan_2.windup@100,arm_l,60,0,10
+huxing_quan_2.windup@100,elbow_l,100,0,0
+huxing_quan_2.windup@100,leg_r,72,-15,0
+huxing_quan_2.windup@100,knee_r,115,0,0
+huxing_quan_2.windup@100,leg_l,30,-15,0
+huxing_quan_2.windup@100,knee_l,110,0,0
 huxing_quan_2.strike,hips,25,15,0
 huxing_quan_2.strike,chest,10,-10,0
 huxing_quan_2.strike,head,-25,-5,0
@@ -251,17 +329,19 @@ huxing_quan_2.strike,knee_l,0,0,0
 # 虎形拳 3: charging on the left leg, the right knee raised to step, the left hand reaching up and forward to aim, the right
 # fist drawn back to the waist; then the right foot stamps forward into a low stance as the right hand shoots forward,
 # the left claw drawn back by the chest. The stamp carries the body.
-huxing_quan_3.windup,hips,0,-10,0
-huxing_quan_3.windup,chest,-8,0,0
-huxing_quan_3.windup,head,0,10,0
-huxing_quan_3.windup,arm_l,112,0,5
-huxing_quan_3.windup,elbow_l,20,0,0
-huxing_quan_3.windup,arm_r,-30,0,12
-huxing_quan_3.windup,elbow_r,110,0,0
-huxing_quan_3.windup,leg_r,95,0,5
-huxing_quan_3.windup,knee_r,100,0,0
-huxing_quan_3.windup,leg_l,0,0,5
-huxing_quan_3.windup,knee_l,20,0,0
+# The wind-up is @100 so it never holds: the knee keeps rising and the hands keep moving to the last startup frame, and
+# the stamp snaps out of that motion at the peak.
+huxing_quan_3.windup@100,hips,0,-10,0
+huxing_quan_3.windup@100,chest,-8,0,0
+huxing_quan_3.windup@100,head,0,10,0
+huxing_quan_3.windup@100,arm_l,112,0,5
+huxing_quan_3.windup@100,elbow_l,20,0,0
+huxing_quan_3.windup@100,arm_r,-30,0,12
+huxing_quan_3.windup@100,elbow_r,110,0,0
+huxing_quan_3.windup@100,leg_r,95,0,5
+huxing_quan_3.windup@100,knee_r,100,0,0
+huxing_quan_3.windup@100,leg_l,0,0,5
+huxing_quan_3.windup@100,knee_l,20,0,0
 huxing_quan_3.strike,hips,10,20,0
 huxing_quan_3.strike,chest,5,15,0
 huxing_quan_3.strike,head,-5,-30,0
@@ -273,7 +353,8 @@ huxing_quan_3.strike,leg_r,66,-20,0
 huxing_quan_3.strike,knee_r,82,0,0
 huxing_quan_3.strike,leg_l,-40,-20,0
 huxing_quan_3.strike,knee_l,45,0,0
-# ---- 内功 default (铁砂掌): the palm drawn back by the ear in a deep horse stance, then a full-body palm thrust.
+# ---- 内功 default, for any 内功 move without poses of its own: the palm drawn back by the ear in a deep horse stance,
+# then a full-body palm thrust.
 neigong.windup,hips,5,-40,0
 neigong.windup,chest,-10,-20,0
 neigong.windup,head,0,40,0
@@ -296,6 +377,115 @@ neigong.strike,leg_l,50,0,8
 neigong.strike,knee_l,45,0,0
 neigong.strike,leg_r,-45,0,8
 neigong.strike,knee_r,0,0,0
+# 铁砂掌 (iron palm). The wind-up gathers qi after the reference form, square on to the opponent (form frames 1-8): the arms
+# open out to the sides, rise overhead, come down past the forehead to the chest and press down to the belly, sinking a little
+# deeper. The strike follows the iron-palm training drawing (images (1).png): it turns side on, the right side towards the
+# opponent, into a wide horse stance (knees bent and pushed out over the feet), the right hand rising past the face to above
+# the head, elbow out towards the opponent, the left hand low in front of the belly. The wind-up moves all the way (its keys
+# are in the first 80% of it, Chan: faster), then pauses there, the palm raised, for its last 7 frames: the last key is @80,
+# not @100, so it's reached and held. The hit lands as the palm comes down in front of the face, arm all but straight; by
+# the last active frame it strikes forward at chest height, the left hand drawn back to the hip. That finish is held for 14
+# recovery frames (recovery@43 repeats strike@100), then the body eases back to the fighting stance over the last 18.
+tiesha_zhang.windup@13,arm_r,10,0,80
+tiesha_zhang.windup@13,elbow_r,30,0,0
+tiesha_zhang.windup@13,arm_l,10,0,80
+tiesha_zhang.windup@13,elbow_l,30,0,0
+tiesha_zhang.windup@13,leg_r,8,0,14
+tiesha_zhang.windup@13,knee_r,18,0,0
+tiesha_zhang.windup@13,leg_l,8,0,14
+tiesha_zhang.windup@13,knee_l,18,0,0
+tiesha_zhang.windup@29,chest,-3,0,0
+tiesha_zhang.windup@29,head,-5,0,0
+tiesha_zhang.windup@29,arm_r,0,0,140
+tiesha_zhang.windup@29,elbow_r,20,0,0
+tiesha_zhang.windup@29,arm_l,0,0,140
+tiesha_zhang.windup@29,elbow_l,20,0,0
+tiesha_zhang.windup@29,leg_r,8,0,14
+tiesha_zhang.windup@29,knee_r,18,0,0
+tiesha_zhang.windup@29,leg_l,8,0,14
+tiesha_zhang.windup@29,knee_l,18,0,0
+tiesha_zhang.windup@42,arm_r,40,45,120
+tiesha_zhang.windup@42,elbow_r,120,0,0
+tiesha_zhang.windup@42,arm_l,40,45,120
+tiesha_zhang.windup@42,elbow_l,120,0,0
+tiesha_zhang.windup@42,leg_r,8,0,14
+tiesha_zhang.windup@42,knee_r,18,0,0
+tiesha_zhang.windup@42,leg_l,8,0,14
+tiesha_zhang.windup@42,knee_l,18,0,0
+tiesha_zhang.windup@51,hips,3,0,0
+tiesha_zhang.windup@51,arm_r,-10,45,80
+tiesha_zhang.windup@51,elbow_r,120,0,0
+tiesha_zhang.windup@51,arm_l,-10,45,80
+tiesha_zhang.windup@51,elbow_l,120,0,0
+tiesha_zhang.windup@51,leg_r,12,0,20
+tiesha_zhang.windup@51,knee_r,35,0,0
+tiesha_zhang.windup@51,leg_l,12,0,20
+tiesha_zhang.windup@51,knee_l,35,0,0
+tiesha_zhang.windup@61,hips,5,0,0
+tiesha_zhang.windup@61,head,5,0,0
+tiesha_zhang.windup@61,arm_r,-20,60,30
+tiesha_zhang.windup@61,elbow_r,90,0,0
+tiesha_zhang.windup@61,arm_l,-20,60,30
+tiesha_zhang.windup@61,elbow_l,90,0,0
+tiesha_zhang.windup@61,leg_r,12,0,20
+tiesha_zhang.windup@61,knee_r,35,0,0
+tiesha_zhang.windup@61,leg_l,12,0,20
+tiesha_zhang.windup@61,knee_l,35,0,0
+tiesha_zhang.windup@70,hips,5,30,0
+tiesha_zhang.windup@70,chest,0,-5,0
+tiesha_zhang.windup@70,head,0,-25,0
+tiesha_zhang.windup@70,arm_r,10,60,70
+tiesha_zhang.windup@70,elbow_r,120,0,0
+tiesha_zhang.windup@70,arm_l,-10,60,20
+tiesha_zhang.windup@70,elbow_l,80,0,0
+tiesha_zhang.windup@70,leg_r,40,-22,25
+tiesha_zhang.windup@70,knee_r,58,0,0
+tiesha_zhang.windup@70,leg_l,40,-22,25
+tiesha_zhang.windup@70,knee_l,58,0,0
+tiesha_zhang.windup@80,hips,5,60,0
+tiesha_zhang.windup@80,chest,0,-15,0
+tiesha_zhang.windup@80,head,0,-45,0
+tiesha_zhang.windup@80,arm_r,30,90,170
+tiesha_zhang.windup@80,elbow_r,80,0,0
+tiesha_zhang.windup@80,arm_l,0,75,20
+tiesha_zhang.windup@80,elbow_l,60,0,0
+tiesha_zhang.windup@80,leg_r,70,-45,30
+tiesha_zhang.windup@80,knee_r,80,0,0
+tiesha_zhang.windup@80,leg_l,70,-45,30
+tiesha_zhang.windup@80,knee_l,80,0,0
+tiesha_zhang.strike,hips,5,60,0
+tiesha_zhang.strike,chest,0,0,5
+tiesha_zhang.strike,head,0,-60,0
+tiesha_zhang.strike,arm_r,110,-45,10
+tiesha_zhang.strike,elbow_r,10,0,0
+tiesha_zhang.strike,arm_l,-20,45,10
+tiesha_zhang.strike,elbow_l,60,0,0
+tiesha_zhang.strike,leg_r,70,-45,30
+tiesha_zhang.strike,knee_r,80,0,0
+tiesha_zhang.strike,leg_l,70,-45,30
+tiesha_zhang.strike,knee_l,80,0,0
+tiesha_zhang.strike@100,hips,5,60,0
+tiesha_zhang.strike@100,chest,5,5,5
+tiesha_zhang.strike@100,head,0,-65,0
+tiesha_zhang.strike@100,arm_r,80,-30,30
+tiesha_zhang.strike@100,elbow_r,10,0,0
+tiesha_zhang.strike@100,arm_l,-30,45,0
+tiesha_zhang.strike@100,elbow_l,60,0,0
+tiesha_zhang.strike@100,leg_r,70,-45,30
+tiesha_zhang.strike@100,knee_r,80,0,0
+tiesha_zhang.strike@100,leg_l,70,-45,30
+tiesha_zhang.strike@100,knee_l,80,0,0
+tiesha_zhang.recovery@43,hips,5,60,0
+tiesha_zhang.recovery@43,chest,5,5,5
+tiesha_zhang.recovery@43,head,0,-65,0
+tiesha_zhang.recovery@43,arm_r,80,-30,30
+tiesha_zhang.recovery@43,elbow_r,10,0,0
+tiesha_zhang.recovery@43,arm_l,-30,45,0
+tiesha_zhang.recovery@43,elbow_l,60,0,0
+tiesha_zhang.recovery@43,leg_r,70,-45,30
+tiesha_zhang.recovery@43,knee_r,80,0,0
+tiesha_zhang.recovery@43,leg_l,70,-45,30
+tiesha_zhang.recovery@43,knee_l,80,0,0
 # 狮吼功: breathe in, leaning back with the arms drawn back wide, then roar forward with the arms thrown open.
 shihou_gong.windup,chest,-25,0,0
 shihou_gong.windup,head,-25,0,0

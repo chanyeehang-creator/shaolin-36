@@ -64,14 +64,14 @@ public partial class Main : Node3D
             return;
         }
 
-        // "-- --pose-shots <folder> [pose names...]": render the poses to pictures and quit (scripts\pose-shots.bat).
+        // "-- --pose-shots <folder> [pose or technique names...]": render poses (or a string, frame by frame) to pictures and quit (scripts\pose-shots.bat).
         var userArgs = OS.GetCmdlineUserArgs();
         int shotsAt = System.Array.IndexOf(userArgs, "--pose-shots");
         if (shotsAt >= 0)
         {
             var folder = shotsAt + 1 < userArgs.Length ? userArgs[shotsAt + 1] : "pose-shots";
             var names = shotsAt + 2 < userArgs.Length ? userArgs[(shotsAt + 2)..] : System.Array.Empty<string>();
-            AddChild(new PoseShots(poses.Sheet!, folder, names));
+            AddChild(new PoseShots(poses.Sheet!, rules.Rules!, result.Techniques, folder, names));
             return;
         }
 

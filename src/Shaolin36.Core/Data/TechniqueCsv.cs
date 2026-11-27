@@ -19,7 +19,7 @@ namespace Shaolin36.Core.Data
         };
 
         /// <summary>Columns a sheet may leave out; an empty cell means the default (no empowered version).</summary>
-        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "seal", "heal", "lunge", "hold", "knockdown", "hits_down", "early_block", "hit_recovery", "jump", "cripple", "auto_chain", "guard", "grab_hits", "buff", "buff_damage_pct" };
+        public static readonly string[] OptionalColumns = { "empower_qi", "empower_damage_pct", "empower_armor", "knockback", "hit_angle", "advance", "dash", "invincible", "escape", "seal", "heal", "lunge", "hold", "knockdown", "hits_down", "early_block", "hit_recovery", "jump", "cripple", "auto_chain", "guard", "grab_hits", "buff", "buff_damage_pct", "lunge_stops", "recovery_advance" };
 
         /// <summary>Most a hit can push the defender back, in centimetres.</summary>
         public const int MaxKnockback = 500;
@@ -183,6 +183,8 @@ namespace Shaolin36.Core.Data
                 int seal = Cell("seal").Length == 0 ? 0 : Int("seal");
                 int heal = Cell("heal").Length == 0 ? 0 : Int("heal");
                 int lunge = Cell("lunge").Length == 0 ? 0 : Int("lunge");
+                bool lungeStops = Cell("lunge_stops").Length != 0 && Bool("lunge_stops");
+                int recoveryAdvance = Cell("recovery_advance").Length == 0 ? 0 : Int("recovery_advance");
                 int hold = Cell("hold").Length == 0 ? 0 : Int("hold");
                 bool knockdown = Cell("knockdown").Length != 0 && Bool("knockdown");
                 bool hitsDown = Cell("hits_down").Length != 0 && Bool("hits_down");
@@ -247,6 +249,9 @@ namespace Shaolin36.Core.Data
                 if (hitsDown && reach == 0) rowErrors.Add("'hits_down' is set but 'reach' is 0, so the move never hits");
                 if (hitsDown && hold > 0) rowErrors.Add("a grab can't catch a downed fighter: leave 'hits_down' false");
                 if (hold > 0 && lunge > 0) rowErrors.Add("a grab can't have 'lunge' yet (use 'advance' to step in)");
+                if (recoveryAdvance > MaxAdvance) rowErrors.Add($"'recovery_advance' ({recoveryAdvance}) must be {MaxAdvance} cm or less");
+                if (recoveryAdvance > 0 && recovery == 0) rowErrors.Add("'recovery_advance' is set but 'recovery' is 0, so there's no recovery to move in");
+                if (lungeStops && lunge == 0) rowErrors.Add("'lunge_stops' is set but 'lunge' is 0, so there's no lunge to stop");
                 if (hold > 0 && empowerQi > 0) rowErrors.Add("a grab has no empowered version yet: leave 'empower_qi' 0");
                 if (empowerQi > 0 && empowerPct == 0) rowErrors.Add("'empower_damage_pct' must be above 0");
                 if (jump && dash == 0) rowErrors.Add("'jump' is set but 'dash' is 0: a jump is a dash that leaps, so it needs a distance");
@@ -278,7 +283,7 @@ namespace Shaolin36.Core.Data
                 techniques.Add(new Technique(id, displayName, category, weight, weapon,
                     startup, active, recovery, window, perfect, stamina, qi, damage, clashable,
                     hitstun, reach, next, chain, perfectParry, empowerQi, empowerPct, empowerArmor, knockback, hitAngle, advance, dash, invincible, escape, seal, heal, lunge, hold, knockdown, hitsDown, earlyBlock, hitRecovery,
-                    jump, cripple, autoChain, guard, grabHits, buff, buffPct));
+                    jump, cripple, autoChain, guard, grabHits, buff, buffPct, lungeStops, recoveryAdvance));
             }
 
             foreach (var (line, id, next) in chains)

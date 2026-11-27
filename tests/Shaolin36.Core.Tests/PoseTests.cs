@@ -103,7 +103,7 @@ public class PoseTests
         Assert.Contains(errors, e => e.Contains("'palm' has no wind-up pose"));
         Assert.Contains(errors, e => e.Contains("'palm' has no strike pose"));
         Assert.Contains(errors, e => e.Contains("no technique or category called 'luohan_quan_9'"));
-        Assert.Contains(errors, e => e.Contains("'waigong.hit' must end in .windup or .strike"));
+        Assert.Contains(errors, e => e.Contains("'waigong.hit' must end in .windup, .strike or .recovery"));
         Assert.Contains(errors, e => e.Contains("pose 'wave' is not used"));
         Assert.DoesNotContain(errors, e => e.Contains("'punch'"));
     }
@@ -148,24 +148,21 @@ public class PoseTests
     [InlineData(3, 2, 6)]   // 无相劫指
     public void The_strike_pose_shows_exactly_on_the_active_frames(int startup, int active, int recovery)
     {
+        var sheet = Small();
         var t = Make.Move(startup: startup, active: active, recovery: recovery);
+        var windUp = sheet.WindUpOf(t);
+        var strike = sheet.StrikeOf(t);
         int reached = MoveTimeline.WindUpReachedAfter(t);
         Assert.Equal(System.Math.Max(1, (startup + 1) / 2), reached);
         for (int frame = 0; frame < t.TotalFrames; frame++)
         {
-            var step = MoveTimeline.At(t, frame);
-            bool strikePose = step.From == PoseKey.Strike && step.To == PoseKey.Strike;
-            Assert.Equal(t.IsActive(frame), strikePose);
-            if (frame < startup)
-            {
-                Assert.Equal(PoseKey.WindUp, step.To);
-                // Halfway through the startup the wind-up is reached and held, cocked, up to the strike.
-                if (frame + 1 >= reached) Assert.Equal(1000, step.Permille);
-                else Assert.InRange(step.Permille, 0, 999);
-            }
-            if (frame >= startup + active) Assert.Equal(PoseKey.Stance, step.To);
+            var pose = sheet.MovePose(t, frame);
+            if (t.IsActive(frame)) Assert.True(pose.SameAngles(strike), $"frame {frame}: not striking");
+            if (frame < startup) Assert.False(pose.SameAngles(strike), $"frame {frame}: striking in the wind-up");
+            // Halfway through the startup the wind-up is reached and held, cocked, up to the strike.
+            if (frame < startup && frame + 1 >= reached) Assert.True(pose.SameAngles(windUp), $"frame {frame}: not in the wind-up");
         }
-        Assert.Equal(1000, MoveTimeline.At(t, t.TotalFrames - 1).Permille); // back in the stance on the last frame
+        Assert.True(sheet.MovePose(t, t.TotalFrames - 1).SameAngles(sheet.Stance)); // back in the stance on the last frame
     }
 
     [Fact]
@@ -252,12 +249,13 @@ public class PoseTests
         // so its feet are never planted).
         var lifted = new[]
         {
-            "luohan_quan_1.windup", "luohan_quan_3.windup", "luohan_quan_3.strike", "huxing_quan_1.strike", "huxing_quan_3.windup",
+            "luohan_quan_1.windup", "luohan_quan_3.windup", "luohan_quan_3.strike", "huxing_quan_1.strike", "huxing_quan_3.windup@100",
             "zongyun_ti.strike",
         };
         foreach (var name in sheet.Names)
         {
-            if (System.Array.IndexOf(lifted, name) >= 0) continue;
+            // A roll or flip rests on whatever part of the body is lowest, not on its feet.
+            if (System.Array.IndexOf(lifted, name) >= 0 || sheet.Find(name)!.IsTurnedOver) continue;
             Assert.True(FootLift.Of(sheet.Find(name)!, out _) == 0, $"{name} lifts a foot");
         }
         Assert.Equal(1000, FootLift.Of(sheet.Find("luohan_quan_3.strike")!, out bool right));

@@ -217,13 +217,39 @@ public class IronPalmTests
             .Single(t => t.Id == "tiesha_zhang");
         Assert.Equal(Weight.Heavy, palm.Weight);
         Assert.Equal(36, palm.StartupFrames);
-        Assert.Equal(4, palm.ActiveFrames);
-        Assert.Equal(36, palm.RecoveryFrames);
+        Assert.Equal(3, palm.ActiveFrames);
+        Assert.Equal(32, palm.RecoveryFrames);
         Assert.Equal(20, palm.StaminaCost);
         Assert.Equal(15, palm.Damage);
         Assert.Equal(30, palm.EmpowerQi);
         Assert.Equal(200, palm.EmpowerDamagePct);
         Assert.True(palm.EmpowerArmor);
         Assert.False(palm.HasNext);
+    }
+
+    [Fact]
+    public void Tiesha_zhang_stands_its_ground_through_the_wind_up_and_steps_in_with_the_palm()
+    {
+        var sheet = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques;
+        var rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
+        var book = new TechniqueBook(sheet);
+        var palm = book.Find("tiesha_zhang")!;
+        Assert.Equal(0, palm.AdvanceCm);
+        Assert.Equal(20, palm.LungeCm);
+        var loadout = new Loadout(book);
+        loadout.Assign(Slot.Square, palm);
+        var d = new Duel(rules, loadout, new Loadout(book), 0, 300); // out of reach, so nothing stops the step
+        for (int t = 0; t < palm.StartupFrames; t++)
+        {
+            d.Step(t == 0 ? Square : None, None);
+            Assert.True(d.One.XCm == 0, $"wind-up frame {t + 1}: moved to {d.One.XCm} cm");
+        }
+        for (int t = 0; t < palm.ActiveFrames; t++)
+        {
+            int x = d.One.XCm;
+            d.Step(None, None);
+            Assert.True(d.One.XCm > x, $"hit frame {t + 1}: didn't step in");
+        }
+        Assert.Equal(palm.LungeCm, d.One.XCm);
     }
 }

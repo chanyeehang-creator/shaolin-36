@@ -237,7 +237,11 @@ namespace Shaolin36.Core.Combat
     /// and a hit that knocks the fighter out of the move stops it.
     ///
     /// Lunge: a move with a lunge (such as 点穴 封穴) surges its fighter forward along its aim from its first active frame,
-    /// slid over the active frames, so the hit connects farther out (see <see cref="LungeStep"/>). It stops at min_distance.
+    /// slid over the active frames, so the hit connects farther out (see <see cref="LungeStep"/>). It stops at min_distance,
+    /// and a lunge_stops one (虎形拳 1's pounce) also stops where its hit connects instead of chasing a fighter it knocked back.
+    ///
+    /// Recovery advance: a move with one carries its fighter on forward over its recovery frames (虎形拳 1 rolls on after
+    /// the pounce). Chaining into the next hit, or being knocked out of the move, stops it; so does min_distance.
     ///
     /// Quick step: a fighter asked for one (see <see cref="MoveInput.QuickStep"/>) who is free slides
     /// quick_step_distance forward or back, or quick_step_side_distance left or right, over quick_step_frames, relative to the lock-on (see
@@ -302,6 +306,8 @@ namespace Shaolin36.Core.Combat
         private readonly int[] _dashTicks = new int[2];
         private readonly int[] _lungeLeft = new int[2];
         private readonly int[] _lungeTicks = new int[2];
+        private readonly int[] _recoveryAdvanceLeft = new int[2];
+        private readonly int[] _recoveryAdvanceTicks = new int[2];
         private readonly int[] _rollLeft = new int[2];
         private readonly int[] _rollTicks = new int[2];
         private readonly FloorPoint[] _jumpWay = new FloorPoint[2];
@@ -444,8 +450,8 @@ namespace Shaolin36.Core.Combat
                 Aim(One, Two);
                 Aim(Two, One);
             }
-            var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + LungeStep(Side.One) + DashStep(Side.One) + RollStep(Side.One) + QuickStepStep(Side.One) + PushStep(Side.One);
-            var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + LungeStep(Side.Two) + DashStep(Side.Two) + RollStep(Side.Two) + QuickStepStep(Side.Two) + PushStep(Side.Two);
+            var stepOne = WalkStep(One, Two, moveOne) + AdvanceStep(Side.One) + LungeStep(Side.One) + RecoveryAdvanceStep(Side.One) + DashStep(Side.One) + RollStep(Side.One) + QuickStepStep(Side.One) + PushStep(Side.One);
+            var stepTwo = WalkStep(Two, One, moveTwo) + AdvanceStep(Side.Two) + LungeStep(Side.Two) + RecoveryAdvanceStep(Side.Two) + DashStep(Side.Two) + RollStep(Side.Two) + QuickStepStep(Side.Two) + PushStep(Side.Two);
             Move(stepOne, stepTwo);
             LandJump(Side.One);
             LandJump(Side.Two);
@@ -471,6 +477,9 @@ namespace Shaolin36.Core.Combat
             bool oneArmored = One.HasArmor, twoArmored = Two.HasArmor;
             if (oneHits) One.MarkHitLanded();
             if (twoHits) Two.MarkHitLanded();
+            // A lunge_stops lunge ends where its hit connects (a dodged hit carries on through).
+            if (oneHits && oneMove!.LungeStops) _lungeLeft[(int)Side.One] = 0;
+            if (twoHits && twoMove!.LungeStops) _lungeLeft[(int)Side.Two] = 0;
 
             // Note what each defender was doing before either hit changes it.
             int oneFrame = One.MoveFrame, twoFrame = Two.MoveFrame;
@@ -822,6 +831,36 @@ namespace Shaolin36.Core.Combat
             int step = (_lungeLeft[i] + _lungeTicks[i] - 1) / _lungeTicks[i];
             _lungeLeft[i] -= step;
             _lungeTicks[i]--;
+            return f.Facing.WithLength(step * FloorPoint.UnitsPerCm);
+        }
+
+        /// <summary>Centimetres <paramref name="side"/>'s recovery advance still has to slide.</summary>
+        public int RecoveryAdvanceLeftCm(Side side) => _recoveryAdvanceLeft[(int)side];
+
+        /// <summary>
+        /// This tick's share of <paramref name="side"/>'s recovery advance (<see cref="Technique.RecoveryAdvanceCm"/>): from the
+        /// first recovery frame, slid over the recovery frames (whole centimetres, larger steps first) along its aim. It stops
+        /// as soon as the fighter is out of its recovery: chained into the next hit, knocked out of the move, or done.
+        /// </summary>
+        private FloorPoint RecoveryAdvanceStep(Side side)
+        {
+            int i = (int)side;
+            var f = this[side];
+            if (f.State != FighterState.Recovery || f.IsHolding)
+            {
+                _recoveryAdvanceLeft[i] = 0;
+                return FloorPoint.Zero;
+            }
+            var t = f.Technique!;
+            if (f.MoveFrame == t.StartupFrames + t.ActiveFrames)
+            {
+                _recoveryAdvanceLeft[i] = t.RecoveryAdvanceCm;
+                _recoveryAdvanceTicks[i] = t.RecoveryFrames;
+            }
+            if (_recoveryAdvanceLeft[i] <= 0 || _recoveryAdvanceTicks[i] <= 0) return FloorPoint.Zero;
+            int step = (_recoveryAdvanceLeft[i] + _recoveryAdvanceTicks[i] - 1) / _recoveryAdvanceTicks[i];
+            _recoveryAdvanceLeft[i] -= step;
+            _recoveryAdvanceTicks[i]--;
             return f.Facing.WithLength(step * FloorPoint.UnitsPerCm);
         }
 

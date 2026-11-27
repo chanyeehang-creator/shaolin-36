@@ -39,18 +39,40 @@ namespace Shaolin36.Core.Poses
         /// <summary>Most a pose angle can be, either way, in degrees.</summary>
         public const int MaxAngle = 180;
 
+        /// <summary>Most a <see cref="Joint.Body"/> angle can be, either way: a full turn, so a roll or flip can go all the way round.</summary>
+        public const int MaxBodyAngle = 360;
+
+        /// <summary>Most an angle of <paramref name="j"/> can be, either way.</summary>
+        public static int MaxAngleOf(Joint j) => j == Joint.Body ? MaxBodyAngle : MaxAngle;
+
+        /// <summary>
+        /// True if the whole figure is turned over (<see cref="Joint.Body"/> not at a whole number of turns): a roll or a flip.
+        /// Then the body rests on its lowest part, not on its feet.
+        /// </summary>
+        public bool IsTurnedOver =>
+            Pitch(Joint.Body) % 360 != 0 || Yaw(Joint.Body) % 360 != 0 || Roll(Joint.Body) % 360 != 0;
+
         /// <summary>
         /// The pose <paramref name="permille"/>/1000 of the way from <paramref name="from"/> to <paramref name="to"/>
         /// (0 = from, 1000 = to), each angle rounded to a whole degree. Pure integer maths, the same on every machine.
+        /// The whole-body angles (<see cref="Joint.Body"/>) turn the shorter way round, whole turns counting as nothing: from 360
+        /// (a roll just finished) to 0 doesn't spin back, and from 330 to 0 goes on forward 30. So a roll needs a key pose at
+        /// least every 180 degrees (0, 120, 240, 360).
         /// </summary>
         public static Pose Blend(Pose from, Pose to, int permille)
         {
             if (permille <= 0) return from;
             if (permille >= 1000) return to;
             var angles = new int[Joints.Count * 3];
+            int body = (int)Joint.Body * 3;
             for (int i = 0; i < angles.Length; i++)
             {
                 int a = from._angles[i], b = to._angles[i];
+                if (i >= body)
+                {
+                    while (b - a > 180) a += 360;
+                    while (a - b > 180) a -= 360;
+                }
                 int d = (b - a) * permille;
                 angles[i] = a + (d >= 0 ? (d + 500) / 1000 : -((-d + 500) / 1000));
             }
@@ -77,6 +99,6 @@ namespace Shaolin36.Core.Poses
 
         public override string ToString() => Name;
 
-        internal static bool InRange(int angle) => Math.Abs(angle) <= MaxAngle;
+        internal static bool InRange(Joint j, int angle) => Math.Abs(angle) <= MaxAngleOf(j);
     }
 }

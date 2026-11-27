@@ -79,7 +79,8 @@ public class SecondMoveTests
         Assert.True(huxing.Sum(h => h.Damage) < luohan.Sum(l => l.Damage), "虎形拳 deals less in all than 罗汉拳");
         Assert.True(huxing.Min(h => h.AdvanceCm + h.LungeCm) > luohan.Max(l => l.AdvanceCm + l.LungeCm), "each 虎形拳 hit leaps farther than any 罗汉拳 step");
         Assert.True(huxing[0].StartupFrames > luohan[0].StartupFrames, "hit 1 winds up a little longer");
-        Assert.True(huxing[1].StartupFrames < huxing[0].StartupFrames && huxing[2].StartupFrames < huxing[0].StartupFrames, "then two quick hits");
+        Assert.True(huxing[2].StartupFrames < huxing[0].StartupFrames, "hit 3 winds up quicker");
+        Assert.True(huxing[1].StartupFrames > huxing[2].StartupFrames, "hit 2's wind-up is the forward roll: slower than hit 3's");
 
         var roar = T("shihou_gong");
         Assert.Equal(Category.Neigong, roar.Category);
@@ -146,10 +147,10 @@ public class SecondMoveTests
     }
 
     [Fact]
-    public void Huxing_quan_hits_land_on_a_nearly_even_beat_slower_than_luohan_quan()
+    public void Huxing_quan_rolls_slowly_into_hit_2_then_stamps_quickly()
     {
-        // Chan: hit - hit - hit, about the same gap each time and about 30% slower than 罗汉拳's hit, hithit, hit. Hit 1's pounce
-        // now carries its hitbox over 6 frames, so from 150 cm it lands on its 2nd frame and the first gap is 2 frames longer.
+        // Chan: hit 1's pounce goes into a forward roll that takes its time (using the stun hit 1 leaves, so hit 2 still
+        // combos), then hit 3 comes quick. 罗汉拳 is hit, hithit, hit.
         int[] Beat(string first, int apart)
         {
             var d = DuelOf(Second(), Second(), apart);
@@ -161,7 +162,8 @@ public class SecondMoveTests
         }
         var tiger = Beat("huxing_quan_1", 150);
         var luohan = Beat("luohan_quan_1", 110);
-        Assert.InRange(tiger[0] - tiger[1], 0, 2);
+        Assert.True(tiger[0] > tiger[1] + 3, $"tiger gaps {tiger[0]},{tiger[1]}: a slow roll, then a quick stamp");
+        Assert.True(tiger[0] < T("huxing_quan_1").HitstunFrames, "hit 2 lands before hit 1's stun runs out");
         Assert.NotEqual(luohan[0], luohan[1]);
         // The old 虎形拳 landed 13 frames apart; 30% slower is 17.
         Assert.Equal(17, tiger[1]);

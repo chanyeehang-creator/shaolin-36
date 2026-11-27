@@ -3,6 +3,8 @@ rem Pose pictures: renders the stick figure's poses (game\data\poses.csv) into t
 rem Each picture shows one pose three ways: as you see an opponent, from its right, from its left.
 rem   scripts\pose-shots.bat                                      every pose
 rem   scripts\pose-shots.bat luohan_quan_1.windup luohan_quan_1.strike   just these
+rem   scripts\pose-shots.bat huxing_quan_1                        the string in motion, one picture per frame
+rem   scripts\pose-shots.bat huxing_quan_1:1                      ...stopping after the first hit
 setlocal
 cd /d "%~dp0.."
 if "%GODOT%"=="" set GODOT=godot
