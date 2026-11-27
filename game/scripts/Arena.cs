@@ -200,7 +200,7 @@ public partial class Arena : Node3D
         if (_healVoices[0] != null) { StopHealChannel(Side.One); StopHealChannel(Side.Two); }
         // A new seed each duel, counted up from 1: the brain's choices change from duel to duel but every run is repeatable.
         _duelNumber++;
-        _brain = RunFighting ? new Brain(RunBrainStyle, _run.Enemy!.BrainSeed) { OpeningFrames = _run.Enemy.OpeningFrames }
+        _brain = RunFighting ? new Brain(RunBrainStyle, _run.Enemy!.BrainSeed) { OpeningFrames = _run.Enemy.OpeningFrames, StepEscapePct = _run.Enemy.StepEscapePct }
             : RunRoaming || UsingDummy ? null : new Brain(_brains.Styles[_opponentMode], _duelNumber) { Active = _opponentActive };
         // A brain opponent loses you when you jump over it (纵云梯) and finds you again after standing still its relock time.
         _duel.Two.CanLoseLock = _brain != null;
@@ -683,7 +683,8 @@ public partial class Arena : Node3D
         var quickStep = _doubleTap.Update(DoubleTap.Cardinal(walk));
         // Roaming: the stick is relative to the free camera; you turn to face the way you go and walk (or step) forward.
         if (RunRoaming) RoamWalk(ref walk, ref quickStep);
-        if (_floatingText && quickStep != StepDirection.None && _duel.One.IsExhausted && !_duel.One.CanQuickStep && _duel.One.CanAct)
+        if (_floatingText && quickStep != StepDirection.None && _duel.One.IsExhausted && !_duel.One.CanQuickStep
+            && (_duel.One.CanAct || _duel.One.State == FighterState.Hitstun))
             Float(Side.One, "No stamina!", ExhaustedColor);
         var hits = _clock.Step(input, opponent.Slots, walk.WithQuickStep(quickStep), opponent.Move);
         if (_feelOn) foreach (var cue in _clock.Cues) PlayCue(cue);
@@ -729,10 +730,18 @@ public partial class Arena : Node3D
         }
     }
 
-    /// <summary>Say so when a fighter dashes out of hitstun (a combo escape).</summary>
+    /// <summary>Say so when a fighter dashes or quick-steps out of hitstun (a combo escape).</summary>
     private void EscapeStarted(Side side, bool wasStunned)
     {
         var f = _duel[side];
+        if (wasStunned && f.EscapedHitstun && f.State == FighterState.QuickStep && f.QuickStepFrame == 0)
+        {
+            _event.Text = side == Side.One
+                ? $"[color=#ccffff][b]Escaped![/b][/color] You quick-stepped out of the combo ({f.QuickStepRules!.Stamina} stamina). No just dodge from an escape."
+                : "[color=#ccffff][b]Your opponent stepped out[/b][/color] of your combo.";
+            if (_floatingText) Float(side, "Escape!", InvincibleColor);
+            return;
+        }
         if (!wasStunned || !f.EscapedHitstun || f.MoveFrame != 0) return;
         _event.Text = side == Side.One
             ? $"[color=#ccffff][b]Escaped![/b][/color] You broke out of the combo with {f.Technique!.Name} ({f.Technique.StaminaCost} stamina). No just dodge from an escape."
@@ -1284,6 +1293,7 @@ public partial class Arena : Node3D
             case BrainIntent.Dodging: return "saw your strike, stepping aside";
             case BrainIntent.Resting: return "[color=#ff8c1a]backing off to breathe[/color]";
             case BrainIntent.Escaping: return "[color=#ccffff]dashed out of your combo[/color]";
+            case BrainIntent.SteppingOut: return "[color=#ccffff]stepped out of your combo[/color]";
             case BrainIntent.Healing: return "[color=#7dffb0]healing with 仙辽术: hit it to break it![/color]";
             case BrainIntent.GettingUp: return "getting up off the floor";
             case BrainIntent.Grabbing: return "[color=#e67333]going for a grab: strike it or step back[/color]";

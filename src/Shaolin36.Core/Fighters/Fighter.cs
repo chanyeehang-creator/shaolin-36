@@ -65,7 +65,8 @@ namespace Shaolin36.Core.Fighters
     /// Combo escape: a technique that <see cref="Data.Technique.CanEscape"/> (the default 轻功 dash) can be started
     /// while in hitstun, which ends the hitstun on that tick (<see cref="EscapedHitstun"/>). So can a 纵云梯 jump for a fighter that
     /// <see cref="JumpsInHitstun"/>, and a 防身 parry or guard for one that <see cref="DefendsInHitstun"/> (<see cref="CanStartInHitstun"/>).
-    /// Nothing else can. Presses of other slots during hitstun wait in the buffer as before.
+    /// A fighter that <see cref="StepsInHitstun"/> can also quick-step out (<see cref="CanQuickStepOutOfHitstun"/>), paying its stamina
+    /// as usual. Nothing else can. Presses of other slots during hitstun wait in the buffer as before.
     ///
     /// 点穴 seal: while <see cref="SealedFrames"/> is above 0 (set by <see cref="Seal"/> when a 点穴 hit lands), no 外功
     /// (waigong) technique can be started or chained. Other categories still work. A 外功 move already under way carries on.
@@ -209,6 +210,15 @@ namespace Shaolin36.Core.Fighters
 
         /// <summary>True if this fighter can start a 纵云梯 jump while in hitstun, like the dash escape: the player (set by the game).</summary>
         public bool JumpsInHitstun { get; set; }
+
+        /// <summary>
+        /// True if this fighter can quick-step out of hitstun, like the dash escape (Chan): the player, and the opponent, whose brain
+        /// only ever does it as a mini boss or the boss (<see cref="Brains.Brain.StepEscapePct"/>). Set by the game.
+        /// </summary>
+        public bool StepsInHitstun { get; set; }
+
+        /// <summary>True if exhaustion doesn't slow this fighter's walk (Chan: the player walks as normal; the opponents slow to exhausted_walk_pct). Set by the game.</summary>
+        public bool WalksFullSpeedExhausted { get; set; }
 
         /// <summary>
         /// True if, once a 外功 or 点穴 hit of a string connects (landed, blocked, parried or clashed), the next hits of the string
@@ -666,13 +676,24 @@ namespace Shaolin36.Core.Fighters
         public bool CanQuickStep =>
             CanAct && QuickStepRules != null && (!IsExhausted || QuickStepRules.Stamina == 0) && !IsCrippled;
 
+        /// <summary>
+        /// True if a quick step could start now out of hitstun, as a combo escape (<see cref="StepsInHitstun"/>): it pays its stamina
+        /// as usual, so not while exhausted, and not while 无相劫指 has the fighter locked.
+        /// </summary>
+        public bool CanQuickStepOutOfHitstun =>
+            State == FighterState.Hitstun && StepsInHitstun && QuickStepRules != null && (!IsExhausted || QuickStepRules.Stamina == 0) && !IsCrippled;
+
         private bool TryQuickStep(StepDirection direction)
         {
-            if (direction == StepDirection.None || !CanQuickStep) return false;
+            if (direction == StepDirection.None) return false;
+            bool escape = CanQuickStepOutOfHitstun;
+            if (!escape && !CanQuickStep) return false;
+            if (escape) StunFramesLeft = 0;
             LoseStamina(QuickStepRules!.Stamina);
             State = FighterState.QuickStep;
             QuickStepDirection = direction;
             QuickStepFrame = 0;
+            EscapedHitstun = escape;
             return true;
         }
 
@@ -1008,6 +1029,7 @@ namespace Shaolin36.Core.Fighters
         {
             QuickStepDirection = StepDirection.None;
             QuickStepFrame = -1;
+            EscapedHitstun = false;
         }
 
         private void EndMove()

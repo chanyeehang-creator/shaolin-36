@@ -208,6 +208,78 @@ public class PoseTests
         Assert.False(fromStrike.SameAngles(fromStance));
     }
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(FootLift.StartDegrees, 0)]
+    [InlineData(80, 500)]
+    [InlineData(FootLift.FullDegrees, 1000)]
+    [InlineData(110, 1000)]
+    public void A_leg_leaves_the_floor_between_75_and_85_degrees(int degrees, int expected)
+    {
+        Assert.Equal(expected, FootLift.OfRaise(degrees));
+    }
+
+    private static Pose Legs(int right, int left, int rightRoll = 0)
+    {
+        var r = PoseCsv.Parse(Header + $"legs,leg_r,{right},0,{rightRoll}\nlegs,leg_l,{left},0,0\n");
+        Assert.True(r.Ok, string.Join("\n", r.Errors));
+        return r.Sheet!.Find("legs")!;
+    }
+
+    [Fact]
+    public void The_raised_leg_lifts_whether_it_swings_forward_back_or_out()
+    {
+        Assert.Equal(1000, FootLift.Of(Legs(0, 110), out bool right));
+        Assert.False(right);
+        Assert.Equal(1000, FootLift.Of(Legs(-90, 0), out right));
+        Assert.True(right);
+        Assert.Equal(1000, FootLift.Of(Legs(0, 0, rightRoll: 85), out right));
+        Assert.True(right);
+    }
+
+    [Fact]
+    public void Both_legs_raised_the_same_stand_on_both_feet()
+    {
+        Assert.Equal(0, FootLift.Of(Legs(90, 90), out _));
+        Assert.Equal(500, FootLift.Of(Legs(90, 80), out _));
+    }
+
+    [Fact]
+    public void Every_stance_in_the_game_stands_on_both_feet_and_the_luohan_kick_lifts_the_right_foot()
+    {
+        var sheet = RealPoses();
+        // Only knee raises, kicks and 虎形拳's pounce (its back leg flies up behind) lift a foot (纵云梯's jump is in the air,
+        // so its feet are never planted).
+        var lifted = new[]
+        {
+            "luohan_quan_1.windup", "luohan_quan_3.windup", "luohan_quan_3.strike", "huxing_quan_1.strike", "huxing_quan_3.windup",
+            "zongyun_ti.strike",
+        };
+        foreach (var name in sheet.Names)
+        {
+            if (System.Array.IndexOf(lifted, name) >= 0) continue;
+            Assert.True(FootLift.Of(sheet.Find(name)!, out _) == 0, $"{name} lifts a foot");
+        }
+        Assert.Equal(1000, FootLift.Of(sheet.Find("luohan_quan_3.strike")!, out bool right));
+        Assert.True(right);
+    }
+
+    [Fact]
+    public void Winding_up_a_kick_lifts_the_foot_gradually()
+    {
+        var sheet = RealPoses();
+        var kick = SheetTechniques().Single(t => t.Id == "luohan_quan_3");
+        int last = 0;
+        for (int frame = 0; frame < kick.StartupFrames; frame++)
+        {
+            int lift = FootLift.Of(sheet.MovePose(kick, frame), out _);
+            Assert.True(lift >= last, $"frame {frame}: the foot comes back down");
+            last = lift;
+        }
+        Assert.Equal(1000, last);
+        Assert.Equal(1000, FootLift.Of(sheet.MovePose(kick, kick.StartupFrames), out _));
+    }
+
     [Fact]
     public void Hitstun_and_stagger_have_their_own_poses()
     {

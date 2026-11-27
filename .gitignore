@@ -22,3 +22,6 @@ Thumbs.db
 
 # Exported builds
 builds/
+
+# Pose pictures (scripts/pose-shots.bat)
+pose-shots/

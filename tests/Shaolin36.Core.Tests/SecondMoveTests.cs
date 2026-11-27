@@ -77,7 +77,7 @@ public class SecondMoveTests
         Assert.All(huxing, h => Assert.Equal(Category.Waigong, h.Category));
         Assert.All(huxing, h => Assert.Equal(Weight.Medium, h.Weight));
         Assert.True(huxing.Sum(h => h.Damage) < luohan.Sum(l => l.Damage), "虎形拳 deals less in all than 罗汉拳");
-        Assert.True(huxing.Min(h => h.AdvanceCm) > luohan.Max(l => l.AdvanceCm), "each 虎形拳 hit leaps farther than any 罗汉拳 step");
+        Assert.True(huxing.Min(h => h.AdvanceCm + h.LungeCm) > luohan.Max(l => l.AdvanceCm + l.LungeCm), "each 虎形拳 hit leaps farther than any 罗汉拳 step");
         Assert.True(huxing[0].StartupFrames > luohan[0].StartupFrames, "hit 1 winds up a little longer");
         Assert.True(huxing[1].StartupFrames < huxing[0].StartupFrames && huxing[2].StartupFrames < huxing[0].StartupFrames, "then two quick hits");
 
@@ -146,9 +146,10 @@ public class SecondMoveTests
     }
 
     [Fact]
-    public void Huxing_quan_hits_land_on_an_even_beat_slower_than_luohan_quan()
+    public void Huxing_quan_hits_land_on_a_nearly_even_beat_slower_than_luohan_quan()
     {
-        // Chan: hit - hit - hit, the same gap each time and about 30% slower than 罗汉拳's hit, hithit, hit.
+        // Chan: hit - hit - hit, about the same gap each time and about 30% slower than 罗汉拳's hit, hithit, hit. Hit 1's pounce
+        // now carries its hitbox over 6 frames, so from 150 cm it lands on its 2nd frame and the first gap is 2 frames longer.
         int[] Beat(string first, int apart)
         {
             var d = DuelOf(Second(), Second(), apart);
@@ -160,10 +161,10 @@ public class SecondMoveTests
         }
         var tiger = Beat("huxing_quan_1", 150);
         var luohan = Beat("luohan_quan_1", 110);
-        Assert.Equal(tiger[0], tiger[1]);
+        Assert.InRange(tiger[0] - tiger[1], 0, 2);
         Assert.NotEqual(luohan[0], luohan[1]);
         // The old 虎形拳 landed 13 frames apart; 30% slower is 17.
-        Assert.Equal(17, tiger[0]);
+        Assert.Equal(17, tiger[1]);
         Assert.True(luohan[0] > luohan[1], $"luohan gaps {luohan[0]},{luohan[1]}: a pause, then a quick pair");
     }
 
@@ -172,7 +173,7 @@ public class SecondMoveTests
     {
         var hu = T("huxing_quan_1");
         var seal = T("fengxue");
-        Assert.InRange(hu.AdvanceCm, seal.LungeCm * 3 / 4, seal.LungeCm - 1);
+        Assert.InRange(hu.LungeCm, seal.LungeCm * 3 / 4, seal.LungeCm - 1);
         var d = DuelOf(Second(), Second(), 220);
         var hits = RunTo(d, hu.StartupFrames + hu.ActiveFrames, one: At(0, Slot.Square));
         Assert.Contains(hits, h => h.Attacker == Side.One && h.Landed);

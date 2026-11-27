@@ -191,7 +191,7 @@ public class KnockbackTests
         var d = RunString(130);
         Assert.Equal(new[] { "luohan_quan_1", "luohan_quan_2", "luohan_quan_3", "luohan_quan_4" }, d.Hits.Select(h => h.Technique.Id));
         var hits = Sheet().Values.Where(t => t.Id.StartsWith("luohan_quan_")).ToList();
-        int pushed = hits.Sum(t => t.KnockbackCm), stepped = hits.Sum(t => t.AdvanceCm);
+        int pushed = hits.Sum(t => t.KnockbackCm), stepped = hits.Sum(t => t.AdvanceCm + t.LungeCm);
         Assert.Equal(130 + pushed - stepped, d.DistanceCm);
     }
 
@@ -211,7 +211,7 @@ public class KnockbackTests
         // After the finisher's knockback, hit 1 can't reach: the string has a clear end.
         var d = RunString(110);
         var first = Sheet()["luohan_quan_1"];
-        Assert.True(d.DistanceCm > first.ReachCm + first.AdvanceCm);
+        Assert.True(d.DistanceCm > first.FullReachCm, $"the string ends {d.DistanceCm} cm apart, hit 1 reaches {first.FullReachCm}");
     }
 
     // ---------- The sheet column ----------

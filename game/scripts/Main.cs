@@ -64,6 +64,17 @@ public partial class Main : Node3D
             return;
         }
 
+        // "-- --pose-shots <folder> [pose names...]": render the poses to pictures and quit (scripts\pose-shots.bat).
+        var userArgs = OS.GetCmdlineUserArgs();
+        int shotsAt = System.Array.IndexOf(userArgs, "--pose-shots");
+        if (shotsAt >= 0)
+        {
+            var folder = shotsAt + 1 < userArgs.Length ? userArgs[shotsAt + 1] : "pose-shots";
+            var names = shotsAt + 2 < userArgs.Length ? userArgs[(shotsAt + 2)..] : System.Array.Empty<string>();
+            AddChild(new PoseShots(poses.Sheet!, folder, names));
+            return;
+        }
+
         // A fresh run each launch: the seed is rolled here, and every choice in the run follows from it.
         var arena = new Arena(rules.Rules!, result.Techniques, feel.Sheet!, brains.Sheet!, run.Sheet!, poses.Sheet!, (int)(GD.Randi() & 0x7fffffff));
         if (smoke)

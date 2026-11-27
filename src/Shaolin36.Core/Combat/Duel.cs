@@ -348,18 +348,23 @@ namespace Shaolin36.Core.Combat
         /// 硬气功 and 纵云梯 out of hitstun, and once a 外功 or 点穴 hit of a string connects the next hits turn to face your opponent.
         /// Fighter Two is the opponent brain: it walks back at cpu_walk_back_pct and loses you when you quick-step left or right
         /// (<see cref="Fighter.CanLoseLock"/>, set by the game, also needed). Only a boss (<paramref name="twoIsBoss"/>) may raise its
-        /// 防身 out of hitstun.
+        /// 防身 out of hitstun. Both may quick-step out of hitstun, but the opponent's brain only does as a mini boss or the boss
+        /// (<see cref="Brains.Brain.StepEscapePct"/>). Out of breath you still walk at full speed; the opponent slows to exhausted_walk_pct.
         /// </summary>
         public void FavourOne(bool twoIsBoss)
         {
             One.DefendsInHitstun = true;
             One.JumpsInHitstun = true;
+            One.StepsInHitstun = true;
             One.FacesOnConnect = true;
             One.WalkBackPct = 100;
+            One.WalksFullSpeedExhausted = true;
             Two.DefendsInHitstun = twoIsBoss;
             Two.JumpsInHitstun = false;
+            Two.StepsInHitstun = true;
             Two.FacesOnConnect = false;
             Two.WalkBackPct = Rules.CpuWalkBackPct;
+            Two.WalksFullSpeedExhausted = false;
         }
 
         /// <summary>
@@ -1060,7 +1065,7 @@ namespace Shaolin36.Core.Combat
         {
             if (!input.IsWalking || !f.CanAct) return FloorPoint.Zero;
             // Speeds are cm per second, which is exactly floor units per tick.
-            double speed = f.IsExhausted ? Rules.WalkSpeed * Rules.ExhaustedWalkPct / 100.0 : Rules.WalkSpeed;
+            double speed = f.IsExhausted && !f.WalksFullSpeedExhausted ? Rules.WalkSpeed * Rules.ExhaustedWalkPct / 100.0 : Rules.WalkSpeed;
             // Walking backwards (the opponents walk back slower than you walk forward, so you can catch them).
             if (input.Forward < 0) speed = speed * f.WalkBackPct / 100.0;
             // 无相劫指's movement lock slows walking too.

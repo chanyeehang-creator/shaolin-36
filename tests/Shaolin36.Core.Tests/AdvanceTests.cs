@@ -115,7 +115,7 @@ public class AdvanceTests
     }
 
     [Fact]
-    public void The_dummy_steps_in_with_its_string_too()
+    public void The_dummy_holds_its_ground_in_the_wind_up_and_lunges_on_the_hit()
     {
         var sheet = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques;
         var rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
@@ -125,9 +125,34 @@ public class AdvanceTests
         var d = new Duel(rules, new Loadout(book), dummyLoadout, -55, 55); // 110 cm apart, in 罗汉拳 reach
         var dummy = TrainingDummy.FromRules(rules, Slot.Square);
         int start = d.Two.XCm;
-        for (int t = 0; t <= rules.DummyPause + 13; t++) d.Step(None, dummy.Think(d.Two));
-        Assert.Equal(start - book.Find("luohan_quan_1")!.AdvanceCm, d.Two.XCm); // toward the player at -X
+        // 罗汉拳 holds its ground through the wind-up (Chan: the punch drives the body forward, not the wind-up)...
+        for (int t = 0; t < rules.DummyPause + 13; t++) d.Step(None, dummy.Think(d.Two));
+        Assert.Equal(start, d.Two.XCm);
+        Assert.Empty(d.Hits);
+        // ...then lunges over its 3 active frames, toward the player at -X.
+        for (int t = 0; t < 3; t++) d.Step(None, dummy.Think(d.Two));
+        Assert.Equal(start - book.Find("luohan_quan_1")!.LungeCm, d.Two.XCm);
         Assert.Single(d.Hits);
+    }
+
+    [Fact]
+    public void Huxing_quan_holds_the_tiger_pose_still_then_pounces_on_the_hit()
+    {
+        var sheet = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques;
+        var rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
+        var book = new TechniqueBook(sheet);
+        var tiger = book.Find("huxing_quan_1")!;
+        var loadout = new Loadout(book);
+        loadout.Assign(Slot.Square, tiger);
+        var d = new Duel(rules, loadout, new Loadout(book), 0, 240); // farther than its reach: only the pounce gets there
+        // Chan: the tiger pose (the wind-up) stands still...
+        for (int t = 0; t < tiger.StartupFrames; t++) d.Step(t == 0 ? SlotInput.Press(Slot.Square) : None, None);
+        Assert.Equal(0, d.One.XCm);
+        // ...then the pounce carries the body and the hit forward together over the active frames.
+        for (int t = 0; t < tiger.ActiveFrames && d.Hits.Count == 0; t++) d.Step(None, None);
+        Assert.True(d.One.XCm > 100, $"pounced {d.One.XCm} cm");
+        Assert.Single(d.Hits);
+        Assert.True(d.Hits[0].Landed);
     }
 
     // ---------- The sheet ----------
@@ -161,11 +186,22 @@ public class AdvanceTests
     public void Every_waigong_strike_on_the_sheet_steps_in_a_little()
     {
         var sheet = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques;
-        // 虎形拳 leaps (Chan: each hit a leap forward, farther than 罗汉拳), so up to 50; its first hit leaps almost as far
+        // 虎形拳 leaps (Chan: each hit a leap forward, farther than 罗汉拳), so up to 50; its first hit pounces almost as far
         // as 封穴's lunge, a little less (Chan).
         int lunge = sheet.Single(t => t.Id == "fengxue").LungeCm;
         foreach (var t in sheet.Where(t => t.Category == Category.Waigong))
-            Assert.InRange(t.AdvanceCm, 5, t.Id == "huxing_quan_1" ? lunge - 1 : t.Id.StartsWith("huxing") ? 50 : 30);
-        Assert.InRange(sheet.Single(t => t.Id == "huxing_quan_1").AdvanceCm, lunge * 3 / 4, lunge - 1);
+            Assert.InRange(t.AdvanceCm + t.LungeCm, 5, t.Id == "huxing_quan_1" ? lunge - 1 : t.Id.StartsWith("huxing") ? 50 : 30);
+        // 罗汉拳 steps on the hit, not in the wind-up (Chan: the punch or kick drives the body forward).
+        foreach (var t in sheet.Where(t => t.Id.StartsWith("luohan_quan_")))
+        {
+            Assert.Equal(0, t.AdvanceCm);
+            Assert.True(t.LungeCm > 0, t.Id);
+        }
+        // 虎形拳 (Chan, from the reference footage): hit 1 stands in the tiger pose, then pounces on the hit; hit 2 rolls forward
+        // in its wind-up; hit 3 stands on one leg charging, then stomps forward on the hit.
+        var hu = new[] { 1, 2, 3 }.Select(i => sheet.Single(t => t.Id == $"huxing_quan_{i}")).ToArray();
+        Assert.Equal(new[] { 0, 45, 0 }, hu.Select(t => t.AdvanceCm).ToArray());
+        Assert.InRange(hu[0].LungeCm, lunge * 3 / 4, lunge - 1);
+        Assert.Equal(45, hu[2].LungeCm);
     }
 }

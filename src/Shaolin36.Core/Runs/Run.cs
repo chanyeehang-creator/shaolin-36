@@ -131,9 +131,10 @@ namespace Shaolin36.Core.Runs
     public sealed class EnemyPlan
     {
         public EnemyPlan(int number, bool isBoss, bool isMiniboss, Loadout loadout, FighterStats stats, string brainId, int brainSeed,
-            int openingFrames = 0)
+            int openingFrames = 0, int stepEscapePct = 0)
         {
             OpeningFrames = openingFrames;
+            StepEscapePct = stepEscapePct;
             Number = number;
             IsBoss = isBoss;
             IsMiniboss = isMiniboss;
@@ -156,6 +157,9 @@ namespace Shaolin36.Core.Runs
         public int BrainSeed { get; }
         /// <summary>Its brain's <see cref="Brains.Brain.OpeningFrames"/>: miniboss_opening for a mini boss, boss_opening for the boss, else 0.</summary>
         public int OpeningFrames { get; }
+
+        /// <summary>Its brain's <see cref="Brains.Brain.StepEscapePct"/>: miniboss_step_escape for a mini boss, boss_step_escape for the boss, else 0.</summary>
+        public int StepEscapePct { get; }
     }
 
     /// <summary>
@@ -565,7 +569,8 @@ namespace Shaolin36.Core.Runs
             var stats = new FighterStats(hp, hp, Sheet.EnemyStamina, Sheet.EnemyQi, Sheet.EnemyQiStart);
             var brain = miniboss ? Sheet.MinibossBrain : Sheet.Brains[Math.Min(n, Sheet.Brains.Count) - 1];
             int opening = miniboss ? Sheet.MinibossOpening : boss ? Sheet.BossOpening : 0;
-            return new EnemyPlan(n, boss, miniboss, loadout, stats, brain, unchecked(Seed * 100 + n), opening);
+            int stepEscape = miniboss ? Sheet.MinibossStepEscape : boss ? Sheet.BossStepEscape : 0;
+            return new EnemyPlan(n, boss, miniboss, loadout, stats, brain, unchecked(Seed * 100 + n), opening, stepEscape);
         }
 
         // ------------------------------------------------------------ helpers

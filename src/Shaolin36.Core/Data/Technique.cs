@@ -363,7 +363,7 @@ namespace Shaolin36.Core.Data
 
         /// <summary>
         /// For a string starting with this technique: the farthest away the defender can stand when it starts
-        /// for every hit to stay in reach, given each hit's step forward and each landed hit's knockback (which
+        /// for every hit to stay in reach, given each hit's step forward (advance or lunge) and each landed hit's knockback (which
         /// has finished sliding by the next hit when knockback_frames is shorter than the gaps). Assumes the
         /// defender stands still on the line of the aim. <paramref name="find"/> looks up the next hits by id.
         /// Hits whose next id is missing end the string.
@@ -373,7 +373,7 @@ namespace Shaolin36.Core.Data
             int best = int.MaxValue, closed = 0, guard = 0;
             for (Technique? t = this; t != null && guard < 32; t = t.HasNext ? find(t.Next) : null, guard++)
             {
-                closed += t.AdvanceCm;
+                closed += t.AdvanceCm + t.LungeCm;
                 best = System.Math.Min(best, t.ReachCm + closed);
                 closed -= t.KnockbackCm;
             }

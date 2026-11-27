@@ -264,17 +264,19 @@ public class DuelTests
     }
 
     [Fact]
-    public void Luohan_quan_1_from_the_sheet_reaches_135_cm_with_its_step_in_for_6_damage_and_27_frames_hitstun()
+    public void Luohan_quan_1_from_the_sheet_reaches_135_cm_with_its_lunge_for_6_damage_and_27_frames_hitstun()
     {
         var sheet = TechniqueCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("techniques.csv"))).Techniques.ToDictionary(t => t.Id);
         var rules = RulesCsv.Parse(File.ReadAllText(GameDataTests.SheetPath("rules.csv"))).Rules!;
         var punch = sheet["luohan_quan_1"];
         var parry = sheet["timed_parry"];
 
-        // 125 cm reach, and it steps 10 cm forward during the wind-up.
+        // 125 cm reach, and it lunges 10 cm forward as the hit comes out: from 135 cm it connects once the lunge is
+        // done, on its last active frame; from its bare reach, on its first.
         var inReach = new Duel(rules, Holding(punch), Holding(parry), 0, 135);
         var hit = Assert.Single(OneAttacks(inReach));
-        Assert.Equal(13, hit.Tick);
+        Assert.Equal(15, hit.Tick);
+        Assert.Equal(13, Assert.Single(OneAttacks(new Duel(rules, Holding(punch), Holding(parry), 0, 125))).Tick);
         Assert.Equal(6, hit.Damage);
         Assert.Equal(27, hit.HitstunFrames);
         Assert.Equal(114, inReach.Two.Hp);

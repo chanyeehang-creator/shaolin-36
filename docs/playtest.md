@@ -23,7 +23,7 @@ A quick test of the roguelike loop. Every number below is in `game\data\run.csv`
 
 During a fight or while roaming, Tab / Esc / pad Start pauses (your stats and power-ups are on the pause screen). Paused, **Enter gives the run up** and starts over. There is no restart key or "opponent stands still" in the run. The HUD's button line shows `+N` after a move with N power-ups.
 
-The run sheet's keys: `fights`, `player_hp`, `player_stamina`, `player_qi`, `hp_up`/`hp_cap`, `stamina_up`/`stamina_cap`, `qi_up`/`qi_cap`, `upgrade_max`, `upgrade_damage_pct`, `upgrade_stamina_pct`, `win_heal_pct`, `rarity_common`/`rarity_uncommon`/`rarity_rare` (must add up to 100), `super_rare_from`/`super_rare_to`/`super_rare_pct`, `skill_choices`, `scroll_picks`, `miniboss_hp_bonus`, `miniboss_brain`, the door lists `first_doors_a`/`first_doors_b`, `three_doors` (the chambers reached through 3 doors), `enemy_hp`, `enemy_hp_step`, `boss_hp`, `enemy_stamina`, `enemy_qi`, `enemy_qi_start`, `enemy_moves_max`, `enemy_tiger_from`, and the lists `starters`, `enemy_first`, `enemy_waigong` and `brains` (one brain per fight).
+The run sheet's keys: `fights`, `player_hp`, `player_stamina`, `player_qi`, `hp_up`/`hp_cap`, `stamina_up`/`stamina_cap`, `qi_up`/`qi_cap`, `upgrade_max`, `upgrade_damage_pct`, `upgrade_stamina_pct`, `win_heal_pct`, `rarity_common`/`rarity_uncommon`/`rarity_rare` (must add up to 100), `super_rare_from`/`super_rare_to`/`super_rare_pct`, `skill_choices`, `scroll_picks`, `miniboss_hp_bonus`, `miniboss_brain`, `miniboss_opening`/`boss_opening`, `miniboss_step_escape`/`boss_step_escape`, the door lists `first_doors_a`/`first_doors_b`, `three_doors` (the chambers reached through 3 doors), `enemy_hp`, `enemy_hp_step`, `boss_hp`, `enemy_stamina`, `enemy_qi`, `enemy_qi_start`, `enemy_moves_max`, `enemy_tiger_from`, and the lists `starters`, `enemy_first`, `enemy_waigong` and `brains` (one brain per fight).
 ## 1. Get the new version on your PC
 
 You already have the repo at `D:\GitHub\shaolin-36` in GitHub Desktop.
@@ -87,7 +87,7 @@ On the **pause menu**, the top seven rows are the categories. Highlight one and 
 
 ## 5. Reading the screen
 
-The fighters are jointed stick figures. Every move has a **wind-up pose** and a **strike pose** (in `game/data/poses.csv`), timed to its frame data: the body reaches the wind-up halfway through the startup and holds it, cocked (that's the tell to read), snaps into the strike on the first active frame, exactly when the hit can land, and eases back to the stance over the recovery. The hitboxes don't change: the pose only shows them. Hits, staggers, grabs, knockdowns and quick steps have poses of their own.
+The fighters are jointed stick figures. Every move has a **wind-up pose** and a **strike pose** (in `game/data/poses.csv`), timed to its frame data: the body reaches the wind-up halfway through the startup and holds it, cocked (that's the tell to read), snaps into the strike on the first active frame, exactly when the hit can land, and eases back to the stance over the recovery. The hitboxes don't change: the pose only shows them. Hits, staggers, grabs, knockdowns and quick steps have poses of their own. 罗汉拳 is posed from reference footage of the form: 1 a knee raise with the right arm arched overhead, then a side-on horse stance strike under the arch; 2 the right fist (down from the arch) cocked by the head, then a bow-stance right punch, forward and up; 3 the right knee chambered, then a high right front kick; 4 the palm drawn back as it steps in, then a deep bow-stance palm strike. A leg raised to about hip level (a kick, a knee raise) stays off the floor. To check poses without playing, double-click `scripts\pose-shots.bat`: it saves a picture of every pose (as you see an opponent, from its right and from its left) in the `pose-shots` folder and opens it. Add pose names after it to picture just those, e.g. `scripts\pose-shots.bat luohan_quan_3.windup luohan_quan_3.strike` from a Command Prompt.
 
 They also change colour with what they are doing:
 
@@ -117,7 +117,7 @@ The top lines show both HP bars and stamina bars, what each fighter is doing wit
 - **A perfect parry gives your 10 back** and the attacker loses 15 more ("+10 stamina" / "-15 stamina" float up).
 - **Clashes cost a little:** 5 each for a same-weight clash, 8 for the side that loses.
 - **Getting it back:** nothing while you're doing a move. Half a second (30 frames) after your last move, it refills at 40 per second standing still, or 25 per second while walking or reeling from a hit.
-- **At 0 you're exhausted** (the bar turns orange, "Exhausted!" floats up): you can't use any move that costs stamina, so **no 化绵掌, your guard is broken**. You walk at half speed and take 20% extra damage (a 6-damage hit does 7, the 12-damage finisher does 14). It lasts until the bar is back to 50: about 1.75 s if you stand still. Then "Breath back".
+- **At 0 you're exhausted** (the bar turns orange, "Exhausted!" floats up): you can't use any move that costs stamina, so **no 化绵掌, your guard is broken**, and no quick step or 轻功 either. You still walk at full speed (new: only opponents slow to half speed when out of breath), but you take 20% extra damage (a 6-damage hit does 7, the 12-damage finisher does 14). It lasts until the bar is back to 50: about 1.75 s if you stand still. Then "Breath back".
 - The dummy gets exhausted too: its 3rd string in a row empties it (on the finisher), and it rests about 2.5 s before attacking again. That's your moment: it can't attack or parry and takes extra damage.
 
 **Qi (气):** the gold bar after stamina, 0 to 100. Every duel starts you on 0, and it never refills by itself: you earn it by fighting well.
@@ -197,7 +197,7 @@ Hits also **push the defender back** (knockback). This is a rule, not just a loo
 | What happened | Pushed back |
 | --- | --- |
 | 罗汉拳 hits 1 to 3 | 4 cm each |
-| 罗汉拳 finisher | 60 cm, so the string ends with them out of reach |
+| 罗汉拳 finisher | 70 cm (its lunge follows them 10 cm), so the string ends with them out of reach |
 | 铁砂掌 (plain or Qi) | 50 cm |
 | Same-weight clash | both fighters 25 cm, a real reset (110 cm apart becomes 160) |
 | Hit on hyper armor, a parry, a lost clash | nobody moves |
@@ -207,6 +207,7 @@ Because of the small pushes, the full 罗汉拳 string only stays in reach if yo
 **The opponent brain (Stage 3).** The opponent is now played by a brain that uses the same buttons and stick you do: the same three techniques (罗汉拳 on □, 铁砂掌 on △, 化绵掌 on L1), the same stamina, Qi and frame data, and the quick step. It never reads your buttons. It only "sees" what you do a little late, like a person reacting. What it does, in order of priority:
 
 1. **Carries on its string:** at each link of its 罗汉拳 it decides whether to press for the next hit. When it does, it presses on the first chain frame, so the rest of the string is a true combo once hit 1 lands.
+   - **Getting out of your combo (new).** Once it notices it's been hit (its reaction time), it may dash out with a 轻功 dash if it has one (its `step` chance), and only if your combo caught it **doing nothing**: hit during its own attack, its string or just after one (its opening), it always takes the rest of your combo. Ordinary opponents never quick-step out. The mini boss and the boss can, also only when caught doing nothing: the mini boss 30% of the time, the boss 60% (`miniboss_step_escape` and `boss_step_escape` in `run.csv`). The top line says "stepped out of your combo".
 2. **Answers a strike it sees coming:** a clash (拼招) when it can: it times its own strike to land in your move's clash window (the perfect frames when it can, which break your move and give it 10 Qi; the plain frames only with a move at least as heavy as yours). Otherwise a parry timed for your hit frame (sometimes aiming for the perfect part, sometimes the plain block part), or else a quick step to the side.
 3. **Backs off to breathe** when its stamina is low (it walks back to 250 cm and waits). It still parries if it can pay for it.
 4. **Punishes:** if it sees you recovering from a move, staggered or recoiling while you're in its reach, it may attack straight away.
@@ -247,7 +248,7 @@ Things worth knowing when you fight it:
 | 罗汉拳 finisher | 140 cm | 90°: a wide hook, harder to step round |
 | 铁砂掌 | 130 cm | 60° |
 
-**Attacks step in (外功).** Fighters no longer punch from where they stand: each 外功 strike moves the attacker forward along its aim during the wind-up, so the step is done as the hit comes out. This is the same for you and the dummy. It stops when the two of you are touching (80 cm apart).
+**Attacks step in (外功).** Fighters no longer punch from where they stand: each 外功 strike moves the attacker forward along its aim during the wind-up, so the step is done as the hit comes out. This is the same for you and the dummy. It stops when the two of you are touching (80 cm apart). **罗汉拳 is different (new):** it holds its ground through the wind-up and its step comes on the hit instead (a 10-15 cm lunge over the active frames), so the punch or kick drives the body forward. Same distance as before, so its reach is unchanged.
 
 | Move | Steps forward | Over |
 | --- | --- | --- |
@@ -264,6 +265,7 @@ So the whole 罗汉拳 string walks 41 cm forward, and it now reaches if you sta
 - **70 cm forward or back, 90 cm left or right**, in **8 frames (0.13 s)**, then **6 frames (0.1 s)** before you can act again: 14 frames (0.23 s) in all. Walking covers 70 cm in 0.35 s, so it's about three times as fast, but it's a step, not a roll or a dash.
 - The second tap must come within **14 frames (0.23 s)** of the first. Only the four straight directions count: a diagonal does nothing.
 - Costs **6 stamina**. You can't quick step while exhausted.
+- **Quick step out of a combo (new).** Caught by a string? Double-tap a direction while you're still reeling (white) and you step out of the hitstun at once, like the 轻功 dash escape: same 6 stamina, same invincible slide, and it never gives a just dodge. Not while exhausted, and not while 点穴-locked (【困】). "Escaped!" floats up when it works.
 - **Invincible while it slides, open in its recovery (new).** The whole 8-frame slide (0.13 s) is invincible: a strike that lands then passes through you. The 6-frame recovery is not, so a strike that lands after the slide hits you as normal. That's fewer invincible frames than the 轻功 dash (10 frames, 0.17 s), and unlike the dash a strike it slips gives **no just dodge and no Qi**. The capsule turns pale cyan while it's invincible. A side step as the dummy starts its 罗汉拳 wind-up (yellow) still takes you out of the punch's wedge, and you end up at its side, in reach for your own punch. The number is `quick_step_invincible` in `rules.csv` (at most `quick_step_frames`).
 - Left and right steps curve round the dummy, so you stay about the same distance away.
 - Pressed while you're busy (in a move, or just hit), it waits up to 6 frames (the input buffer) and comes out as soon as you're free, like a button press.
@@ -284,7 +286,7 @@ All the numbers are in two sheets you can open in Excel (save as **CSV UTF-8**),
   - `parry_recovery`, `parry_perfect_recovery`, `parry_perfect_stagger`: how long you recover after a block or a perfect parry, and how long a perfect parry staggers the attacker.
   - `clash_recoil_frames`, `clash_lose_stagger`, `clash_perfect_stagger`, `clash_perfect_recovery`: the clash results.
   - `stamina_max`, `stamina_regen`, `stamina_regen_still`, `stamina_regen_delay`: max stamina and how fast it comes back.
-  - `exhausted_until`, `exhausted_damage_pct`, `exhausted_walk_pct`: how long exhaustion lasts, the extra damage and the slower walk.
+  - `exhausted_until`, `exhausted_damage_pct`, `exhausted_walk_pct`: how long exhaustion lasts, the extra damage and the opponents' slower walk (you always walk at full speed).
   - `parry_perfect_drain`: how much stamina a perfect parry takes from the attacker. Each move's own cost is the `stamina` column of `techniques.csv`.
   - 铁砂掌's power-up is three columns in `techniques.csv`: `empower_qi` (30), `empower_damage_pct` (200 = double) and `empower_armor` (true). Any technique can get them.
   - `qi_max`, `qi_start`, `qi_per_hit`, `parry_perfect_qi`, `clash_perfect_qi`: the Qi bar's size, what you start on, and what a hit, a perfect parry and a perfect clash give.
@@ -311,7 +313,8 @@ Run `scripts\test.bat` after editing to check the sheets.
 
 Switch them in the pause menu (Tab, Esc or pad Start). The numbers are in `techniques.csv` and `rules.csv`.
 
-- **虎形拳 (外功, □).** Three medium hits, 8 + 8 + 10 = 26 damage (罗汉拳: 31). Each hit leaps: hit 1 springs **125 cm** forward (封穴's lunge is 140), hits 2 and 3 45 cm (罗汉拳 steps 10 to 15). An even beat, hit - hit - hit: hit 1 winds up 18 frames, then the hits land **17 frames apart** (about 30% slower than before), against 罗汉拳's hit, hithit, hit. Tap □ in each chain window like 罗汉拳; it connects from 245 cm away.
+- **虎形拳 (外功, □).** Three medium hits, 8 + 8 + 10 = 26 damage (罗汉拳: 31). Each hit leaps: hit 1 springs **125 cm** forward (封穴's lunge is 140), hits 2 and 3 45 cm (罗汉拳 steps 10 to 15). A nearly even beat, hit - hit - hit: hit 1 winds up 18 frames, then the hits land **about 17 frames apart** (about 30% slower than before), against 罗汉拳's hit, hithit, hit. Tap □ in each chain window like 罗汉拳; it connects from 245 cm away.
+  **Its poses (new, from the reference footage):** hit 1 stands still in the tiger form (square on in a horse stance, one claw curled over the head, the other low), then **pounces**: a diving lunge with both claws out, the hit carried along with the body over 0.1 s. Hit 2 comes up out of the roll in a low crouch (moving forward 45 cm as it does) and strikes with the left claw from a bow stance, the right arm arched over the head. Hit 3 stands on the left leg with the right knee raised, aiming with the left hand and charging the right at the waist, then **stamps forward** 45 cm as the right hand shoots out. From 150 cm the pounce lands on its 2nd frame, so the hits land 19 then 17 frames apart. The forward roll itself can't show (each hit has one wind-up pose), so it's the crouch.
 - **狮吼功 (内功, △).** Stand still and roar: 0.4 s wind-up, then a ring 220 cm all round you. Needs 5 Qi and spends it; you can't use it with less. 20 damage and knocks down. It's **pure energy**: no light, medium or heavy move can clash it (a strike into its wind-up just hits you), and two energy moves that meet cancel out ("Cancelled!"), whatever they cost. 化绵掌 can block it but never perfect-parry it; 硬气功 takes half. 0.6 s recovery if it misses.
 - **纵云梯 (轻功, ✕).** A high jump: 300 cm the way you hold the stick (none = straight at your opponent), over their head, so from 150 cm away you land 150 cm behind them. Invincible for its first 6 frames but never a just dodge, and you can be hit in the air after that. 15 stamina like the dash. It can't break out of a combo (only the dash can).
   **Landing behind them loses you:** the opponent stays facing where you took off and keeps going the way it was moving or attacking. It finds you again only once it **stands still** for a while: the novice 3 s, the monk 1.5 s, the master as soon as it stops. Hitting it or knocking it down makes it find you at once. Even then it turns round over 0.3 s instead of snapping back, so you get a moment at its back. While it is lost the HUD says "lost you after your jump". You never lose your opponent yourself.

@@ -8,7 +8,7 @@ stamina_regen_still,40,Stamina per second while standing still
 stamina_regen_delay,30,Frames after your last move (or last stamina lost) before regen starts
 exhausted_until,50,At 0 stamina you are exhausted until it refills to this: no moves that cost stamina (so no parry: your guard is broken)
 exhausted_damage_pct,120,Damage taken while exhausted (100 = normal)
-exhausted_walk_pct,50,Walking speed while exhausted (100 = normal)
+exhausted_walk_pct,50,The opponents' walking speed while exhausted (100 = normal). You always walk at full speed: out of breath you just can't quick step 轻功 or attack (Chan)
 qi_max,100,Max Qi
 qi_start,0,Qi at the start of a run
 qi_per_hit,2,Qi for landing a hit

@@ -49,6 +49,8 @@ namespace Shaolin36.Core.Brains
         Resting,
         /// <summary>Caught in a combo: dashed out of the hitstun.</summary>
         Escaping,
+        /// <summary>Caught in a combo while doing nothing: quick-stepped out of the hitstun (a mini boss or the boss).</summary>
+        SteppingOut,
         /// <summary>Out of reach and hurt: channelling a 炼气 heal.</summary>
         Healing,
         /// <summary>Close in: going for a 擒拿 grab.</summary>
@@ -133,6 +135,8 @@ namespace Shaolin36.Core.Brains
         private Slot _plannedClashSlot;
         private int _hitstunTicks;                 // ticks in a row it has been in hitstun
         private bool _escapeDecided;               // rolled for a combo escape in this run of hitstun
+        private bool _freeLastTick = true;         // on the tick before: idle and not in its opening (doing nothing)
+        private bool _hitWhileFree;                // this run of hitstun caught it doing nothing: it may get out of the way
         private int _decidedOpening = int.MinValue;
         private int _decidedLink = -1;
         private int _choiceTicksLeft;
@@ -162,6 +166,14 @@ namespace Shaolin36.Core.Brains
         /// Attack first instead and it defends as usual.
         /// </summary>
         public int OpeningFrames { get; set; }
+
+        /// <summary>
+        /// Chan: caught in a combo while doing nothing (not attacking, not in a string of its own, not in its opening after
+        /// one), the chance (0-100) it gets out of the way once it notices, its reaction time later: a dash if it has an escape
+        /// move, otherwise a quick step back or to the side. 0 = it never quick-steps out, and dashes out at its step chance as
+        /// before. Set for a mini boss (miniboss_step_escape) and the boss (boss_step_escape), never other opponents.
+        /// </summary>
+        public int StepEscapePct { get; set; }
 
         /// <summary>True while it is open after an attack of its own (see <see cref="OpeningFrames"/>).</summary>
         public bool IsOpen(int tick) => tick < _openUntil;
@@ -207,22 +219,37 @@ namespace Shaolin36.Core.Brains
                 if (foe.State.IsInMove()) _decidedAttack = Math.Max(_decidedAttack, MoveStart(foe, duel.Tick));
             }
 
-            // 0. Caught in a combo: once it has noticed (its reaction time), maybe dash back out of it.
+            // What it was doing on the tick before this one: a combo that catches it doing nothing is one it may get out of;
+            // one that catches it attacking, in a string or in its opening after an attack it never does (Chan).
+            bool wasFree = _freeLastTick;
+            _freeLastTick = me.CanAct && !selfOpen;
+
+            // 0. Caught in a combo: once it has noticed (its reaction time), maybe dash or quick-step back out of it.
             if (me.State == FighterState.Hitstun)
             {
                 _hitstunTicks++;
+                if (_hitstunTicks == 1) _hitWhileFree = wasFree;
                 // The boss (DefendsInHitstun) can parry or guard the next hit of the combo, if it sees it coming.
                 if (me.DefendsInHitstun && !selfOpen)
                 {
                     var defend = DefendInHitstun(duel, me, foe, distance);
                     if (defend != null) return defend.Value;
                 }
-                if (!selfOpen && !_escapeDecided && _hitstunTicks >= Math.Max(1, Style.Reaction) && next == FighterState.Hitstun)
+                if (_hitWhileFree && !selfOpen && !_escapeDecided && _hitstunTicks >= Math.Max(1, Style.Reaction) && next == FighterState.Hitstun)
                 {
                     _escapeDecided = true;
                     var escape = EscapeSlot(me);
-                    if (escape != null && me.CanUse(me.Loadout[escape.Value]!) && _dice.Chance(Style.Step))
-                        return Dash(escape.Value, MoveInput.WalkBack, BrainIntent.Escaping);
+                    bool dash = escape != null && me.CanUse(me.Loadout[escape.Value]!);
+                    bool step = StepEscapePct > 0 && me.CanQuickStepOutOfHitstun;
+                    // A mini boss or the boss: its own chance, by dash if it has one, otherwise a quick step. Anyone else: a dash
+                    // at its step chance.
+                    if ((dash || step) && _dice.Chance(StepEscapePct > 0 ? StepEscapePct : Style.Step))
+                    {
+                        if (dash) return Dash(escape!.Value, MoveInput.WalkBack, BrainIntent.Escaping);
+                        Intent = BrainIntent.SteppingOut;
+                        var way = _dice.Chance(50) ? StepDirection.Back : _dice.Chance(50) ? StepDirection.Left : StepDirection.Right;
+                        return new BrainInput(SlotInput.None, MoveInput.Step(way));
+                    }
                 }
                 return BrainInput.None;
             }
@@ -842,6 +869,7 @@ namespace Shaolin36.Core.Brains
         /// <summary>
         /// How close it walks in before it will attack: the shortest full reach (reach plus step-in) among its
         /// attacks, less <see cref="EngageMarginCm"/>, so every attack it has will reach. 0 if it has no attacks.
+        /// A lunge (the step on the hit, 罗汉拳's or 封穴's) doesn't count: it walks in until the hit reaches as it comes out.
         /// </summary>
         public static int EngageDistance(Fighter me)
         {

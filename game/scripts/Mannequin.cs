@@ -131,7 +131,8 @@ public partial class Mannequin : Node3D
     /// <summary>
     /// Sets every joint to <paramref name="p"/> (a pose gallery or tool can call this directly). With
     /// <paramref name="plantFeet"/>, the lower foot rests on the floor and the other knee straightens until that foot
-    /// reaches it too, so stances stand on both feet. Leave it off in the air or lying down.
+    /// reaches it too, so stances stand on both feet; a leg raised to about hip level (<see cref="FootLift"/>: a kick, a
+    /// knee raise) keeps its foot in the air instead. Leave it off in the air or lying down.
     /// </summary>
     public void Apply(Pose p, bool plantFeet = true)
     {
@@ -151,15 +152,23 @@ public partial class Mannequin : Node3D
 
         _hips.Position = new Vector3(0, HipHeight, 0);
         float right = FootY(_legR, _kneeR), left = FootY(_legL, _kneeL);
-        if (plantFeet && Mathf.Abs(right - left) > 0.005f)
+        // A kick or a knee raise keeps its foot up (fully from FootLift.FullDegrees); every other pose stands on both.
+        int lift = plantFeet ? FootLift.Of(p, out _) : 1000;
+        if (lift < 1000 && Mathf.Abs(right - left) > 0.005f)
         {
             // Both feet on the floor: change the higher leg's knee (as little as it can) until its foot is level with
             // the other; if it can't reach, bend the lower leg's knee to meet it.
             bool rightHigher = right > left;
             var (hiHip, hiKnee, hiBend) = rightHigher ? (_legR, _kneeR, kneeR) : (_legL, _kneeL, kneeL);
             var (loHip, loKnee, loBend) = rightHigher ? (_legL, _kneeL, kneeL) : (_legR, _kneeR, kneeR);
-            float high = Fit(hiHip, hiKnee, hiBend, Mathf.Min(right, left), 0);
-            Fit(loHip, loKnee, loBend, high, loBend);
+            float high = Fit(hiHip, hiKnee, hiBend, Mathf.Min(right, left), 0, out int hiFit);
+            Fit(loHip, loKnee, loBend, high, loBend, out int loFit);
+            // A leg on its way up (a blend into a kick) lets its foot leave the floor gradually.
+            if (lift > 0)
+            {
+                Knee(hiKnee, Mathf.Lerp(hiFit, hiBend, lift / 1000f));
+                Knee(loKnee, Mathf.Lerp(loFit, loBend, lift / 1000f));
+            }
         }
         // The lower foot on the floor: bent knees crouch the body instead of floating the feet.
         float lowest = Mathf.Min(FootY(_legR, _kneeR), FootY(_legL, _kneeL));
@@ -171,9 +180,9 @@ public partial class Mannequin : Node3D
     /// <summary>
     /// Sets the knee to the bend (from <paramref name="least"/> to <see cref="MaxKneeBend"/> degrees) that brings the foot
     /// closest to height <paramref name="target"/>, the nearest to <paramref name="bend"/> among equally good ones.
-    /// Returns the foot's height.
+    /// Returns the foot's height, and the bend in <paramref name="chosen"/>.
     /// </summary>
-    private float Fit(Node3D hip, Node3D knee, int bend, float target, int least)
+    private float Fit(Node3D hip, Node3D knee, int bend, float target, int least, out int chosen)
     {
         int best = bend;
         float bestGap = float.MaxValue;
@@ -190,6 +199,7 @@ public partial class Mannequin : Node3D
             }
         }
         Knee(knee, best);
+        chosen = best;
         return FootY(hip, knee);
     }
 

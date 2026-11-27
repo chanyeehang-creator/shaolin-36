@@ -60,8 +60,9 @@ public class BrainTests
     public void Engage_distance_is_the_shortest_full_reach_less_the_margin()
     {
         var d = DuelAt(400);
-        // 罗汉拳 hit 1: 125 reach + 10 step-in; 铁砂掌: 130 + 20. The parry has no reach.
-        Assert.Equal(135 - Brain.EngageMarginCm, Brain.EngageDistance(d.Two));
+        // 罗汉拳 hit 1: 125 reach (its 10 cm lunge on the hit doesn't count: it walks in until the punch reaches as it
+        // comes out); 铁砂掌: 130 + 20 step-in. The parry has no reach.
+        Assert.Equal(125 - Brain.EngageMarginCm, Brain.EngageDistance(d.Two));
     }
 
     [Fact]

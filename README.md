@@ -13,7 +13,7 @@ Built in **Godot 4.7 (.NET / C#)**. The combat rules live in a plain C# library 
 | `tools/DataCheck/` | Check script: rejects bad rows in the data sheets before the game loads them. |
 | `game/` | The Godot project (`project.godot`). Shows and drives the core; holds scenes, scripts and assets. |
 | `game/data/` | The data sheets (CSV exported from the xlsx). `techniques.csv` is the technique sheet; `run.csv` holds the demo run's numbers; `rules.csv` holds base stats and the clash and parry numbers; `feel.csv` holds the hit feel (hit-stop, sparks, sound, camera) for each kind of strike; `brains.csv` holds how each opponent brain plays; `poses.csv` holds the stick-figure fighters' key poses (a wind-up and a strike for each move, timed to its frame data). |
-| `scripts/` | One-click Play, test and headless boot scripts. |
+| `scripts/` | One-click Play, test and headless boot scripts, and `pose-shots.bat`, which saves a picture of every stick-figure pose. |
 | `.github/workflows/` | CI: data check, core tests and a headless Godot boot on every push. |
 
 ## What you need

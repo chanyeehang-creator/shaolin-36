@@ -7,6 +7,9 @@
 # roll  = for arms and legs, swing out to the side (left and right use the same sign, so mirror a pose by swapping _l and _r);
 #         for hips, chest and head, tilt to the right.
 # The feet stay on the floor by themselves (the game lifts the body so the lower foot touches it), so a deeper knee bend crouches.
+# Kicks and knee raises: a leg swung 85 degrees or more (pitch or roll: the thigh about level with the hip) keeps its foot
+# off the floor, and the pose stands on the other leg. From 75 to 85 the foot lifts gradually. Raise both legs and both stand.
+# To see poses without playing, run scripts\pose-shots.bat (pictures of every pose land in the pose-shots folder).
 #
 # Every move needs a wind-up and a strike pose: "<technique id>.windup" / ".strike", or else its category's
 # ("waigong.windup", "neigong.strike", ...). Timed to the frame data: the body reaches the wind-up halfway through the startup
@@ -74,7 +77,7 @@ step,leg_l,30,0,8
 step,knee_l,40,0,0
 step,leg_r,-25,0,8
 step,knee_r,45,0,0
-# ---- 外功 default (罗汉拳 1 冲拳): pull the right fist back, then a straight punch with the hips behind it.
+# ---- 外功 default (any 外功 move without poses of its own): pull the right fist back, then a straight punch with the hips behind it.
 waigong.windup,hips,8,-25,0
 waigong.windup,chest,5,-15,0
 waigong.windup,arm_l,75,0,-5
@@ -96,138 +99,180 @@ waigong.strike,leg_l,38,0,6
 waigong.strike,knee_l,35,0,0
 waigong.strike,leg_r,-30,0,6
 waigong.strike,knee_r,8,0,0
-# 罗汉拳 2 连拳: the left fist, the mirror of hit 1.
-luohan_quan_2.windup,hips,8,-5,0
-luohan_quan_2.windup,chest,5,20,0
-luohan_quan_2.windup,arm_r,65,0,-5
-luohan_quan_2.windup,elbow_r,45,0,0
-luohan_quan_2.windup,arm_l,-35,0,10
-luohan_quan_2.windup,elbow_l,120,0,0
-luohan_quan_2.windup,leg_l,30,0,6
-luohan_quan_2.windup,knee_l,35,0,0
-luohan_quan_2.windup,leg_r,-22,0,6
-luohan_quan_2.windup,knee_r,35,0,0
-luohan_quan_2.strike,hips,10,-30,0
-luohan_quan_2.strike,chest,8,-20,0
-luohan_quan_2.strike,head,0,30,0
-luohan_quan_2.strike,arm_l,88,0,-8
-luohan_quan_2.strike,elbow_l,5,0,0
-luohan_quan_2.strike,arm_r,-25,0,8
-luohan_quan_2.strike,elbow_r,110,0,0
-luohan_quan_2.strike,leg_l,38,0,6
-luohan_quan_2.strike,knee_l,38,0,0
-luohan_quan_2.strike,leg_r,-28,0,6
-luohan_quan_2.strike,knee_r,12,0,0
-# 罗汉拳 3 挑掌: dip low, then a rising palm up under the chin.
-luohan_quan_3.windup,hips,18,-10,0
-luohan_quan_3.windup,chest,15,10,0
-luohan_quan_3.windup,arm_r,15,0,5
-luohan_quan_3.windup,elbow_r,95,0,0
-luohan_quan_3.windup,arm_l,40,0,-5
-luohan_quan_3.windup,elbow_l,80,0,0
-luohan_quan_3.windup,leg_l,35,0,8
-luohan_quan_3.windup,knee_l,50,0,0
-luohan_quan_3.windup,leg_r,-20,0,8
-luohan_quan_3.windup,knee_r,50,0,0
-luohan_quan_3.strike,hips,0,10,0
-luohan_quan_3.strike,chest,-10,25,0
-luohan_quan_3.strike,head,-10,-25,0
-luohan_quan_3.strike,arm_r,150,0,-5
-luohan_quan_3.strike,elbow_r,20,0,0
-luohan_quan_3.strike,arm_l,-20,0,10
+# ---- 罗汉拳, from reference footage of the form (the whole string leads with the left side, like the stance).
+# 罗汉拳 1: stand on the right leg with the left knee raised, right arm arched over the head, left palm by the chest;
+# then stamp down into a side-on horse stance (马步): the left hand strikes out at the opponent while the right arm
+# stays arched overhead as a block (上架下打).
+luohan_quan_1.windup,hips,0,-70,0
+luohan_quan_1.windup,chest,0,-10,0
+luohan_quan_1.windup,head,5,60,0
+luohan_quan_1.windup,arm_r,155,-90,0
+luohan_quan_1.windup,elbow_r,95,0,0
+luohan_quan_1.windup,arm_l,30,0,-15
+luohan_quan_1.windup,elbow_l,100,0,0
+luohan_quan_1.windup,leg_l,85,0,15
+luohan_quan_1.windup,knee_l,95,0,0
+luohan_quan_1.windup,leg_r,0,0,5
+luohan_quan_1.windup,knee_r,15,0,0
+luohan_quan_1.strike,hips,0,-75,0
+luohan_quan_1.strike,chest,0,-15,0
+luohan_quan_1.strike,head,0,80,0
+luohan_quan_1.strike,arm_l,0,0,85
+luohan_quan_1.strike,elbow_l,10,0,0
+luohan_quan_1.strike,arm_r,155,-90,0
+luohan_quan_1.strike,elbow_r,95,0,0
+luohan_quan_1.strike,leg_l,72,-55,0
+luohan_quan_1.strike,knee_l,75,0,0
+luohan_quan_1.strike,leg_r,72,-55,0
+luohan_quan_1.strike,knee_r,75,0,0
+# 罗汉拳 2: the right arm comes down from the arch, its fist cocked by the head, the left fist drawn back to the hip;
+# then a left bow stance (弓步) and the right fist punches forward and up, the right shoulder driving through.
+luohan_quan_2.windup,hips,5,-45,0
+luohan_quan_2.windup,chest,5,-10,0
+luohan_quan_2.windup,head,0,50,0
+luohan_quan_2.windup,arm_r,60,0,15
+luohan_quan_2.windup,elbow_r,125,0,0
+luohan_quan_2.windup,arm_l,-30,0,10
+luohan_quan_2.windup,elbow_l,110,0,0
+luohan_quan_2.windup,leg_l,45,0,8
+luohan_quan_2.windup,knee_l,50,0,0
+luohan_quan_2.windup,leg_r,-35,0,8
+luohan_quan_2.windup,knee_r,0,0,0
+luohan_quan_2.strike,hips,10,-20,0
+luohan_quan_2.strike,chest,5,35,0
+luohan_quan_2.strike,head,-5,-15,0
+luohan_quan_2.strike,arm_r,120,0,15
+luohan_quan_2.strike,elbow_r,0,0,0
+luohan_quan_2.strike,arm_l,-35,0,10
+luohan_quan_2.strike,elbow_l,115,0,0
+luohan_quan_2.strike,leg_l,52,0,8
+luohan_quan_2.strike,knee_l,62,0,0
+luohan_quan_2.strike,leg_r,-42,0,8
+luohan_quan_2.strike,knee_r,0,0,0
+# 罗汉拳 3: chamber the right (back) knee high, both fists at the hips, then a high right front kick (弹腿) standing on the left leg.
+# A leg raised to about hip level keeps its foot off the floor.
+luohan_quan_3.windup,hips,0,10,0
+luohan_quan_3.windup,chest,-5,0,0
+luohan_quan_3.windup,head,0,-10,0
+luohan_quan_3.windup,arm_l,-30,0,12
+luohan_quan_3.windup,elbow_l,110,0,0
+luohan_quan_3.windup,arm_r,-30,0,12
+luohan_quan_3.windup,elbow_r,110,0,0
+luohan_quan_3.windup,leg_r,95,0,5
+luohan_quan_3.windup,knee_r,110,0,0
+luohan_quan_3.windup,leg_l,0,0,5
+luohan_quan_3.windup,knee_l,10,0,0
+luohan_quan_3.strike,hips,-5,10,0
+luohan_quan_3.strike,chest,-5,0,0
+luohan_quan_3.strike,head,5,-10,0
+luohan_quan_3.strike,arm_l,-30,0,12
 luohan_quan_3.strike,elbow_l,110,0,0
-luohan_quan_3.strike,leg_l,30,0,6
-luohan_quan_3.strike,knee_l,20,0,0
-luohan_quan_3.strike,leg_r,-25,0,6
-luohan_quan_3.strike,knee_r,5,0,0
-# 罗汉拳 4 收势重拳: the big finisher. Coil deep, then the whole body behind the right fist.
-luohan_quan_4.windup,hips,5,-40,0
-luohan_quan_4.windup,chest,-5,-25,0
-luohan_quan_4.windup,head,0,40,0
-luohan_quan_4.windup,arm_l,85,0,-5
-luohan_quan_4.windup,elbow_l,20,0,0
-luohan_quan_4.windup,arm_r,-55,0,12
-luohan_quan_4.windup,elbow_r,130,0,0
-luohan_quan_4.windup,leg_l,35,0,10
-luohan_quan_4.windup,knee_l,50,0,0
-luohan_quan_4.windup,leg_r,-28,0,10
-luohan_quan_4.windup,knee_r,50,0,0
-luohan_quan_4.strike,hips,18,15,0
-luohan_quan_4.strike,chest,12,35,0
-luohan_quan_4.strike,head,-10,-30,0
-luohan_quan_4.strike,arm_r,88,0,-6
-luohan_quan_4.strike,elbow_r,0,0,0
-luohan_quan_4.strike,arm_l,-35,0,10
-luohan_quan_4.strike,elbow_l,115,0,0
-luohan_quan_4.strike,leg_l,50,0,6
-luohan_quan_4.strike,knee_l,50,0,0
-luohan_quan_4.strike,leg_r,-42,0,6
+luohan_quan_3.strike,arm_r,-30,0,12
+luohan_quan_3.strike,elbow_r,110,0,0
+luohan_quan_3.strike,leg_r,110,0,5
+luohan_quan_3.strike,knee_r,0,0,0
+luohan_quan_3.strike,leg_l,-5,0,5
+luohan_quan_3.strike,knee_l,5,0,0
+# 罗汉拳 4 (the finisher): land from the kick stepping in, the left palm drawn back by the shoulder,
+# then a deep left bow stance and a pushing left palm (推掌) at head height, the right fist at the hip.
+luohan_quan_4.windup,hips,15,-15,0
+luohan_quan_4.windup,chest,5,20,0
+luohan_quan_4.windup,head,-5,-5,0
+luohan_quan_4.windup,arm_l,-40,0,25
+luohan_quan_4.windup,elbow_l,145,0,0
+luohan_quan_4.windup,arm_r,-30,0,10
+luohan_quan_4.windup,elbow_r,110,0,0
+luohan_quan_4.windup,leg_l,40,0,6
+luohan_quan_4.windup,knee_l,20,0,0
+luohan_quan_4.windup,leg_r,-25,0,6
+luohan_quan_4.windup,knee_r,45,0,0
+luohan_quan_4.strike,hips,18,-25,0
+luohan_quan_4.strike,chest,5,-20,0
+luohan_quan_4.strike,head,-15,40,0
+luohan_quan_4.strike,arm_l,130,0,40
+luohan_quan_4.strike,elbow_l,5,0,0
+luohan_quan_4.strike,arm_r,-35,0,10
+luohan_quan_4.strike,elbow_r,115,0,0
+luohan_quan_4.strike,leg_l,60,0,8
+luohan_quan_4.strike,knee_l,78,0,0
+luohan_quan_4.strike,leg_r,-50,0,8
 luohan_quan_4.strike,knee_r,0,0,0
-# 虎形拳 1 扑 / 3 虎扑: tiger claws up by the shoulders, then both hands pounce forward.
-huxing_quan_1.windup,hips,5,-10,0
-huxing_quan_1.windup,chest,-10,5,0
-huxing_quan_1.windup,arm_l,60,0,20
-huxing_quan_1.windup,elbow_l,125,0,0
-huxing_quan_1.windup,arm_r,60,0,20
-huxing_quan_1.windup,elbow_r,125,0,0
-huxing_quan_1.windup,leg_l,30,0,10
-huxing_quan_1.windup,knee_l,45,0,0
-huxing_quan_1.windup,leg_r,-20,0,10
-huxing_quan_1.windup,knee_r,45,0,0
-huxing_quan_1.strike,hips,18,-5,0
-huxing_quan_1.strike,chest,20,5,0
-huxing_quan_1.strike,head,-20,0,0
-huxing_quan_1.strike,arm_l,95,0,-5
-huxing_quan_1.strike,elbow_l,25,0,0
-huxing_quan_1.strike,arm_r,95,0,-5
-huxing_quan_1.strike,elbow_r,25,0,0
-huxing_quan_1.strike,leg_l,50,0,6
-huxing_quan_1.strike,knee_l,50,0,0
-huxing_quan_1.strike,leg_r,-40,0,6
-huxing_quan_1.strike,knee_r,5,0,0
-huxing_quan_3.windup,hips,10,-10,0
-huxing_quan_3.windup,chest,-15,5,0
-huxing_quan_3.windup,arm_l,70,0,25
-huxing_quan_3.windup,elbow_l,130,0,0
-huxing_quan_3.windup,arm_r,70,0,25
-huxing_quan_3.windup,elbow_r,130,0,0
-huxing_quan_3.windup,leg_l,35,0,10
-huxing_quan_3.windup,knee_l,60,0,0
-huxing_quan_3.windup,leg_r,-20,0,10
-huxing_quan_3.windup,knee_r,60,0,0
-huxing_quan_3.strike,hips,25,-5,0
-huxing_quan_3.strike,chest,20,5,0
-huxing_quan_3.strike,head,-25,0,0
-huxing_quan_3.strike,arm_l,100,0,-8
-huxing_quan_3.strike,elbow_l,20,0,0
-huxing_quan_3.strike,arm_r,100,0,-8
-huxing_quan_3.strike,elbow_r,20,0,0
-huxing_quan_3.strike,leg_l,55,0,6
-huxing_quan_3.strike,knee_l,55,0,0
-huxing_quan_3.strike,leg_r,-45,0,6
-huxing_quan_3.strike,knee_r,0,0,0
-# 虎形拳 2 剪: the right claw swings out wide, then scissors across.
-huxing_quan_2.windup,hips,8,-25,0
-huxing_quan_2.windup,chest,0,-20,0
-huxing_quan_2.windup,arm_r,75,0,75
-huxing_quan_2.windup,elbow_r,30,0,0
-huxing_quan_2.windup,arm_l,70,0,-10
-huxing_quan_2.windup,elbow_l,70,0,0
-huxing_quan_2.windup,leg_l,30,0,8
-huxing_quan_2.windup,knee_l,40,0,0
-huxing_quan_2.windup,leg_r,-22,0,8
-huxing_quan_2.windup,knee_r,40,0,0
-huxing_quan_2.strike,hips,10,15,0
-huxing_quan_2.strike,chest,10,35,0
-huxing_quan_2.strike,head,0,-30,0
-huxing_quan_2.strike,arm_r,85,0,-45
-huxing_quan_2.strike,elbow_r,25,0,0
-huxing_quan_2.strike,arm_l,-20,0,10
-huxing_quan_2.strike,elbow_l,110,0,0
-huxing_quan_2.strike,leg_l,40,0,8
-huxing_quan_2.strike,knee_l,40,0,0
-huxing_quan_2.strike,leg_r,-30,0,8
-huxing_quan_2.strike,knee_r,10,0,0
+# ---- 虎形拳, from reference footage of the form (scripts\pose-shots.bat shows them).
+# 虎形拳 1: a quick tiger form, square on to the opponent in a horse stance (knees out to the sides, facing them): the left
+# claw curled up over the head, the right claw low by the belly; then a pouncing dive at the opponent, both claws reaching,
+# standing on the bent left leg with the right leg flying up behind (it lifts off the floor). The pounce carries the body.
+huxing_quan_1.windup,hips,5,0,0
+huxing_quan_1.windup,chest,-8,0,0
+huxing_quan_1.windup,head,0,0,0
+huxing_quan_1.windup,arm_l,40,60,150
+huxing_quan_1.windup,elbow_l,95,0,0
+huxing_quan_1.windup,arm_r,0,50,20
+huxing_quan_1.windup,elbow_r,90,0,0
+huxing_quan_1.windup,leg_l,72,-55,0
+huxing_quan_1.windup,knee_l,75,0,0
+huxing_quan_1.windup,leg_r,72,-55,0
+huxing_quan_1.windup,knee_r,75,0,0
+huxing_quan_1.strike,hips,55,0,0
+huxing_quan_1.strike,chest,20,0,0
+huxing_quan_1.strike,head,-50,0,0
+huxing_quan_1.strike,arm_l,145,0,-5
+huxing_quan_1.strike,elbow_l,15,0,0
+huxing_quan_1.strike,arm_r,145,0,-5
+huxing_quan_1.strike,elbow_r,15,0,0
+huxing_quan_1.strike,leg_l,60,0,5
+huxing_quan_1.strike,knee_l,85,0,0
+huxing_quan_1.strike,leg_r,-88,0,5
+huxing_quan_1.strike,knee_r,20,0,0
+# 虎形拳 2: coming up out of the forward roll, crouched low on the left knee, the right claw cocked up by the head and the
+# left claw in front; then a right bow stance (弓步): the right arm arched over the head, claw pointing forward, and the
+# left claw strikes forward at chest height. (One pose per wind-up, so the roll itself shows as this crouch.)
+huxing_quan_2.windup,hips,25,15,0
+huxing_quan_2.windup,chest,10,0,0
+huxing_quan_2.windup,head,-25,-10,0
+huxing_quan_2.windup,arm_r,120,0,15
+huxing_quan_2.windup,elbow_r,100,0,0
+huxing_quan_2.windup,arm_l,60,0,10
+huxing_quan_2.windup,elbow_l,100,0,0
+huxing_quan_2.windup,leg_r,72,-15,0
+huxing_quan_2.windup,knee_r,115,0,0
+huxing_quan_2.windup,leg_l,30,-15,0
+huxing_quan_2.windup,knee_l,110,0,0
+huxing_quan_2.strike,hips,25,15,0
+huxing_quan_2.strike,chest,10,-10,0
+huxing_quan_2.strike,head,-25,-5,0
+huxing_quan_2.strike,arm_r,30,0,160
+huxing_quan_2.strike,elbow_r,95,0,0
+huxing_quan_2.strike,arm_l,90,0,-5
+huxing_quan_2.strike,elbow_l,30,0,0
+huxing_quan_2.strike,leg_r,70,0,5
+huxing_quan_2.strike,knee_r,75,0,0
+huxing_quan_2.strike,leg_l,-40,0,5
+huxing_quan_2.strike,knee_l,0,0,0
+# 虎形拳 3: charging on the left leg, the right knee raised to step, the left hand reaching up and forward to aim, the right
+# fist drawn back to the waist; then the right foot stamps forward into a low stance as the right hand shoots forward,
+# the left claw drawn back by the chest. The stamp carries the body.
+huxing_quan_3.windup,hips,0,-10,0
+huxing_quan_3.windup,chest,-8,0,0
+huxing_quan_3.windup,head,0,10,0
+huxing_quan_3.windup,arm_l,112,0,5
+huxing_quan_3.windup,elbow_l,20,0,0
+huxing_quan_3.windup,arm_r,-30,0,12
+huxing_quan_3.windup,elbow_r,110,0,0
+huxing_quan_3.windup,leg_r,95,0,5
+huxing_quan_3.windup,knee_r,100,0,0
+huxing_quan_3.windup,leg_l,0,0,5
+huxing_quan_3.windup,knee_l,20,0,0
+huxing_quan_3.strike,hips,10,20,0
+huxing_quan_3.strike,chest,5,15,0
+huxing_quan_3.strike,head,-5,-30,0
+huxing_quan_3.strike,arm_r,95,-30,-5
+huxing_quan_3.strike,elbow_r,10,0,0
+huxing_quan_3.strike,arm_l,40,30,15
+huxing_quan_3.strike,elbow_l,120,0,0
+huxing_quan_3.strike,leg_r,66,-20,0
+huxing_quan_3.strike,knee_r,82,0,0
+huxing_quan_3.strike,leg_l,-40,-20,0
+huxing_quan_3.strike,knee_l,45,0,0
 # ---- 内功 default (铁砂掌): the palm drawn back by the ear in a deep horse stance, then a full-body palm thrust.
 neigong.windup,hips,5,-40,0
 neigong.windup,chest,-10,-20,0

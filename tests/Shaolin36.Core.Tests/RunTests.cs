@@ -187,6 +187,7 @@ public class RunTests
         Assert.Equal("novice", e.BrainId);
         Assert.False(e.IsMiniboss);
         Assert.Equal(0, e.OpeningFrames); // only mini bosses (and the boss, at boss_opening) get the opening
+        Assert.Equal(0, e.StepEscapePct); // ordinary opponents never quick-step out of your combo (Chan)
 
         var duel = run.StartFight();
         duel.Two.TakeHit(duel.Two.Hp, 0);
@@ -380,6 +381,10 @@ public class RunTests
         Assert.Equal(30, run.Enemy.OpeningFrames);
         Assert.Equal(30, Sheet.MinibossOpening);
         Assert.Equal(15, Sheet.BossOpening); // the boss gets a shorter one (Chan)
+        // Chan: caught doing nothing, it sometimes gets out of your combo; the boss more often.
+        Assert.Equal(30, run.Enemy.StepEscapePct);
+        Assert.Equal(30, Sheet.MinibossStepEscape);
+        Assert.Equal(60, Sheet.BossStepEscape);
     }
 
     [Fact]
@@ -463,6 +468,7 @@ public class RunTests
             if (n < 3) Assert.Equal(T("luohan_quan_1"), e.Loadout[Slot.Square]);
             Assert.Equal(n == 10 ? 200 : 80 + 10 * (n - 1), e.Stats.MaxHp);
             Assert.Equal(n == 10, e.IsBoss);
+            Assert.Equal(n == 10 ? Sheet.BossStepEscape : 0, e.StepEscapePct);
             brains.Add(e.BrainId);
             var duel = run.StartFight();
             duel.Two.TakeHit(duel.Two.Hp, 0);
